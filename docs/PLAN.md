@@ -44,6 +44,14 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
    - Put Cloudflare Access in front of the app so only Mikita can open it.
    - Decide whether to move the laptop's study data over
      (`wrangler d1 export` / `execute --file`) or re-import from Renshuu.
+   - Step-by-step guide for Mikita: `deploy-cloudflare.md` in the project
+     files (`shiori/docs/`).
+   - **Deploy on merge.** `.github/workflows/ci.yml` checks every PR (unit
+     tests, build, e2e) and runs `npm run deploy` on `main` after the checks
+     pass. Mikita adds the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`
+     repository secrets; until then, and while `wrangler.jsonc` has the
+     placeholder id, the deploy job is skipped. The laptop stays the
+     development copy, with its own local database.
 3. **Backup and export**: a way to download all study data, plus a scheduled
    D1 export once deployed.
 4. **v0.2: capture while reading.** Matches the original plan
@@ -56,6 +64,10 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
      furigana from JmdictFurigana. Mikita asked for this (25 Oct): readings
      over a run of kanji (冬眠, 日本) don't line up with each kanji today.
    - Cloze cards using the sentence the word came from.
+   - Keep several related sentences per word (Mikita, 25 Oct), especially from
+     manga, for extra context: a word → sentences table (sentence, source,
+     panel) instead of one sentence column. Cloze and the v0.3 new-context
+     cards pick from it.
    - Show "usually written in kana" forms.
 5. **v0.3: kanji, school, leeches.**
    - Kanji reading cards (on and kun) as their own study vector, seeded from
