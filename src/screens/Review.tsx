@@ -89,6 +89,9 @@ function ReviewCard({
   const [revealed, setRevealed] = useState(false);
   const [typed, setTyped] = useState<{ value: string; correct: boolean; typo: boolean } | null>(null);
   const [hintUsed, setHintUsed] = useState(false);
+  // Kanji a furigana peek moved to "still learning". The peek doesn't cap the
+  // grade: this card tests meaning, the peek counts against the kanji instead.
+  const [moved, setMoved] = useState('');
   const [hintPage, setHintPage] = useState<PageDetail | null>(null);
   const [sending, setSending] = useState(false);
   const started = useRef(Date.now());
@@ -170,7 +173,12 @@ function ReviewCard({
                 <span className="muted">Listen, then recall the meaning</span>
               </div>
             ) : (
-              <JapaneseWord word={word} showReading={revealed} />
+              <JapaneseWord word={word} showReading={revealed} onHint={setMoved} />
+            )}
+            {moved && (
+              <p className="muted small" data-testid="moved-to-learning">
+                <span lang="ja">{moved}</span> moved to Still learning: furigana will show over it until you take it off that list on Home.
+              </p>
             )}
             {revealed && (
               <div className="flash__answer">

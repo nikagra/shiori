@@ -1,5 +1,7 @@
 // Typed client for the Shiori API.
 
+import type { FuriganaPrefs } from '../shared/furigana';
+
 export type Direction = 'jp_en' | 'en_jp';
 export type WordStatus = 'unverified' | 'inbox' | 'on_page' | 'graduated' | 'ignored';
 export type PageStage = 'ordered' | 'shuffled' | 'graduated';
@@ -92,6 +94,10 @@ export const api = {
   completeStage: (id: number, stage: 'ordered' | 'shuffled') =>
     call<PageDetail>('POST', `/pages/${id}/complete`, { stage, nextDayStart: studyDay().end.toISOString() }),
   reviewQueue: () => call<{ items: QueueItem[]; total: number }>('GET', `/review?${dayQuery()}`),
+  furigana: () => call<{ prefs: FuriganaPrefs; stored: boolean }>('GET', '/furigana'),
+  setFurigana: (prefs: FuriganaPrefs) => call<{ prefs: FuriganaPrefs; stored: boolean }>('PUT', '/furigana', prefs),
+  furiganaHint: (wordId: number, kanji: string) =>
+    call<{ prefs: FuriganaPrefs; movedToLearning: string }>('POST', '/furigana/hint', { wordId, kanji }),
   submitReview: (cardId: number, body: { rating: number; hintUsed: boolean; answer?: string; correct?: boolean; durationMs: number }) =>
     call<{ due: string; rating: number }>('POST', `/review/${cardId}`, body),
 };

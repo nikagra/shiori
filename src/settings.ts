@@ -1,9 +1,9 @@
 import { useCallback, useState } from 'react';
-import type { FuriganaPrefs } from '../shared/furigana';
 
-// Per-device preferences, kept in localStorage.
+// Per-device preferences, kept in localStorage. Furigana prefs describe you,
+// not the device, so they live on the server instead (see furigana.ts).
 
-export interface Settings extends FuriganaPrefs {
+export interface Settings {
   autoPlay: boolean;
   listenFirst: boolean;
   pageSize: number;
@@ -13,9 +13,6 @@ const DEFAULTS: Settings = {
   autoPlay: true,
   listenFirst: false,
   pageSize: 12,
-  kanjiLevel: 'n4',
-  knownKanji: '',
-  learningKanji: '',
 };
 const KEY = 'shiori.settings';
 

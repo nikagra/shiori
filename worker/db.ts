@@ -14,6 +14,7 @@ import {
   type StoredCard,
 } from '../shared/scheduler';
 import type { PageStage } from '../shared/pageSession';
+import { DEFAULT_PREFS, HINTS_TO_LEARNING, isKanji, knownKanjiSet, markLearning, uniqueKanji, type FuriganaPrefs } from '../shared/furigana';
 
 export type WordStatus = 'unverified' | 'inbox' | 'on_page' | 'graduated' | 'ignored';
 
@@ -437,8 +438,83 @@ export async function stats(db: D1Database, dayStart: Date, dayEnd: Date): Promi
 
 // ---------------------------------------------------------------- test support
 
+// ---------------------------------------------------------------- furigana
+
+export interface FuriganaState {
+  prefs: FuriganaPrefs;
+  /** False until prefs were saved once, so a device can offer its old local ones. */
+  stored: boolean;
+}
+
+const LEVELS = ['none', 'n5', 'n4'];
+
+export async function getFurigana(db: D1Database): Promise<FuriganaState> {
+  const row = await db.prepare("SELECT value FROM settings WHERE key = 'furigana'").first<{ value: string }>();
+  return row ? { prefs: { ...DEFAULT_PREFS, ...(JSON.parse(row.value) as Partial<FuriganaPrefs>) }, stored: true } : { prefs: DEFAULT_PREFS, stored: false };
+}
+
+function cleanPrefs(input: Partial<FuriganaPrefs>): FuriganaPrefs {
+  if (!LEVELS.includes(input.kanjiLevel ?? '')) throw new AppError(400, 'kanjiLevel must be none, n5 or n4');
+  return {
+    kanjiLevel: input.kanjiLevel!,
+    knownKanji: uniqueKanji(String(input.knownKanji ?? '')),
+    learningKanji: uniqueKanji(String(input.learningKanji ?? '')),
+  };
+}
+
+/**
+ * Saves your furigana prefs. Kanji that become known here start with a clean
+ * slate: their earlier peeks no longer count towards moving them back.
+ */
+export async function setFurigana(db: D1Database, input: Partial<FuriganaPrefs>, now: Date): Promise<FuriganaState> {
+  const prefs = cleanPrefs(input);
+  const before = knownKanjiSet((await getFurigana(db)).prefs);
+  const nowKnown = [...knownKanjiSet(prefs)].filter((k) => !before.has(k));
+  const stmts = [
+    db
+      .prepare("INSERT INTO settings (key, value, updated_at) VALUES ('furigana', ?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at")
+      .bind(JSON.stringify(prefs), iso(now)),
+    ...nowKnown.map((k) => db.prepare('UPDATE kanji_hints SET cleared = 1 WHERE kanji = ? AND cleared = 0').bind(k)),
+  ];
+  await db.batch(stmts);
+  return { prefs, stored: true };
+}
+
+/**
+ * Records a furigana peek on a word. Each known kanji it revealed gets a mark
+ * against it; at HINTS_TO_LEARNING marks it moves to "still learning".
+ */
+export async function recordFuriganaHint(
+  db: D1Database,
+  wordId: number,
+  kanji: string,
+  now: Date,
+): Promise<FuriganaState & { movedToLearning: string }> {
+  const revealed = uniqueKanji(kanji);
+  if (!revealed || [...kanji].some((ch) => !isKanji(ch))) throw new AppError(400, 'kanji must list the kanji the hint revealed');
+  if (!(await db.prepare('SELECT id FROM words WHERE id = ?').bind(wordId).first())) throw new AppError(404, 'word not found');
+  await db.batch(
+    [...revealed].map((k) => db.prepare('INSERT INTO kanji_hints (kanji, word_id, created_at) VALUES (?, ?, ?)').bind(k, wordId, iso(now))),
+  );
+  const state = await getFurigana(db);
+  const known = knownKanjiSet(state.prefs);
+  const placeholders = [...revealed].map(() => '?').join(', ');
+  const counts = await db
+    .prepare(`SELECT kanji, COUNT(*) AS n FROM kanji_hints WHERE cleared = 0 AND kanji IN (${placeholders}) GROUP BY kanji`)
+    .bind(...revealed)
+    .all<{ kanji: string; n: number }>();
+  const moved = counts.results.filter((r) => r.n >= HINTS_TO_LEARNING && known.has(r.kanji)).map((r) => r.kanji).join('');
+  if (!moved) return { ...state, movedToLearning: '' };
+  const prefs = markLearning(state.prefs, moved);
+  await db
+    .prepare("INSERT INTO settings (key, value, updated_at) VALUES ('furigana', ?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at")
+    .bind(JSON.stringify(prefs), iso(now))
+    .run();
+  return { prefs, stored: true, movedToLearning: moved };
+}
+
 export async function resetAll(db: D1Database): Promise<void> {
-  await db.batch(['review_log', 'cards', 'page_words', 'pages', 'words'].map((t) => db.prepare(`DELETE FROM ${t}`)));
+  await db.batch(['kanji_hints', 'settings', 'review_log', 'cards', 'page_words', 'pages', 'words'].map((t) => db.prepare(`DELETE FROM ${t}`)));
 }
 
 /** Makes cards due now (all, or one direction), to exercise reviews in end-to-end tests. */

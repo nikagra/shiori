@@ -106,11 +106,13 @@ function Drill({
   const word = useMemo(() => page.words.find((w) => w.id === step?.wordId), [page, step]);
   const [revealed, setRevealed] = useState(false);
   const [typed, setTyped] = useState<{ value: string; correct: boolean } | null>(null);
+  const [moved, setMoved] = useState('');
   const [settings] = useSettings();
 
   useEffect(() => {
     setRevealed(false);
     setTyped(null);
+    setMoved('');
   }, [state]);
 
   useEffect(() => {
@@ -153,7 +155,12 @@ function Drill({
       <article className="card flash" data-testid="drill-card" data-direction={step.direction}>
         {jpPrompt ? (
           <>
-            <JapaneseWord word={word} showReading={revealed} />
+            <JapaneseWord word={word} showReading={revealed} onHint={setMoved} />
+            {moved && (
+              <p className="muted small" data-testid="moved-to-learning">
+                <span lang="ja">{moved}</span> moved to Still learning: furigana will show over it until you take it off that list on Home.
+              </p>
+            )}
             {revealed && (
               <div className="flash__answer">
                 <SpeakButton text={word.kana} />

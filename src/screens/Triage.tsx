@@ -12,6 +12,7 @@ export function Triage() {
   const [remaining, setRemaining] = useState(0);
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
+  const [moved, setMoved] = useState('');
   const [counts, setCounts] = useState({ known: 0, unknown: 0, ignore: 0 });
   const [error, setError] = useState<string | null>(null);
   const [settings] = useSettings();
@@ -23,6 +24,7 @@ export function Triage() {
         setRemaining(r.remaining);
         setIndex(0);
         setRevealed(false);
+        setMoved('');
       },
       (e: Error) => setError(e.message),
     );
@@ -46,6 +48,7 @@ export function Triage() {
       if (index + 1 < (batch?.length ?? 0)) {
         setIndex(index + 1);
         setRevealed(false);
+        setMoved('');
       } else {
         load();
       }
@@ -89,7 +92,12 @@ export function Triage() {
       <p className="muted">Say the meaning to yourself first, then reveal. Be strict: only “I knew it” if it came without guessing.</p>
 
       <article className="card flash" data-testid="triage-card">
-        <JapaneseWord word={word} showReading={revealed} />
+        <JapaneseWord word={word} showReading={revealed} onHint={setMoved} />
+        {moved && (
+          <p className="muted small" data-testid="moved-to-learning">
+            <span lang="ja">{moved}</span> moved to Still learning: furigana will show over it until you take it off that list on Home.
+          </p>
+        )}
         {word.mastery !== null && <span className="badge">Renshuu {word.mastery}%</span>}
         {revealed && (
           <div className="flash__answer">

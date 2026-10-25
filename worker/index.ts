@@ -101,6 +101,15 @@ app.post('/review/:cardId', async (c) => {
   return c.json(result);
 });
 
+app.get('/furigana', async (c) => c.json(await db.getFurigana(c.env.DB)));
+
+app.put('/furigana', async (c) => c.json(await db.setFurigana(c.env.DB, await c.req.json(), new Date())));
+
+app.post('/furigana/hint', async (c) => {
+  const body = await c.req.json<{ wordId: number; kanji: string }>();
+  return c.json(await db.recordFuriganaHint(c.env.DB, intParam(body.wordId, 'wordId'), String(body.kanji ?? ''), new Date()));
+});
+
 // Test-only endpoints, never enabled in production.
 app.use('/test/*', async (c, next) => {
   if (c.env.ALLOW_TEST_ENDPOINTS !== '1') return c.json({ error: 'not found' }, 404);

@@ -27,13 +27,35 @@ export interface Segment {
 }
 
 const KANJI = /[\p{Script=Han}々〆ヶ]/u;
-const isKanji = (ch: string) => KANJI.test(ch);
+export const isKanji = (ch: string) => KANJI.test(ch);
+
+export const DEFAULT_PREFS: FuriganaPrefs = { kanjiLevel: 'n4', knownKanji: '', learningKanji: '' };
+
+/**
+ * Peeking at furigana for a kanji you're meant to know counts against it.
+ * After this many peeks it moves to "still learning" and gets furigana again.
+ * One peek can be a slip; two say the reading isn't there yet.
+ */
+export const HINTS_TO_LEARNING = 2;
 
 export function knownKanjiSet(prefs: FuriganaPrefs): Set<string> {
   const base = prefs.kanjiLevel === 'n4' ? N5_KANJI + N4_KANJI : prefs.kanjiLevel === 'n5' ? N5_KANJI : '';
   const known = new Set([...base, ...prefs.knownKanji].filter(isKanji));
   for (const ch of prefs.learningKanji) known.delete(ch);
   return known;
+}
+
+/** The kanji in a string, each once, in order. */
+export const uniqueKanji = (text: string) => [...new Set([...text].filter(isKanji))].join('');
+
+/** Moves kanji to "still learning": they leave the extra-known list and join the learning one. */
+export function markLearning(prefs: FuriganaPrefs, kanji: string): FuriganaPrefs {
+  const moved = new Set(kanji);
+  return {
+    ...prefs,
+    knownKanji: [...prefs.knownKanji].filter((ch) => !moved.has(ch)).join(''),
+    learningKanji: uniqueKanji(prefs.learningKanji + kanji),
+  };
 }
 
 /** Splits the written form into kanji and kana runs. */
@@ -68,5 +90,18 @@ export function alignReading(written: string, reading: string): { text: string; 
 export function furigana(written: string, reading: string, known: Set<string>): Segment[] {
   return alignReading(written, reading).map(({ text, reading }) =>
     reading !== undefined && [...text].some((ch) => isKanji(ch) && !known.has(ch)) ? { text, ruby: reading } : { text },
+  );
+}
+
+/**
+ * The kanji a furigana hint would reveal: those in runs that show no reading
+ * now, because you're meant to know every kanji in them.
+ */
+export function hiddenKanji(written: string, reading: string, known: Set<string>): string {
+  return uniqueKanji(
+    furigana(written, reading, known)
+      .filter((s) => s.ruby === undefined)
+      .map((s) => s.text)
+      .join(''),
   );
 }

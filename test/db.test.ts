@@ -148,3 +148,46 @@ describe('editing', () => {
     await expect(repo.updateCoreMeaning(db, w.id, ' ', now)).rejects.toMatchObject({ status: 400 });
   });
 });
+
+describe('furigana prefs and hints', () => {
+  const later = nextDay(now, 1);
+
+  it('starts from defaults and stores cleaned prefs', async () => {
+    expect(await repo.getFurigana(db)).toEqual({ prefs: { kanjiLevel: 'n4', knownKanji: '', learningKanji: '' }, stored: false });
+    const saved = await repo.setFurigana(db, { kanjiLevel: 'n5', knownKanji: '誰 必 誰x', learningKanji: '' }, now);
+    expect(saved.prefs).toEqual({ kanjiLevel: 'n5', knownKanji: '誰必', learningKanji: '' });
+    expect(await repo.getFurigana(db)).toEqual(saved);
+    await expect(repo.setFurigana(db, { kanjiLevel: 'n3' as 'n4' }, now)).rejects.toThrow('kanjiLevel');
+  });
+
+  it('a kanji peeked at twice moves to still learning; marking it known again starts over', async () => {
+    await repo.importWords(db, words, 'manga', now);
+    const [a, b] = (await repo.triageNext(db, 2)).words;
+    const first = await repo.recordFuriganaHint(db, a.id, '時代', now);
+    expect(first.movedToLearning).toBe('');
+    const second = await repo.recordFuriganaHint(db, b.id, '時', later);
+    expect(second.movedToLearning).toBe('時');
+    expect(second.prefs.learningKanji).toBe('時');
+    // 代 was peeked at only once.
+    expect((await repo.getFurigana(db)).prefs.learningKanji).toBe('時');
+
+    // Back to known: old peeks no longer count, so one new peek doesn't move it.
+    await repo.setFurigana(db, { ...second.prefs, learningKanji: '' }, later);
+    expect((await repo.recordFuriganaHint(db, a.id, '時', later)).movedToLearning).toBe('');
+  });
+
+  it('only counts kanji you are meant to know', async () => {
+    await repo.importWords(db, words, 'manga', now);
+    const [a] = (await repo.triageNext(db, 1)).words;
+    await repo.setFurigana(db, { kanjiLevel: 'n4', knownKanji: '', learningKanji: '験' }, now);
+    await repo.recordFuriganaHint(db, a.id, '験', now);
+    const again = await repo.recordFuriganaHint(db, a.id, '験', now);
+    expect(again.movedToLearning).toBe('');
+    expect(again.prefs.learningKanji).toBe('験');
+  });
+
+  it('refuses hints without kanji or for a missing word', async () => {
+    await expect(repo.recordFuriganaHint(db, 1, 'かな', now)).rejects.toThrow('kanji');
+    await expect(repo.recordFuriganaHint(db, 999, '時', now)).rejects.toThrow('word not found');
+  });
+});

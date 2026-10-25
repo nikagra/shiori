@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { bind, unbind } from 'wanakana';
 import { shortPos, writtenForm, type Word } from '../api';
-import { furigana, knownKanjiSet } from '../../shared/furigana';
-import { useSettings } from '../settings';
+import { furigana as furiganaSegments, hiddenKanji } from '../../shared/furigana';
+import { useFurigana } from '../furigana';
 import { speak } from '../speech';
 
 export function SpeakButton({ text, label = 'Play audio' }: { text: string; label?: string }) {
@@ -16,30 +16,74 @@ export function SpeakButton({ text, label = 'Play audio' }: { text: string; labe
   );
 }
 
-/** The word as it is written, with its reading above when shown. */
-export function JapaneseWord({ word, showReading, size = 'large' }: { word: Pick<Word, 'kanji' | 'kana'>; showReading: boolean; size?: 'large' | 'small' }) {
+/**
+ * The word as it is written. Before the answer: furigana over kanji you don't
+ * know yet, and, when given onHint, a button to peek at the rest. After: the
+ * full reading above.
+ */
+export function JapaneseWord({
+  word,
+  showReading,
+  size = 'large',
+  onHint,
+}: {
+  word: Pick<Word, 'id' | 'kanji' | 'kana'>;
+  showReading: boolean;
+  size?: 'large' | 'small';
+  /** Called once a peek is saved, with the kanji that moved to "still learning". */
+  onHint?: (movedToLearning: string) => void;
+}) {
   const written = writtenForm(word);
   const hasReading = word.kanji !== null;
+  const furigana = useFurigana();
+  const [peeked, setPeeked] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const hidden = word.kanji ? hiddenKanji(word.kanji, word.kana, furigana.known) : '';
+  useEffect(() => {
+    setPeeked(false);
+    setError(null);
+  }, [word.id]);
+  const canPeek = Boolean(onHint) && !showReading && !peeked && hidden !== '';
+
+  const peek = () => {
+    if (!canPeek) return;
+    setPeeked(true);
+    furigana.hint(word.id, hidden).then(
+      (moved) => onHint?.(moved),
+      (e: Error) => setError(e.message),
+    );
+  };
+  useKeys({ f: peek }, canPeek);
+
   return (
     <div className={`jp-word jp-word--${size}`} lang="ja">
       <div className="jp-word__reading" aria-hidden={!showReading || !hasReading}>
-        {showReading && hasReading ? word.kana : ' '}
+        {showReading && hasReading ? word.kana : ' '}
       </div>
       <div className="jp-word__written" data-written={written}>
-        {showReading ? written : <Written word={word} />}
+        {showReading ? written : <Written word={word} all={peeked} />}
       </div>
+      {canPeek && (
+        <button type="button" className="link-button" lang="en" onClick={peek} title="Shortcut: F">
+          Show furigana
+        </button>
+      )}
+      {error && (
+        <p className="error" lang="en">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
 
-/** The written form, with furigana over kanji you don't know yet. */
-export function Written({ word }: { word: Pick<Word, 'kanji' | 'kana'> }) {
-  const [settings] = useSettings();
-  const known = useMemo(() => knownKanjiSet(settings), [settings]);
+/** The written form, with furigana over kanji you don't know yet, or over every kanji with `all`. */
+export function Written({ word, all = false }: { word: Pick<Word, 'kanji' | 'kana'>; all?: boolean }) {
+  const { known } = useFurigana();
   if (word.kanji === null) return <>{word.kana}</>;
   return (
     <>
-      {furigana(word.kanji, word.kana, known).map((s, i) =>
+      {furiganaSegments(word.kanji, word.kana, all ? NO_KANJI : known).map((s, i) =>
         s.ruby ? (
           <ruby key={i}>
             {s.text}
@@ -52,6 +96,8 @@ export function Written({ word }: { word: Pick<Word, 'kanji' | 'kana'> }) {
     </>
   );
 }
+
+const NO_KANJI = new Set<string>();
 
 export function Meaning({ word, onEdit }: { word: Word; onEdit?: (meaning: string) => Promise<void> }) {
   const [editing, setEditing] = useState(false);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alignReading, furigana, knownKanjiSet } from '../shared/furigana';
+import { alignReading, furigana, hiddenKanji, knownKanjiSet, markLearning } from '../shared/furigana';
 
 const n4 = knownKanjiSet({ kanjiLevel: 'n4', knownKanji: '', learningKanji: '' });
 
@@ -38,5 +38,23 @@ describe('furigana', () => {
     const prefs = knownKanjiSet({ kanjiLevel: 'n4', knownKanji: '助', learningKanji: '夜' });
     expect(furigana('助ける', 'たすける', prefs)).toEqual([{ text: '助' }, { text: 'ける' }]);
     expect(furigana('夜明け', 'よあけ', prefs)).toEqual([{ text: '夜明', ruby: 'よあ' }, { text: 'け' }]);
+  });
+});
+
+describe('furigana hints', () => {
+  it('a hint reveals only the kanji that show no reading now', () => {
+    expect(hiddenKanji('時代', 'じだい', n4)).toBe('時代');
+    expect(hiddenKanji('助ける', 'たすける', n4)).toBe('');
+    // 夜明 is all known; 残酷 already has furigana.
+    expect(hiddenKanji('夜明け', 'よあけ', n4)).toBe('夜明');
+    expect(hiddenKanji('残酷', 'ざんこく', n4)).toBe('');
+  });
+
+  it('moving kanji to still learning takes them off the extra-known list', () => {
+    expect(markLearning({ kanjiLevel: 'n4', knownKanji: '誰必', learningKanji: '験' }, '必時')).toEqual({
+      kanjiLevel: 'n4',
+      knownKanji: '誰',
+      learningKanji: '験必時',
+    });
   });
 });
