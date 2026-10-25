@@ -2,6 +2,7 @@
 # The deploy needs two repository secrets, CLOUDFLARE_API_TOKEN and
 # CLOUDFLARE_ACCOUNT_ID, and the real database_id in wrangler.jsonc. Until both
 # are in place the deploy job is skipped with a notice instead of failing.
+# Actions are pinned to commit SHAs (tags can be moved); Dependabot bumps them.
 name: CI
 
 on:
@@ -10,12 +11,16 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# The jobs only read the repo; the deploy talks to Cloudflare, not GitHub.
+permissions:
+  contents: read
+
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
@@ -26,7 +31,7 @@ jobs:
       - run: npm run test:e2e
         env:
           CI: 'true'
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: failure()
         with:
           name: playwright-traces
@@ -42,7 +47,7 @@ jobs:
       group: deploy-production
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Check deploy setup
         id: setup
         env:
@@ -58,7 +63,7 @@ jobs:
           else
             echo "ready=true" >> "$GITHUB_OUTPUT"
           fi
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         if: steps.setup.outputs.ready == 'true'
         with:
           node-version: 22
