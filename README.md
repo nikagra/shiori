@@ -5,6 +5,8 @@ A personal Japanese vocabulary app. Words are learned on small, fixed **pages**
 then kept alive with **FSRS** spaced review. Words come from manga, books,
 school and Renshuu imports.
 
+Design: [docs/DESIGN.md](docs/DESIGN.md) · Status and next steps: [docs/PLAN.md](docs/PLAN.md)
+
 ## Stack
 
 - React + TypeScript + Vite, installable to the iPhone home screen
