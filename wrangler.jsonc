@@ -3,15 +3,22 @@
   "name": "shiori",
   "main": "worker/index.ts",
   "compatibility_date": "2026-10-01",
-  "assets": { "not_found_handling": "single-page-application", "run_worker_first": ["/api/*"] },
+  "assets": {
+    "not_found_handling": "single-page-application",
+    "run_worker_first": [
+      "/api/*"
+    ]
+  },
+  "preview_urls": false,
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "shiori",
-      // Replace with the id printed by `wrangler d1 create shiori` before the first deploy.
-      "database_id": "00000000-0000-0000-0000-000000000000",
-      "migrations_dir": "migrations"
+      "database_id": "3b579616-c88e-499e-b410-e8b6180db608",
+      "migrations_dir": "migrations",
     }
   ],
-  "observability": { "enabled": true }
+  "observability": {
+    "enabled": true
+  }
 }

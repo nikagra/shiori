@@ -11,4 +11,7 @@ When a change moves the project forward, update `docs/PLAN.md` in the same PR.
 Checks: `npm test`, `npx tsc -b`, `npm run test:e2e`. End-to-end tests use
 `.wrangler/e2e`; study data is in `.wrangler/state`, so never reset it.
 
-Commit subject lines end with an emoji that fits the change.
+Commit subject lines (and PR titles, which become the squash commit) start
+with a Conventional Commits prefix (`feat:`, `fix:`, `docs:`, `ci:`,
+`chore:`, `refactor:`, `test:`) and end with an emoji that fits the change,
+e.g. `fix: keep the review counter in sync 🐛`.
