@@ -49,7 +49,6 @@ test('peek at furigana on a question; a second peek moves the kanji to still lea
   // Home shows the kanji under Still learning, on any device.
   const prefs = await (await request.get('/api/furigana')).json();
   for (const k of kanjiOf(word)) expect(prefs.prefs.learningKanji).toContain(k);
-  expect(prefs.prefs.knownKanji).not.toContain(kanjiOf(word)[0]);
 });
 
 test('furigana settings are shared between devices', async ({ page, browser }, testInfo) => {

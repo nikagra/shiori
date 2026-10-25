@@ -48,14 +48,13 @@ export function knownKanjiSet(prefs: FuriganaPrefs): Set<string> {
 /** The kanji in a string, each once, in order. */
 export const uniqueKanji = (text: string) => [...new Set([...text].filter(isKanji))].join('');
 
-/** Moves kanji to "still learning": they leave the extra-known list and join the learning one. */
+/**
+ * Moves kanji to "still learning". They stay on the extra-known list (learning
+ * wins while both hold them), so taking them off the learning list makes them
+ * known again.
+ */
 export function markLearning(prefs: FuriganaPrefs, kanji: string): FuriganaPrefs {
-  const moved = new Set(kanji);
-  return {
-    ...prefs,
-    knownKanji: [...prefs.knownKanji].filter((ch) => !moved.has(ch)).join(''),
-    learningKanji: uniqueKanji(prefs.learningKanji + kanji),
-  };
+  return { ...prefs, learningKanji: uniqueKanji(prefs.learningKanji + kanji) };
 }
 
 /** Splits the written form into kanji and kana runs. */
@@ -79,8 +78,10 @@ const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 export function alignReading(written: string, reading: string): { text: string; reading?: string }[] {
   const parts = runs(written);
   if (!parts.some((p) => p.kanji)) return [{ text: written }];
-  const pattern = parts.map((p) => (p.kanji ? '(.+?)' : escape(toHiragana(p.text)))).join('');
-  const match = new RegExp(`^${pattern}$`).exec(toHiragana(reading));
+  // ー stays ー on both sides, so ビール瓶 lines up with びーるびん.
+  const hira = (s: string) => toHiragana(s, { convertLongVowelMark: false });
+  const pattern = parts.map((p) => (p.kanji ? '(.+?)' : escape(hira(p.text)))).join('');
+  const match = new RegExp(`^${pattern}$`).exec(hira(reading));
   if (!match) return [{ text: written, reading }];
   let group = 1;
   return parts.map((p) => (p.kanji ? { text: p.text, reading: match[group++] } : { text: p.text }));

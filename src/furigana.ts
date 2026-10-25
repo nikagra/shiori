@@ -56,13 +56,25 @@ function load() {
 // after a later one and undo it.
 let saving: Promise<unknown> = Promise.resolve();
 function save(next: FuriganaPrefs): Promise<void> {
-  changes++;
+  const startedAt = ++changes;
   set(next);
   const run = saving.then(() => api.setFurigana(next));
   saving = run.catch(() => undefined);
   return run.then((state) => {
-    // Only the newest save gets to replace what's shown.
-    if (prefs === next) set(state.prefs);
+    // Only the newest change gets to replace what's shown.
+    if (changes === startedAt) set(state.prefs);
+  });
+}
+
+/** Records a peek, after any pending save; returns the kanji that moved to "still learning". */
+function hint(wordId: number, kanji: string): Promise<string> {
+  const run = saving.then(() => api.furiganaHint(wordId, kanji));
+  saving = run.catch(() => undefined);
+  const startedAt = ++changes;
+  return run.then((result) => {
+    // A save made while this was on its way already shows the newer prefs.
+    if (changes === startedAt) set(result.prefs);
+    return result.movedToLearning;
   });
 }
 
@@ -75,11 +87,6 @@ export function useFurigana() {
     known,
     save,
     /** Records a peek; returns the kanji that moved to "still learning". */
-    hint: async (wordId: number, kanji: string) => {
-      const result = await api.furiganaHint(wordId, kanji);
-      changes++;
-      set(result.prefs);
-      return result.movedToLearning;
-    },
+    hint,
   };
 }

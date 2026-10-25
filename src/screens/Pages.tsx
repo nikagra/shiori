@@ -3,9 +3,9 @@ import { api, type PageSummary, type Stats } from '../api';
 import { Notice } from '../components/ui';
 import { navigate } from '../nav';
 import { useSettings } from '../settings';
+import { PAGE_SIZES } from '../../shared/pageSession';
 
 const STAGE_LABEL = { ordered: 'Step 1 of 2', shuffled: 'Step 2 of 2', graduated: 'Learned' } as const;
-const SIZES = [10, 12, 15];
 /** Above this many reviews, a new page would pile on more than a short session can hold. */
 const BUSY_REVIEWS = 60;
 
@@ -64,7 +64,7 @@ export function Pages() {
             <div className="row">
               <span>Words per page</span>
               <div className="segmented" role="group" aria-label="Words per page">
-                {SIZES.map((s) => (
+                {PAGE_SIZES.map((s) => (
                   <button key={s} className={settings.pageSize === s ? 'is-active' : ''} aria-pressed={settings.pageSize === s} onClick={() => update({ pageSize: s })}>
                     {s}
                   </button>

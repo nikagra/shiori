@@ -6,6 +6,7 @@ import { checkReading } from '../../shared/kana';
 import { useSettings } from '../settings';
 import { speak } from '../speech';
 
+// FSRS grades (Rating in ts-fsrs). Spelled out so the client bundle needn't load the scheduler.
 const AGAIN = 1;
 const HARD = 2;
 const GOOD = 3;

@@ -6,7 +6,8 @@ import { toHiragana } from 'wanakana';
 
 export function normalizeKana(input: string): string {
   const s = input.normalize('NFKC').trim().replace(/\s+/g, '');
-  return toHiragana(s, { passRomaji: false });
+  // Keep ー as ー: コーヒー must match こーひー and ko-hi-, not こうひい.
+  return toHiragana(s, { passRomaji: false, convertLongVowelMark: false });
 }
 
 export interface AnswerCheck {

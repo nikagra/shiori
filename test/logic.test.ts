@@ -134,3 +134,10 @@ describe('review queue', () => {
     expect(order.map((w) => w.id)).toEqual(['c', 'b', 'a']);
   });
 });
+
+describe('long-vowel mark', () => {
+  it('accepts ー typed as romaji, hiragana or katakana for katakana words', () => {
+    for (const typed of ['ko-hi-', 'こーひー', 'コーヒー']) expect(checkReading(typed, { kana: 'コーヒー', kanji: null }).correct).toBe(true);
+    expect(checkReading('こうひい', { kana: 'コーヒー', kanji: null }).correct).toBe(false);
+  });
+});

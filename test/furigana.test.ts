@@ -50,11 +50,14 @@ describe('furigana hints', () => {
     expect(hiddenKanji('残酷', 'ざんこく', n4)).toBe('');
   });
 
-  it('moving kanji to still learning takes them off the extra-known list', () => {
-    expect(markLearning({ kanjiLevel: 'n4', knownKanji: '誰必', learningKanji: '験' }, '必時')).toEqual({
-      kanjiLevel: 'n4',
-      knownKanji: '誰',
-      learningKanji: '験必時',
-    });
+  it('moving kanji to still learning keeps them on the extra-known list, so taking them off brings them back', () => {
+    const moved = markLearning({ kanjiLevel: 'n4', knownKanji: '誰必', learningKanji: '験' }, '必時');
+    expect(moved).toEqual({ kanjiLevel: 'n4', knownKanji: '誰必', learningKanji: '験必時' });
+    expect(knownKanjiSet(moved).has('必')).toBe(false);
+    expect(knownKanjiSet({ ...moved, learningKanji: '験' }).has('必')).toBe(true);
+  });
+
+  it('lines up readings around the long-vowel mark', () => {
+    expect(alignReading('ビール瓶', 'びーるびん')).toEqual([{ text: 'ビール' }, { text: '瓶', reading: 'びん' }]);
   });
 });

@@ -87,6 +87,15 @@ export function PageView({ id }: { id: number }) {
   );
 }
 
+interface StepView {
+  of: DrillState;
+  revealed: boolean;
+  typed: { value: string; correct: boolean } | null;
+  moved: string;
+}
+
+const freshView = (of: DrillState): StepView => ({ of, revealed: false, typed: null, moved: '' });
+
 function Drill({
   page,
   stage,
@@ -104,16 +113,17 @@ function Drill({
 }) {
   const step = currentStep(state);
   const word = useMemo(() => page.words.find((w) => w.id === step?.wordId), [page, step]);
-  const [revealed, setRevealed] = useState(false);
-  const [typed, setTyped] = useState<{ value: string; correct: boolean } | null>(null);
-  const [moved, setMoved] = useState('');
   const [settings] = useSettings();
-
-  useEffect(() => {
-    setRevealed(false);
-    setTyped(null);
-    setMoved('');
-  }, [state]);
+  // What happened on this step. Tagged with the step's state, so the next
+  // step starts fresh on its very first render: no flash of the old answer,
+  // and no key press can grade it unseen.
+  const [stepView, setStepView] = useState<StepView>(() => freshView(state));
+  const view = stepView.of === state ? stepView : freshView(state);
+  const { revealed, typed, moved } = view;
+  const update = (patch: Partial<Omit<StepView, 'of'>>) => setStepView({ ...view, ...patch });
+  const setRevealed = (value: boolean) => update({ revealed: value });
+  const setTyped = (value: StepView['typed']) => update({ typed: value });
+  const setMoved = (value: string) => update({ moved: value });
 
   useEffect(() => {
     if (isDrillDone(state)) onDone();

@@ -191,3 +191,39 @@ describe('furigana prefs and hints', () => {
     await expect(repo.recordFuriganaHint(db, 999, '時', now)).rejects.toThrow('word not found');
   });
 });
+
+describe('repeated and concurrent requests', () => {
+  it('answering a word twice leaves one set of cards and reports it was already checked', async () => {
+    await repo.importWords(db, words, 'manga', now);
+    const [w] = (await repo.triageNext(db, 1)).words;
+    const results = await Promise.allSettled([repo.triageAnswer(db, w.id, 'known', now), repo.triageAnswer(db, w.id, 'known', now)]);
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    const cards = await db.prepare('SELECT COUNT(*) AS n FROM cards WHERE word_id = ?').bind(w.id).first<{ n: number }>();
+    expect(cards?.n).toBe(2);
+  });
+
+  it('graduating a page twice is harmless', async () => {
+    await importAndSort(0, 3);
+    const page = await repo.createPage(db, 3, now);
+    await repo.completeStage(db, page.id, 'ordered', nextDay(dayStart, 1), now);
+    const both = await Promise.all([
+      repo.completeStage(db, page.id, 'shuffled', nextDay(dayStart, 1), now),
+      repo.completeStage(db, page.id, 'shuffled', nextDay(dayStart, 1), now),
+    ]);
+    expect(both.map((p) => p.stage)).toEqual(['graduated', 'graduated']);
+    const cards = await db.prepare('SELECT COUNT(*) AS n FROM cards').first<{ n: number }>();
+    const logs = await db.prepare(`SELECT COUNT(*) AS n FROM review_log WHERE kind = 'graduation'`).first<{ n: number }>();
+    expect(cards?.n).toBe(6);
+    expect(logs?.n).toBe(6);
+  });
+
+  it('a failed page creation leaves no empty page behind', async () => {
+    await importAndSort(0, 2);
+    const inbox = (await db.prepare(`SELECT id FROM words WHERE status = 'inbox'`).all<{ id: number }>()).results;
+    // Another page took one of these words a moment ago.
+    await db.prepare(`INSERT INTO pages (number, stage, created_at) VALUES (7, 'ordered', ?)`).bind(now.toISOString()).run();
+    await db.prepare('INSERT INTO page_words (page_id, word_id, position) VALUES ((SELECT id FROM pages WHERE number = 7), ?, 0)').bind(inbox[1].id).run();
+    await expect(repo.createPage(db, 2, now)).rejects.toThrow('try again');
+    expect((await repo.listPages(db)).map((p) => p.number)).toEqual([7]);
+  });
+});

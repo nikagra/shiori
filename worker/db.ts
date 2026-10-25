@@ -125,18 +125,19 @@ export async function updateCoreMeaning(db: D1Database, id: number, meaning: str
 
 // ---------------------------------------------------------------- cards
 
-async function insertCard(db: D1Database, wordId: number, direction: Direction, card: StoredCard, now: Date): Promise<number> {
-  const r = await db
+const insertCard = (db: D1Database, wordId: number, direction: Direction, card: StoredCard, now: Date) =>
+  db
     .prepare('INSERT INTO cards (word_id, direction, due, state, lapses, fsrs, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
-    .bind(wordId, direction, card.due, card.state, card.lapses, JSON.stringify(card), iso(now))
-    .run();
-  return Number(r.meta.last_row_id);
-}
+    .bind(wordId, direction, card.due, card.state, card.lapses, JSON.stringify(card), iso(now));
 
-async function logReview(
+/**
+ * A review_log row. `card` is the card id, or the direction of a card that is
+ * inserted earlier in the same batch, so its id isn't known yet.
+ */
+function logReview(
   db: D1Database,
   entry: {
-    cardId: number;
+    card: number | Direction;
     wordId: number;
     kind: 'review' | 'triage' | 'graduation';
     rating: Grade;
@@ -148,13 +149,14 @@ async function logReview(
   },
   now: Date,
 ) {
-  await db
+  const byDirection = typeof entry.card === 'string';
+  return db
     .prepare(
       `INSERT INTO review_log (card_id, word_id, kind, rating, state_before, hint_used, answer, correct, duration_ms, reviewed_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (${byDirection ? '(SELECT id FROM cards WHERE word_id = ? AND direction = ?)' : '?'}, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .bind(
-      entry.cardId,
+      ...(byDirection ? [entry.wordId, entry.card] : [entry.card]),
       entry.wordId,
       entry.kind,
       entry.rating,
@@ -164,9 +166,11 @@ async function logReview(
       entry.correct === undefined || entry.correct === null ? null : entry.correct ? 1 : 0,
       entry.durationMs ?? null,
       iso(now),
-    )
-    .run();
+    );
 }
+
+/** True when a batch failed on a UNIQUE constraint, i.e. another request got there first. */
+const isUniqueViolation = (e: unknown) => e instanceof Error && /UNIQUE constraint failed/i.test(e.message);
 
 // ---------------------------------------------------------------- triage
 
@@ -187,16 +191,26 @@ export async function triageNext(db: D1Database, limit: number): Promise<{ words
 export async function triageAnswer(db: D1Database, wordId: number, result: TriageResult, now: Date): Promise<void> {
   const word = await getWord(db, wordId);
   if (word.status !== 'unverified') throw new AppError(409, 'word was already checked');
+  const status: WordStatus = result === 'known' ? 'graduated' : result === 'unknown' ? 'inbox' : 'ignored';
+  // One batch, so a word never ends up with cards but still unchecked. The
+  // status guard makes a repeated answer change nothing.
+  const stmts = [db.prepare(`UPDATE words SET status = ?, updated_at = ? WHERE id = ? AND status = 'unverified'`).bind(status, iso(now), wordId)];
   if (result === 'known') {
     // Recalled Japanese→meaning now: that card starts as reviewed.
     // Meaning→Japanese is untested, so it starts as a new card.
     const reading = review(newCard(now), Rating.Good, now);
-    const readingId = await insertCard(db, wordId, 'jp_en', reading, now);
-    await insertCard(db, wordId, 'en_jp', newCard(now), now);
-    await logReview(db, { cardId: readingId, wordId, kind: 'triage', rating: Rating.Good, stateBefore: State.New, correct: true }, now);
+    stmts.push(
+      insertCard(db, wordId, 'jp_en', reading, now),
+      insertCard(db, wordId, 'en_jp', newCard(now), now),
+      logReview(db, { card: 'jp_en', wordId, kind: 'triage', rating: Rating.Good, stateBefore: State.New, correct: true }, now),
+    );
   }
-  const status: WordStatus = result === 'known' ? 'graduated' : result === 'unknown' ? 'inbox' : 'ignored';
-  await db.prepare('UPDATE words SET status = ?, updated_at = ? WHERE id = ?').bind(status, iso(now), wordId).run();
+  try {
+    await db.batch(stmts);
+  } catch (e) {
+    if (isUniqueViolation(e)) throw new AppError(409, 'word was already checked');
+    throw e;
+  }
 }
 
 // ---------------------------------------------------------------- pages
@@ -220,19 +234,25 @@ export async function createPage(db: D1Database, size: number, now: Date): Promi
     .bind(size)
     .all<{ id: number }>();
   if (inbox.results.length === 0) throw new AppError(409, 'no words waiting for a page');
-  const max = await db.prepare('SELECT IFNULL(MAX(number), 0) AS m FROM pages').first<{ m: number }>();
-  const page = await db
-    .prepare(`INSERT INTO pages (number, stage, created_at) VALUES (?, 'ordered', ?)`)
-    .bind((max?.m ?? 0) + 1, iso(now))
-    .run();
-  const pageId = Number(page.meta.last_row_id);
-  await db.batch(
-    inbox.results.flatMap((w, i) => [
-      db.prepare('INSERT INTO page_words (page_id, word_id, position) VALUES (?, ?, ?)').bind(pageId, w.id, i),
-      db.prepare(`UPDATE words SET status = 'on_page', updated_at = ? WHERE id = ?`).bind(iso(now), w.id),
-    ]),
-  );
-  return getPage(db, pageId);
+  // One batch: a failure leaves no empty page behind. The new page is the one
+  // with the highest number, inside the batch's transaction.
+  const newPage = '(SELECT id FROM pages WHERE number = (SELECT MAX(number) FROM pages))';
+  try {
+    await db.batch([
+      db
+        .prepare(`INSERT INTO pages (number, stage, created_at) VALUES ((SELECT IFNULL(MAX(number), 0) + 1 FROM pages), 'ordered', ?)`)
+        .bind(iso(now)),
+      ...inbox.results.flatMap((w, i) => [
+        db.prepare(`INSERT INTO page_words (page_id, word_id, position) VALUES (${newPage}, ?, ?)`).bind(w.id, i),
+        db.prepare(`UPDATE words SET status = 'on_page', updated_at = ? WHERE id = ?`).bind(iso(now), w.id),
+      ]),
+    ]);
+  } catch (e) {
+    if (isUniqueViolation(e)) throw new AppError(409, 'those words were just put on another page; try again');
+    throw e;
+  }
+  const created = await db.prepare('SELECT MAX(id) AS id FROM pages').first<{ id: number }>();
+  return getPage(db, created!.id);
 }
 
 interface PageRow {
@@ -294,19 +314,24 @@ export async function completeStage(
     await db.prepare(`UPDATE pages SET stage = 'shuffled' WHERE id = ?`).bind(id).run();
     return getPage(db, id);
   }
-  for (const w of page.words) {
-    for (const direction of DIRECTIONS) {
-      const card = graduate(now, nextDayStart);
-      const cardId = await insertCard(db, w.id, direction, card, now);
-      await logReview(db, { cardId, wordId: w.id, kind: 'graduation', rating: Rating.Good, stateBefore: State.New, correct: true }, now);
-    }
+  // One batch, so a page never ends up half graduated.
+  try {
+    await db.batch([
+      ...page.words.flatMap((w) =>
+        DIRECTIONS.flatMap((direction) => [
+          insertCard(db, w.id, direction, graduate(now, nextDayStart), now),
+          logReview(db, { card: direction, wordId: w.id, kind: 'graduation', rating: Rating.Good, stateBefore: State.New, correct: true }, now),
+        ]),
+      ),
+      db.prepare(`UPDATE pages SET stage = 'graduated', graduated_at = ? WHERE id = ?`).bind(iso(now), id),
+      db
+        .prepare(`UPDATE words SET status = 'graduated', updated_at = ? WHERE id IN (SELECT word_id FROM page_words WHERE page_id = ?)`)
+        .bind(iso(now), id),
+    ]);
+  } catch (e) {
+    // Another request graduated it first (a retry, or the other device).
+    if (!isUniqueViolation(e)) throw e;
   }
-  await db.batch([
-    db.prepare(`UPDATE pages SET stage = 'graduated', graduated_at = ? WHERE id = ?`).bind(iso(now), id),
-    db
-      .prepare(`UPDATE words SET status = 'graduated', updated_at = ? WHERE id IN (SELECT word_id FROM page_words WHERE page_id = ?)`)
-      .bind(iso(now), id),
-  ]);
   return getPage(db, id);
 }
 
@@ -345,28 +370,34 @@ export async function reviewQueue(db: D1Database, dayStart: Date, dayEnd: Date, 
     newPerDay: NEW_PER_DAY,
   });
 
-  const items: QueueItem[] = [];
-  for (const c of queue.slice(0, limit)) {
-    const row = await db
-      .prepare(
-        `SELECT w.*, pw.page_id, pw.position, p.number AS page_number
-         FROM words w
-         LEFT JOIN page_words pw ON pw.word_id = w.id
-         LEFT JOIN pages p ON p.id = pw.page_id
-         WHERE w.id = ?`,
-      )
-      .bind(c.wordId)
-      .first<WordRow & { page_id: number | null; position: number | null; page_number: number | null }>();
-    if (!row) continue;
-    items.push({
-      cardId: c.cardId,
-      direction: c.direction,
-      state: c.state,
-      due: c.due,
-      word: toWord(row),
-      page: row.page_id === null ? null : { id: row.page_id, number: row.page_number!, position: row.position! },
-    });
-  }
+  const picked = queue.slice(0, limit);
+  if (picked.length === 0) return { items: [], total: queue.length };
+  const wordIds = [...new Set(picked.map((c) => c.wordId))];
+  const rows = await db
+    .prepare(
+      `SELECT w.*, pw.page_id, pw.position, p.number AS page_number
+       FROM words w
+       LEFT JOIN page_words pw ON pw.word_id = w.id
+       LEFT JOIN pages p ON p.id = pw.page_id
+       WHERE w.id IN (${wordIds.map(() => '?').join(', ')})`,
+    )
+    .bind(...wordIds)
+    .all<WordRow & { page_id: number | null; position: number | null; page_number: number | null }>();
+  const byId = new Map(rows.results.map((r) => [r.id, r]));
+  const items: QueueItem[] = picked.flatMap((c) => {
+    const row = byId.get(c.wordId);
+    if (!row) return [];
+    return [
+      {
+        cardId: c.cardId,
+        direction: c.direction,
+        state: c.state,
+        due: c.due,
+        word: toWord(row),
+        page: row.page_id === null ? null : { id: row.page_id, number: row.page_number!, position: row.position! },
+      },
+    ];
+  });
   return { items, total: queue.length };
 }
 
@@ -388,25 +419,26 @@ export async function submitReview(db: D1Database, input: ReviewInput, now: Date
   const before = JSON.parse(row.fsrs) as StoredCard;
   const rating = capForHint(input.rating, input.hintUsed);
   const after = review(before, rating, now);
-  await db
-    .prepare('UPDATE cards SET due = ?, state = ?, lapses = ?, fsrs = ? WHERE id = ?')
-    .bind(after.due, after.state, after.lapses, JSON.stringify(after), row.id)
-    .run();
-  await logReview(
-    db,
-    {
-      cardId: row.id,
-      wordId: row.word_id,
-      kind: 'review',
-      rating,
-      stateBefore: before.state,
-      hintUsed: input.hintUsed,
-      answer: input.answer,
-      correct: input.correct,
-      durationMs: input.durationMs,
-    },
-    now,
-  );
+  await db.batch([
+    db
+      .prepare('UPDATE cards SET due = ?, state = ?, lapses = ?, fsrs = ? WHERE id = ?')
+      .bind(after.due, after.state, after.lapses, JSON.stringify(after), row.id),
+    logReview(
+      db,
+      {
+        card: row.id,
+        wordId: row.word_id,
+        kind: 'review',
+        rating,
+        stateBefore: before.state,
+        hintUsed: input.hintUsed,
+        answer: input.answer,
+        correct: input.correct,
+        durationMs: input.durationMs,
+      },
+      now,
+    ),
+  ]);
   return { due: after.due, rating };
 }
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, type Word } from '../api';
 import { JapaneseWord, Meaning, Notice, SpeakButton, useKeys } from '../components/ui';
 import { useSettings } from '../settings';
@@ -13,6 +13,7 @@ export function Triage() {
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
   const [moved, setMoved] = useState('');
+  const sending = useRef(false);
   const [counts, setCounts] = useState({ known: 0, unknown: 0, ignore: 0 });
   const [error, setError] = useState<string | null>(null);
   const [settings] = useSettings();
@@ -40,7 +41,9 @@ export function Triage() {
   };
 
   const answer = async (result: 'known' | 'unknown' | 'ignore') => {
-    if (!word || !revealed) return;
+    // One answer per word: a double tap or a repeated key does nothing.
+    if (!word || !revealed || sending.current) return;
+    sending.current = true;
     try {
       await api.triageAnswer(word.id, result);
       setCounts((c) => ({ ...c, [result]: c[result] + 1 }));
@@ -54,6 +57,8 @@ export function Triage() {
       }
     } catch (e) {
       setError((e as Error).message);
+    } finally {
+      sending.current = false;
     }
   };
 
