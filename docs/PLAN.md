@@ -5,19 +5,26 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
 
 ## Status (2026-10-25)
 
-- **v0.1 is merged into `main`** (PR #1, squashed as 99b782a; the
-  `v0.1-core-loop` branch is deleted). It includes import, the check pass,
-  pages, FSRS review, audio, furigana with peeks, and furigana settings synced
-  across devices. New work starts from `main` on a new branch.
+- **v0.1 is merged into `main`** (PR #1, squashed as 6dd130e; history on
+  `main` was rewritten on 25 Oct so every commit is Mikita's with an emoji
+  subject). It includes import, the check pass, pages, FSRS review, audio,
+  furigana with peeks, and furigana settings synced across devices. New work
+  starts from `main` on a new branch.
 - **Not production yet.** Mikita imported his Renshuu words and tries the app
   casually, but doesn't rely on it.
-- **Runs only on Mikita's laptop** (`~/Projects/shiori`). The dev server is
-  started in the background with
-  `nohup npm run dev -- --host > /tmp/shiori-dev.log 2>&1 &` and the iPhone
-  opens `http://<laptop Wi-Fi IP>:5173/` on the same Wi-Fi. Nothing is deployed
-  to Cloudflare yet. After a reboot, start the server again.
-- Study data is in `.wrangler/state`. An old database holding only test data is
-  kept in `.wrangler/state-test-backup-20261025` and can be deleted.
+- **Deployed on Cloudflare** (25 Oct) at `https://shiori.nikagra.workers.dev`,
+  behind Cloudflare Access (all traffic, Mikita's Cloudflare account, 7-day
+  sessions). Preview URLs are off (`preview_urls: false`). D1 database
+  `shiori` holds the 450 manga words copied from the laptop. The iPhone uses it
+  from the Home Screen; furigana settings sync between phone and laptop.
+- **Deploy on merge**: `.github/workflows/ci.yml` tests every PR and deploys
+  `main` once the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repository
+  secrets are set. Actions are pinned to commit SHAs (required in the repo
+  settings) and Dependabot bumps them monthly.
+- **The laptop is the development copy.** `npm run dev` uses its own database
+  in `.wrangler/state`, separate from the cloud one. An old database holding
+  only test data is kept in `.wrangler/state-test-backup-20261025` and can be
+  deleted.
 - Tests on `main`: 56 unit tests, 34 end-to-end runs (17 tests at iPhone and laptop sizes), and `tsc -b` all
   pass.
 - First iPhone feedback (25 Oct) is in: "Don't know" on review and drill
@@ -27,34 +34,15 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
 
 ## Next steps, in order
 
-1. **Finish checking v0.1 on the iPhone.** Mikita ticked the PR #1 checklist
-   before merging; only the furigana check wasn't on it:
-   - [x] Add to Home Screen opens full screen.
-   - [x] The audio button speaks Japanese.
-   - [x] The Japanese keyboard works in the kana answer box.
-   - [x] The page grid is readable.
-   - [ ] Furigana and "Show furigana" work.
-
-   Fix whatever turns up in a new PR.
-2. **Deploy**, so the phone works without the laptop:
-   - Mikita runs `npx wrangler login` (it needs his Cloudflare account).
-   - `wrangler d1 create shiori`, then put the id into `wrangler.jsonc`.
-   - Apply the migrations with `--remote`.
-   - `npm run deploy`.
-   - Put Cloudflare Access in front of the app so only Mikita can open it.
-   - Decide whether to move the laptop's study data over
-     (`wrangler d1 export` / `execute --file`) or re-import from Renshuu.
-   - Step-by-step guide for Mikita: `deploy-cloudflare.md` in the project
-     files (`shiori/docs/`).
-   - **Deploy on merge.** `.github/workflows/ci.yml` checks every PR (unit
-     tests, build, e2e) and runs `npm run deploy` on `main` after the checks
-     pass. Mikita adds the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`
-     repository secrets; until then, and while `wrangler.jsonc` has the
-     placeholder id, the deploy job is skipped. The laptop stays the
-     development copy, with its own local database.
-3. **Backup and export**: a way to download all study data, plus a scheduled
+1. **Finish the deploy.** Done on 25 Oct except for one step:
+   - [x] First deploy, data copied, Cloudflare Access on, preview URLs off.
+   - [x] iPhone checks on the deployed app, including furigana and sync.
+   - [ ] Mikita adds the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`
+     repository secrets (step 10 of `deploy-cloudflare.md` in the project
+     files), then runs the CI workflow on `main` once to check the deploy job.
+2. **Backup and export**: a way to download all study data, plus a scheduled
    D1 export once deployed.
-4. **v0.2: capture while reading.** Matches the original plan
+3. **v0.2: capture while reading.** Matches the original plan
    ([plan doc](https://claude.ai/artifact/1J233eFb8H61zr7WbEZXas)):
    - Photo of a manga panel → Claude (called only from the Worker, with its own
      API key; Pro doesn't include API access) explains it and proposes words,
@@ -69,7 +57,7 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
      panel) instead of one sentence column. Cloze and the v0.3 new-context
      cards pick from it.
    - Show "usually written in kana" forms.
-5. **v0.3: kanji, school, leeches.**
+4. **v0.3: kanji, school, leeches.**
    - Kanji reading cards (on and kun) as their own study vector, seeded from
      `kanji_hints` and the Still learning list, with separate grades.
    - School focus: Marugoto batches of 10 kanji over about 6 weeks, and topic
@@ -77,9 +65,9 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
    - Leeches: `LEECH_LAPSES` (6) is defined in `shared/scheduler.ts` but unused.
      Decide what happens to one, for example a new page, a flag or a suspend.
    - New-context cards: the same word in a fresh sentence once it's mature.
-6. **v0.4: listening** from YouTube clips, if feasible; otherwise keep it
+5. **v0.4: listening** from YouTube clips, if feasible; otherwise keep it
    separate.
-7. **v0.5: grammar map**, one structure that ties grammar points together. It
+6. **v0.5: grammar map**, one structure that ties grammar points together. It
    needs its own design pass before any code.
 
 ## Open questions
