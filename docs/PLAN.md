@@ -5,9 +5,10 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
 
 ## Status (2026-10-25)
 
-- **v0.1 is in PR #1** (`v0.1-core-loop` → `main`, not merged yet). It
-  includes import, the check pass, pages, FSRS review, audio, furigana with
-  peeks, and furigana settings synced across devices.
+- **v0.1 is merged into `main`** (PR #1, squashed as 99b782a; the
+  `v0.1-core-loop` branch is deleted). It includes import, the check pass,
+  pages, FSRS review, audio, furigana with peeks, and furigana settings synced
+  across devices. New work starts from `main` on a new branch.
 - **Not production yet.** Mikita imported his Renshuu words and tries the app
   casually, but doesn't rely on it.
 - **Runs only on Mikita's laptop** (`~/Projects/shiori`). The dev server is
@@ -17,7 +18,7 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   to Cloudflare yet. After a reboot, start the server again.
 - Study data is in `.wrangler/state`. An old database holding only test data is
   kept in `.wrangler/state-test-backup-20261025` and can be deleted.
-- Tests on the branch: 56 unit tests, 34 end-to-end runs (17 tests at iPhone and laptop sizes), and `tsc -b` all
+- Tests on `main`: 56 unit tests, 34 end-to-end runs (17 tests at iPhone and laptop sizes), and `tsc -b` all
   pass.
 - First iPhone feedback (25 Oct) is in: "Don't know" on review and drill
   cards, next words hidden in the in-order drill, "Study the page again",
@@ -26,14 +27,14 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
 
 ## Next steps, in order
 
-1. **Finish v0.1.** Do the "Try on iPhone" checklist in PR #1:
+1. **Finish checking v0.1 on the iPhone.** These items are left from PR #1:
    - [ ] Add to Home Screen opens full screen.
    - [ ] The audio button speaks Japanese.
    - [ ] The Japanese keyboard works in the kana answer box.
    - [ ] The page grid is readable.
    - [ ] Furigana and "Show furigana" work.
 
-   Fix whatever turns up, then merge PR #1 into `main`.
+   Fix whatever turns up in a new PR.
 2. **Deploy**, so the phone works without the laptop:
    - Mikita runs `npx wrangler login` (it needs his Cloudflare account).
    - `wrangler d1 create shiori`, then put the id into `wrangler.jsonc`.
@@ -70,6 +71,10 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
 
 ## Open questions
 
+- Grading isn't obvious from the buttons alone (Mikita, 25 Oct). DESIGN.md now
+  has a "Buttons and what they do" guide. Should the app show it too, for
+  example a one-line hint under the grade buttons, or the next interval on
+  each button the way Anki does?
 - A hint system for review cards (beyond the page hint and furigana), asked
   for on 25 Oct as a future improvement: what hints, and what they cost.
 - Should the N5/N4 kanji lists be editable in bulk, or are "Also known" and
