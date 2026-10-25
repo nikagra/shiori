@@ -41,3 +41,9 @@ npm run deploy
 ```
 
 Put Cloudflare Access in front of the deployed app so only you can open it.
+
+After the first deploy, GitHub Actions (`.github/workflows/ci.yml`) runs the
+unit tests, the build and the end-to-end tests on every pull request, and
+deploys `main` after each merge. It needs two repository secrets,
+`CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. Until they're set, the
+deploy job is skipped with a notice.
