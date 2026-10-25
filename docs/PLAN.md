@@ -18,8 +18,9 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   `shiori` holds the 450 manga words copied from the laptop. The iPhone uses it
   from the Home Screen; furigana settings sync between phone and laptop.
 - **Deploy on merge**: `.github/workflows/ci.yml` tests every PR and deploys
-  `main` once the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repository
-  secrets are set. Actions are pinned to commit SHAs (required in the repo
+  `main` after each merge, using the `CLOUDFLARE_API_TOKEN` and
+  `CLOUDFLARE_ACCOUNT_ID` repository secrets. The first automatic deploy ran
+  on 25 Oct (run 40244891019). Actions are pinned to commit SHAs (required in the repo
   settings) and Dependabot bumps them monthly.
 - **The laptop is the development copy.** `npm run dev` uses its own database
   in `.wrangler/state`, separate from the cloud one. An old database holding
@@ -34,15 +35,9 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
 
 ## Next steps, in order
 
-1. **Finish the deploy.** Done on 25 Oct except for one step:
-   - [x] First deploy, data copied, Cloudflare Access on, preview URLs off.
-   - [x] iPhone checks on the deployed app, including furigana and sync.
-   - [ ] Mikita adds the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`
-     repository secrets (step 10 of `deploy-cloudflare.md` in the project
-     files), then runs the CI workflow on `main` once to check the deploy job.
-2. **Backup and export**: a way to download all study data, plus a scheduled
+1. **Backup and export**: a way to download all study data, plus a scheduled
    D1 export once deployed.
-3. **v0.2: capture while reading.** Matches the original plan
+2. **v0.2: capture while reading.** Matches the original plan
    ([plan doc](https://claude.ai/artifact/1J233eFb8H61zr7WbEZXas)):
    - Photo of a manga panel → Claude (called only from the Worker, with its own
      API key; Pro doesn't include API access) explains it and proposes words,
@@ -57,7 +52,7 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
      panel) instead of one sentence column. Cloze and the v0.3 new-context
      cards pick from it.
    - Show "usually written in kana" forms.
-4. **v0.3: kanji, school, leeches.**
+3. **v0.3: kanji, school, leeches.**
    - Kanji reading cards (on and kun) as their own study vector, seeded from
      `kanji_hints` and the Still learning list, with separate grades.
    - School focus: Marugoto batches of 10 kanji over about 6 weeks, and topic
@@ -65,9 +60,9 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
    - Leeches: `LEECH_LAPSES` (6) is defined in `shared/scheduler.ts` but unused.
      Decide what happens to one, for example a new page, a flag or a suspend.
    - New-context cards: the same word in a fresh sentence once it's mature.
-5. **v0.4: listening** from YouTube clips, if feasible; otherwise keep it
+4. **v0.4: listening** from YouTube clips, if feasible; otherwise keep it
    separate.
-6. **v0.5: grammar map**, one structure that ties grammar points together. It
+5. **v0.5: grammar map**, one structure that ties grammar points together. It
    needs its own design pass before any code.
 
 ## Open questions
