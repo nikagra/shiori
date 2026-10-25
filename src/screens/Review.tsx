@@ -89,6 +89,8 @@ function ReviewCard({
   const [word, setWord] = useState(item.word);
   const [revealed, setRevealed] = useState(false);
   const [typed, setTyped] = useState<{ value: string; correct: boolean; typo: boolean } | null>(null);
+  // "Don't know": straight to the answer; the only grade left is Again.
+  const [gaveUp, setGaveUp] = useState(false);
   const [hintUsed, setHintUsed] = useState(false);
   // Kanji a furigana peek moved to "still learning". The peek doesn't cap the
   // grade: this card tests meaning, the peek counts against the kanji instead.
@@ -129,7 +131,7 @@ function ReviewCard({
         rating,
         hintUsed,
         answer: typed?.value,
-        correct: typed ? typed.correct || typed.typo : undefined,
+        correct: gaveUp ? false : typed ? typed.correct || typed.typo : undefined,
         durationMs: Date.now() - started.current,
       });
       onGraded();
@@ -139,14 +141,26 @@ function ReviewCard({
     }
   };
 
+  const dontKnow = () => {
+    if (reading) {
+      if (revealed) return;
+      setGaveUp(true);
+      reveal();
+    } else if (!typed) {
+      setGaveUp(true);
+      setTyped({ value: '', correct: false, typo: false });
+      if (settings.autoPlay) speak(word.kana);
+    }
+  };
+
   const answered = reading ? revealed : typed !== null;
-  const passed = reading || (typed !== null && (typed.correct || typed.typo));
+  const passed = !gaveUp && (reading || (typed !== null && (typed.correct || typed.typo)));
 
   useKeys(
     {
       Space: () => (reading && !revealed ? reveal() : undefined),
       Enter: () => (reading && !revealed ? reveal() : undefined),
-      '1': () => (answered ? grade(AGAIN) : undefined),
+      '1': () => (answered ? grade(AGAIN) : reading ? dontKnow() : undefined),
       '2': () => (answered && passed ? grade(HARD) : undefined),
       '3': () => (answered && passed ? grade(GOOD) : undefined),
       '4': () => (answered && passed ? grade(EASY) : undefined),
@@ -200,7 +214,7 @@ function ReviewCard({
             {typed && (
               <div className="flash__answer">
                 <p className={typed.correct || typed.typo ? 'result result--right' : 'result result--wrong'} data-testid="typed-result">
-                  {typed.correct ? 'Correct' : typed.typo ? 'Counted as correct' : `Not quite: you typed “${typed.value || '—'}”`}
+                  {typed.correct ? 'Correct' : typed.typo ? 'Counted as correct' : gaveUp ? 'Here it is' : `Not quite: you typed “${typed.value || '—'}”`}
                 </p>
                 <JapaneseWord word={word} showReading size="small" />
                 <SpeakButton text={word.kana} />
@@ -220,18 +234,28 @@ function ReviewCard({
       )}
 
       {reading && !revealed && (
-        <button className="button button--primary button--wide" onClick={reveal}>
-          Show answer
-        </button>
+        <div className="grade-row grade-row--two">
+          <button className="button button--again" onClick={dontKnow} title="Shortcut: 1">
+            Don’t know
+          </button>
+          <button className="button button--primary" onClick={reveal} title="Shortcut: Space">
+            Show answer
+          </button>
+        </div>
       )}
       {!reading && !typed && (
-        <KanaInput
-          onSubmit={(value) => {
-            const r = checkReading(value, word);
-            setTyped({ value, correct: r.correct, typo: false });
-            if (settings.autoPlay) speak(word.kana);
-          }}
-        />
+        <div className="stack stack--tight">
+          <KanaInput
+            onSubmit={(value) => {
+              const r = checkReading(value, word);
+              setTyped({ value, correct: r.correct, typo: false });
+              if (settings.autoPlay) speak(word.kana);
+            }}
+          />
+          <button className="button button--again button--wide" onClick={dontKnow}>
+            Don’t know
+          </button>
+        </div>
       )}
 
       {answered && (
@@ -256,9 +280,11 @@ function ReviewCard({
               <button className="button button--again button--wide" onClick={() => grade(AGAIN)} disabled={sending}>
                 Again
               </button>
-              <button className="link-button" onClick={() => setTyped({ ...typed!, typo: true })}>
-                It was a typo — count it as correct
-              </button>
+              {!reading && !gaveUp && (
+                <button className="link-button" onClick={() => setTyped({ ...typed!, typo: true })}>
+                  It was a typo — count it as correct
+                </button>
+              )}
             </>
           )}
         </div>

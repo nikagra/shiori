@@ -638,9 +638,18 @@ input[type='checkbox'] {
 .page-cell__word {
   font-family: var(--font-jp);
   font-size: 1.25rem;
-  line-height: 1.2;
-  word-break: keep-all;
-  overflow-wrap: anywhere;
+  /* Room above for furigana. */
+  line-height: 1.6;
+  /* Japanese may break between any two characters; a word must stay whole. */
+  white-space: nowrap;
+}
+
+.page-cell__word--long {
+  font-size: 1rem;
+}
+
+.page-cell__word--xlong {
+  font-size: 0.85rem;
 }
 
 .page-cell__word--hidden {
@@ -650,6 +659,7 @@ input[type='checkbox'] {
 
 .page-cell__reading {
   font-size: 0.8rem;
+  word-break: keep-all;
   color: var(--ink-soft);
 }
 
@@ -694,4 +704,8 @@ rt {
 
 .page-cell__word rt {
   font-size: 0.5em;
+}
+
+.page-cell__reading--long {
+  font-size: 0.68rem;
 }

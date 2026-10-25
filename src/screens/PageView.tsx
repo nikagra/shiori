@@ -90,7 +90,8 @@ export function PageView({ id }: { id: number }) {
 interface StepView {
   of: DrillState;
   revealed: boolean;
-  typed: { value: string; correct: boolean } | null;
+  /** gaveUp: "Don't know yet" instead of an answer. */
+  typed: { value: string; correct: boolean; gaveUp?: boolean } | null;
   moved: string;
 }
 
@@ -129,10 +130,22 @@ function Drill({
     if (isDrillDone(state)) onDone();
   }, [state]);
 
+  // "Don't know yet" on a Japanese→meaning step: show the answer, and the only
+  // way on is Missed, so the word comes back at the end.
+  const [gaveUpOf, setGaveUpOf] = useState<DrillState | null>(null);
+  const gaveUp = gaveUpOf === state;
+  // Back to the full page in the middle of a drill, to study it again.
+  const [studying, setStudying] = useState(false);
+
   const reveal = () => {
     if (!word || revealed) return;
     setRevealed(true);
     if (settings.autoPlay) speak(word.kana);
+  };
+  const dontKnow = () => {
+    if (!word || revealed) return;
+    setGaveUpOf(state);
+    reveal();
   };
   const answer = (correct: boolean) => onChange(answerStep(state, correct));
 
@@ -140,13 +153,40 @@ function Drill({
   useKeys(
     {
       Space: () => (jpPrompt && !revealed ? reveal() : undefined),
-      '1': () => (revealed ? answer(false) : undefined),
-      '2': () => (revealed ? answer(true) : undefined),
+      '1': () => (revealed ? answer(false) : dontKnow()),
+      '2': () => (revealed && !gaveUp ? answer(true) : undefined),
     },
-    Boolean(step) && jpPrompt,
+    Boolean(step) && jpPrompt && !studying,
   );
 
+  // In order, meaning→Japanese: words still to be asked stay hidden, so the
+  // next answer can't be read off the grid ahead of time.
+  const hidden = useMemo(() => {
+    if (stage !== 'ordered' || jpPrompt) return undefined;
+    return new Set(state.queue.filter((s) => s.direction === 'en_jp').map((s) => s.wordId));
+  }, [stage, jpPrompt, state]);
+
   if (!step || !word) return <p className="muted">Saving…</p>;
+
+  if (studying) {
+    return (
+      <div className="stack">
+        <div className="row row--between">
+          <h1>Page {page.number} · study</h1>
+        </div>
+        <p className="muted">Take your time. The word you were on comes back at the end of the drill.</p>
+        <PageGrid page={page} mode="full" />
+        <button className="button button--primary button--wide" onClick={() => setStudying(false)}>
+          Back to the drill
+        </button>
+      </div>
+    );
+  }
+  const studyAgain = () => {
+    // The current word was on screen unanswered: it counts as missed.
+    if (!revealed && !typed) answer(false);
+    setStudying(true);
+  };
 
   return (
     <div className="stack">
@@ -160,7 +200,7 @@ function Drill({
       </div>
       <Progress done={state.completed} total={state.total} />
 
-      <PageGrid page={page} mode={stage === 'ordered' ? 'written' : 'blank'} highlight={word.position} hideHighlighted={!jpPrompt} />
+      <PageGrid page={page} mode={stage === 'ordered' ? 'written' : 'blank'} highlight={word.position} hideHighlighted={!jpPrompt} hiddenIds={hidden} />
 
       <article className="card flash" data-testid="drill-card" data-direction={step.direction}>
         {jpPrompt ? (
@@ -185,7 +225,7 @@ function Drill({
             {typed && (
               <div className="flash__answer">
                 <p className={typed.correct ? 'result result--right' : 'result result--wrong'} data-testid="typed-result">
-                  {typed.correct ? 'Correct' : `Not quite: you typed “${typed.value || '—'}”`}
+                  {typed.correct ? 'Correct' : typed.gaveUp ? 'Here it is: it comes back at the end' : `Not quite: you typed “${typed.value || '—'}”`}
                 </p>
                 <JapaneseWord word={word} showReading size="small" />
                 <SpeakButton text={word.kana} />
@@ -196,11 +236,21 @@ function Drill({
       </article>
 
       {jpPrompt && !revealed && (
-        <button className="button button--primary button--wide" onClick={reveal}>
-          Show answer
+        <div className="grade-row grade-row--two">
+          <button className="button button--again" onClick={dontKnow} title="Shortcut: 1">
+            Don’t know yet
+          </button>
+          <button className="button button--primary" onClick={reveal} title="Shortcut: Space">
+            Show answer
+          </button>
+        </div>
+      )}
+      {jpPrompt && revealed && gaveUp && (
+        <button className="button button--primary button--wide" autoFocus onClick={() => answer(false)}>
+          Continue
         </button>
       )}
-      {jpPrompt && revealed && (
+      {jpPrompt && revealed && !gaveUp && (
         <div className="grade-row grade-row--two">
           <button className="button button--again" onClick={() => answer(false)}>
             Missed
@@ -211,27 +261,41 @@ function Drill({
         </div>
       )}
       {!jpPrompt && !typed && (
-        <KanaInput
-          key={`${step.wordId}-${state.completed}-${state.queue.length}`}
-          onSubmit={(value) => {
-            const r = checkReading(value, word);
-            setTyped({ value, correct: r.correct });
-            if (settings.autoPlay) speak(word.kana);
-          }}
-        />
+        <div className="stack stack--tight">
+          <KanaInput
+            key={`${step.wordId}-${state.completed}-${state.queue.length}`}
+            onSubmit={(value) => {
+              const r = checkReading(value, word);
+              setTyped({ value, correct: r.correct });
+              if (settings.autoPlay) speak(word.kana);
+            }}
+          />
+          <button
+            className="button button--again button--wide"
+            onClick={() => {
+              setTyped({ value: '', correct: false, gaveUp: true });
+              if (settings.autoPlay) speak(word.kana);
+            }}
+          >
+            Don’t know yet
+          </button>
+        </div>
       )}
       {!jpPrompt && typed && (
         <div className="stack stack--tight">
           <button className="button button--primary button--wide" autoFocus onClick={() => answer(typed.correct)}>
             Continue
           </button>
-          {!typed.correct && (
+          {!typed.correct && !typed.gaveUp && (
             <button className="link-button" onClick={() => answer(true)}>
               It was a typo — count it as correct
             </button>
           )}
         </div>
       )}
+      <button className="link-button" onClick={studyAgain}>
+        Study the page again
+      </button>
     </div>
   );
 }
