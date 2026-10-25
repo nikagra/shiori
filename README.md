@@ -5,6 +5,8 @@ A personal Japanese vocabulary app. Words are learned on small, fixed **pages**
 then kept alive with **FSRS** spaced review. Words come from manga, books,
 school and Renshuu imports.
 
+Design: [docs/DESIGN.md](docs/DESIGN.md) · Status and next steps: [docs/PLAN.md](docs/PLAN.md)
+
 ## Stack
 
 - React + TypeScript + Vite, installable to the iPhone home screen
@@ -15,7 +17,6 @@ school and Renshuu imports.
 
 ```sh
 npm install
-cp .dev.vars.example .dev.vars
 npm run db:migrate:local
 npm run dev            # http://localhost:5173
 ```
@@ -27,6 +28,9 @@ npm test               # unit tests (Vitest)
 npx playwright install chromium   # once
 npm run test:e2e       # end-to-end tests at iPhone and laptop sizes
 ```
+
+End-to-end tests use their own database in `.wrangler/e2e`; they never touch
+your study data in `.wrangler/state`.
 
 ## Deploy
 
