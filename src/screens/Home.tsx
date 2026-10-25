@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, type Stats } from '../api';
 import { Notice } from '../components/ui';
+import type { KanjiLevel } from '../../shared/furigana';
 import { useSettings } from '../settings';
 import { canSpeak, hasJapaneseVoice } from '../speech';
 
@@ -65,6 +66,27 @@ export function Home() {
         <label className="toggle">
           <input type="checkbox" checked={settings.listenFirst} onChange={(e) => update({ listenFirst: e.target.checked })} />
           Listening practice: hear Japanese→meaning cards before seeing them
+        </label>
+      </section>
+
+      <section className="card stack">
+        <h2>Furigana</h2>
+        <p className="muted">Readings show above kanji you don't know yet.</p>
+        <label className="field">
+          Kanji I know
+          <select value={settings.kanjiLevel} onChange={(e) => update({ kanjiLevel: e.target.value as KanjiLevel })}>
+            <option value="n4">N5 and N4</option>
+            <option value="n5">N5</option>
+            <option value="none">None (furigana on every kanji)</option>
+          </select>
+        </label>
+        <label className="field">
+          Also known
+          <input lang="ja" value={settings.knownKanji} placeholder="e.g. 誰 必" onChange={(e) => update({ knownKanji: e.target.value })} />
+        </label>
+        <label className="field">
+          Still learning (always show furigana)
+          <input lang="ja" value={settings.learningKanji} placeholder="e.g. 験 貸" onChange={(e) => update({ learningKanji: e.target.value })} />
         </label>
       </section>
     </div>

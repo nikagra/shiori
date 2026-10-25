@@ -685,3 +685,13 @@ code {
     padding-top: 24px;
   }
 }
+
+rt {
+  font-size: 0.4em;
+  color: var(--ink-soft);
+  font-weight: normal;
+}
+
+.page-cell__word rt {
+  font-size: 0.5em;
+}

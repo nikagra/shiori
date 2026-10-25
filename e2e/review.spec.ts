@@ -29,7 +29,7 @@ test('review both directions with honest grading', async ({ page, request }, tes
     await expect(page.getByText(`${i + 1} / 4`)).toBeVisible();
     const direction = (await card.getAttribute('data-direction'))!;
     if (direction === 'jp_en') {
-      const word = byPrompt(await card.locator('.jp-word__written').innerText());
+      const word = byPrompt((await card.locator('.jp-word__written').getAttribute('data-written'))!);
       // Grades stay hidden until the answer is revealed.
       await expect(page.getByRole('button', { name: 'Good' })).toHaveCount(0);
       if (i === 0) await shot(page, testInfo, '20-review-reading-prompt');

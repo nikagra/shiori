@@ -1,5 +1,5 @@
 import { writtenForm, type PageDetail } from '../api';
-import { SpeakButton } from './ui';
+import { SpeakButton, Written } from './ui';
 
 // The page: a fixed 3-column grid that looks the same on phone and laptop,
 // so a word keeps its place in your memory.
@@ -27,8 +27,8 @@ export function PageGrid({
           <li key={w.id} className={`page-cell${current ? ' page-cell--current' : ''}`} data-position={w.position}>
             <span className="page-cell__number">{w.position + 1}</span>
             {mode !== 'blank' && !hidden && (
-              <span className="page-cell__word" lang="ja">
-                {writtenForm(w)}
+              <span className="page-cell__word" lang="ja" data-written={writtenForm(w)}>
+                {mode === 'full' ? writtenForm(w) : <Written word={w} />}
               </span>
             )}
             {mode === 'full' && (

@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { bind, unbind } from 'wanakana';
 import { shortPos, writtenForm, type Word } from '../api';
+import { furigana, knownKanjiSet } from '../../shared/furigana';
+import { useSettings } from '../settings';
 import { speak } from '../speech';
 
 export function SpeakButton({ text, label = 'Play audio' }: { text: string; label?: string }) {
@@ -23,8 +25,31 @@ export function JapaneseWord({ word, showReading, size = 'large' }: { word: Pick
       <div className="jp-word__reading" aria-hidden={!showReading || !hasReading}>
         {showReading && hasReading ? word.kana : ' '}
       </div>
-      <div className="jp-word__written">{written}</div>
+      <div className="jp-word__written" data-written={written}>
+        {showReading ? written : <Written word={word} />}
+      </div>
     </div>
+  );
+}
+
+/** The written form, with furigana over kanji you don't know yet. */
+export function Written({ word }: { word: Pick<Word, 'kanji' | 'kana'> }) {
+  const [settings] = useSettings();
+  const known = useMemo(() => knownKanjiSet(settings), [settings]);
+  if (word.kanji === null) return <>{word.kana}</>;
+  return (
+    <>
+      {furigana(word.kanji, word.kana, known).map((s, i) =>
+        s.ruby ? (
+          <ruby key={i}>
+            {s.text}
+            <rt>{s.ruby}</rt>
+          </ruby>
+        ) : (
+          s.text
+        ),
+      )}
+    </>
   );
 }
 
