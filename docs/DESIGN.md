@@ -102,6 +102,86 @@ to the inbox, where it waits for a page.
 - Furigana settings are stored on the server, so the phone and the laptop
   agree. Audio and page size stay per device, in localStorage.
 
+## Buttons and what they do
+
+A guide for the learner. Only **Review** changes when you see a word again.
+The check pass and the page drill decide where a word goes, but your answers
+there never change review dates.
+
+### Check pass (imported words)
+
+Say the meaning to yourself first, then tap **Show answer**.
+
+| Button | Use it when | What happens |
+|---|---|---|
+| I knew it | The meaning came right away, without guessing | The word goes to review. Japanese → meaning counts as one Good review. Meaning → Japanese becomes a new card, because you haven't produced the word yet. |
+| I didn't know | Anything less than that | The word goes to the inbox and waits for a page |
+| Not worth learning — remove it | You don't want this word | The word is set aside and never shown again |
+
+If you aren't sure, choose "I didn't know". A page costs a few minutes. A
+falsely "known" word fails in review, and that does more harm.
+
+### Page drill
+
+| Button | What happens |
+|---|---|
+| Show answer (Space) | Reveals the meaning or reading |
+| Don't know yet (1) | Shows the answer and counts the step as missed |
+| Missed (1) / Got it (2) | Missed puts the step at the back of the queue. Got it removes it. |
+| Study the page again | Counts the current step as missed and goes back to the full page; the drill continues afterwards |
+
+Misses only make the drill longer. Nothing about them reaches FSRS. When both
+steps are done, the page graduates: each card counts as one Good review, and
+the first real review comes the next day.
+
+### Review
+
+Answer first:
+
+- **Japanese → meaning:** say the meaning, then tap **Show answer**.
+- **Meaning → Japanese:** type the kana. The app checks it.
+
+Then grade how the recall felt:
+
+| Grade | Choose it when | Effect on the card |
+|---|---|---|
+| **Again** (1) | You didn't recall it, or you recalled it wrongly | Counts as a lapse. Stability drops sharply, so the word comes back in about a day, and difficulty rises a lot. |
+| **Hard** (2) | You recalled it, but slowly, with effort, or unsure | A pass. The interval is shorter than Good, and difficulty rises a little. |
+| **Good** (3) | You recalled it normally | The normal choice for a correct answer. The interval grows, and difficulty eases slightly. |
+| **Easy** (4) | Instant and effortless, and you'd be fine seeing it much later | A pass with a much longer interval. Difficulty drops a lot. |
+
+The app limits some choices:
+
+- **Don't know (1):** shows the answer and leaves only Again.
+- **Wrong typed answer:** leaves only Again. "It was a typo — count it as correct" unlocks the other grades.
+- **"Where did I learn this?" (page hint):** caps the grade at Hard.
+- **"Show furigana" (F):** doesn't limit the grade. The peek counts against the kanji instead.
+
+**Rules of thumb**
+
+- **Good is the default for a correct answer.** Most correct answers should be
+  Good.
+- **Hard means correct but effortful.** It isn't a softer Again. If you didn't
+  recall the word, press Again.
+- **Use Easy rarely.** It pushes the word far away, and an Easy you didn't
+  deserve costs a forgotten word later.
+- **Be honest rather than kind.** Grading Good on a guess makes FSRS think you
+  know the word, and the word disappears for weeks. Again only brings it back
+  sooner.
+
+**Example intervals.** These come from the current settings (retention 0.9,
+default FSRS weights). The app adds a little random jitter, so real dates vary
+by a day or so.
+
+| Situation | Again | Hard | Good | Easy |
+|---|---|---|---|---|
+| First review the day after a page | 1 day | 5 days | 7 days | 12 days |
+| Well-known word, stability around 4 months | 4 days | ~9 months | ~12 months | ~20 months |
+
+On a well-known word, Again costs a lot: about 4 months of stability drops to
+about 4 days, and the higher difficulty slows its growth afterwards. That's
+why an honest Again early on is cheaper than a lucky Good.
+
 ## Architecture
 
 | Part | Where | Notes |
