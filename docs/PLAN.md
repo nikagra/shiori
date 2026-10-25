@@ -27,11 +27,12 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
 
 ## Next steps, in order
 
-1. **Finish checking v0.1 on the iPhone.** These items are left from PR #1:
-   - [ ] Add to Home Screen opens full screen.
-   - [ ] The audio button speaks Japanese.
-   - [ ] The Japanese keyboard works in the kana answer box.
-   - [ ] The page grid is readable.
+1. **Finish checking v0.1 on the iPhone.** Mikita ticked the PR #1 checklist
+   before merging; only the furigana check wasn't on it:
+   - [x] Add to Home Screen opens full screen.
+   - [x] The audio button speaks Japanese.
+   - [x] The Japanese keyboard works in the kana answer box.
+   - [x] The page grid is readable.
    - [ ] Furigana and "Show furigana" work.
 
    Fix whatever turns up in a new PR.
