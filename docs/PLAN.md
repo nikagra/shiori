@@ -90,7 +90,9 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
 
 - Development happens on a branch with a PR into `main`. Run `/code-review`
   and check its findings before merging.
-- Commit subject lines end with an emoji that fits the change. Don't rewrite
+- Commit subject lines and PR titles start with a Conventional Commits
+  prefix (`feat:`, `fix:`, `docs:`, `ci:`, `chore:`...) and end with an emoji
+  that fits the change (prefixes from 25 Oct on). Don't rewrite
   pushed commits.
 - Don't change or skip tests to make them pass. Report failures with their
   output.
