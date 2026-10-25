@@ -17,7 +17,7 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   to Cloudflare yet. After a reboot, start the server again.
 - Study data is in `.wrangler/state`. An old database holding only test data is
   kept in `.wrangler/state-test-backup-20261025` and can be deleted.
-- Tests on the branch: 56 unit tests, 16 end-to-end tests, and `tsc -b` all
+- Tests on the branch: 56 unit tests, 20 end-to-end tests, and `tsc -b` all
   pass.
 
 ## Next steps, in order
@@ -40,17 +40,29 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
      (`wrangler d1 export` / `execute --file`) or re-import from Renshuu.
 3. **Backup and export**: a way to download all study data, plus a scheduled
    D1 export once deployed.
-4. **Capture words while reading** (manga, books, school): quick add from the
-   phone with a dictionary lookup for kana and meanings (JMdict-based), tagged
-   with `source` / `source_list`. New words go to the inbox.
-5. **Leeches**: `LEECH_LAPSES` (6) is defined in `shared/scheduler.ts` but not
-   used yet. Decide what happens to a leech, for example: put it back on a new
-   page, flag it, or suspend it.
-6. **Kanji study vector**: kanji reading cards built from `kanji_hints` and the
-   Still learning list, with their own grades, separate from vocabulary.
-7. **Grammar map**: one structure that ties grammar points together (the
-   second half of the project goal). It needs its own design pass before any
-   code.
+4. **v0.2: capture while reading.** Matches the original plan
+   ([plan doc](https://claude.ai/artifact/1J233eFb8H61zr7WbEZXas)):
+   - Photo of a manga panel → Claude (called only from the Worker, with its own
+     API key; Pro doesn't include API access) explains it and proposes words,
+     each tagged with `source` / `source_list`. New words go to the inbox.
+     Roughly $0.05 per panel.
+   - JMdict (via jmdict-simplified) for kana, meanings and per-kanji furigana.
+     That replaces the kana-anchor split, which gives 日本 one reading over both
+     kanji.
+   - Cloze cards using the sentence the word came from.
+   - Show "usually written in kana" forms.
+5. **v0.3: kanji, school, leeches.**
+   - Kanji reading cards (on and kun) as their own study vector, seeded from
+     `kanji_hints` and the Still learning list, with separate grades.
+   - School focus: Marugoto batches of 10 kanji over about 6 weeks, and topic
+     blocks of about 3 months, get priority before tests.
+   - Leeches: `LEECH_LAPSES` (6) is defined in `shared/scheduler.ts` but unused.
+     Decide what happens to one, for example a new page, a flag or a suspend.
+   - New-context cards: the same word in a fresh sentence once it's mature.
+6. **v0.4: listening** from YouTube clips, if feasible; otherwise keep it
+   separate.
+7. **v0.5: grammar map**, one structure that ties grammar points together. It
+   needs its own design pass before any code.
 
 ## Open questions
 
