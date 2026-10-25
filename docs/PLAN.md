@@ -37,7 +37,20 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
 
 1. **Backup and export**: a way to download all study data, plus a scheduled
    D1 export once deployed.
-2. **v0.2: capture while reading.** Matches the original plan
+2. **Lists you manage, with their own pace** (Mikita, 25 Oct; before v0.2 so
+   capture and school focus build on real lists). Today a list is only a
+   label on each word (`words.source_list`, picked at import: manga, books,
+   school, other); "New page" takes the next inbox words in import order
+   across all lists, and reviews and `NEW_PER_DAY` (20) are global.
+   - A `lists` table: create, rename, merge and archive lists in the app. The
+     four current lists are the starting set; existing words keep theirs.
+   - One list per page, so the word group stays a clean memory anchor. "New
+     page" asks which list, or picks the one furthest behind its pace.
+   - Per-list pace and priority: a weight or a target (for example one page a
+     week for school), the daily new-card budget split by weight, and pausing.
+   - Focus: boost one list before a deadline such as a Marugoto test. Due
+     reviews from every list still come; FSRS stays per card.
+3. **v0.2: capture while reading.** Matches the original plan
    ([plan doc](https://claude.ai/artifact/1J233eFb8H61zr7WbEZXas)):
    - Photo of a manga panel → Claude (called only from the Worker, with its own
      API key; Pro doesn't include API access) explains it and proposes words,
@@ -52,7 +65,7 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
      panel) instead of one sentence column. Cloze and the v0.3 new-context
      cards pick from it.
    - Show "usually written in kana" forms.
-3. **v0.3: kanji, school, leeches.**
+4. **v0.3: kanji, school, leeches.**
    - Kanji reading cards (on and kun) as their own study vector, seeded from
      `kanji_hints` and the Still learning list, with separate grades.
    - School focus: Marugoto batches of 10 kanji over about 6 weeks, and topic
@@ -60,9 +73,9 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
    - Leeches: `LEECH_LAPSES` (6) is defined in `shared/scheduler.ts` but unused.
      Decide what happens to one, for example a new page, a flag or a suspend.
    - New-context cards: the same word in a fresh sentence once it's mature.
-4. **v0.4: listening** from YouTube clips, if feasible; otherwise keep it
+5. **v0.4: listening** from YouTube clips, if feasible; otherwise keep it
    separate.
-5. **v0.5: grammar map**, one structure that ties grammar points together. It
+6. **v0.5: grammar map**, one structure that ties grammar points together. It
    needs its own design pass before any code.
 
 ## Open questions
