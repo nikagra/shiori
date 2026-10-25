@@ -652,6 +652,10 @@ input[type='checkbox'] {
   font-size: 0.85rem;
 }
 
+.page-cell__word--xxlong {
+  font-size: 0.72rem;
+}
+
 .page-cell__word--hidden {
   color: var(--accent);
   font-weight: 700;

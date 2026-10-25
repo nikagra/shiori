@@ -130,8 +130,9 @@ function ReviewCard({
       await api.submitReview(item.cardId, {
         rating,
         hintUsed,
-        answer: typed?.value,
-        correct: gaveUp ? false : typed ? typed.correct || typed.typo : undefined,
+        // A give-up on a typing card is logged with no answer, unlike an empty one.
+        answer: gaveUp ? undefined : typed?.value,
+        correct: typed ? typed.correct || typed.typo : undefined,
         durationMs: Date.now() - started.current,
       });
       onGraded();

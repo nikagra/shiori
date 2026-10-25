@@ -90,12 +90,13 @@ export function PageView({ id }: { id: number }) {
 interface StepView {
   of: DrillState;
   revealed: boolean;
-  /** gaveUp: "Don't know yet" instead of an answer. */
-  typed: { value: string; correct: boolean; gaveUp?: boolean } | null;
+  typed: { value: string; correct: boolean } | null;
+  /** "Don't know yet" instead of an answer: shown the answer, counted as missed. */
+  gaveUp: boolean;
   moved: string;
 }
 
-const freshView = (of: DrillState): StepView => ({ of, revealed: false, typed: null, moved: '' });
+const freshView = (of: DrillState): StepView => ({ of, revealed: false, typed: null, gaveUp: false, moved: '' });
 
 function Drill({
   page,
@@ -113,6 +114,7 @@ function Drill({
   onQuit: () => void;
 }) {
   const step = currentStep(state);
+  const jpPrompt = step?.direction === 'jp_en';
   const word = useMemo(() => page.words.find((w) => w.id === step?.wordId), [page, step]);
   const [settings] = useSettings();
   // What happened on this step. Tagged with the step's state, so the next
@@ -120,9 +122,8 @@ function Drill({
   // and no key press can grade it unseen.
   const [stepView, setStepView] = useState<StepView>(() => freshView(state));
   const view = stepView.of === state ? stepView : freshView(state);
-  const { revealed, typed, moved } = view;
+  const { revealed, typed, gaveUp, moved } = view;
   const update = (patch: Partial<Omit<StepView, 'of'>>) => setStepView({ ...view, ...patch });
-  const setRevealed = (value: boolean) => update({ revealed: value });
   const setTyped = (value: StepView['typed']) => update({ typed: value });
   const setMoved = (value: string) => update({ moved: value });
 
@@ -130,26 +131,24 @@ function Drill({
     if (isDrillDone(state)) onDone();
   }, [state]);
 
-  // "Don't know yet" on a Japanese→meaning step: show the answer, and the only
-  // way on is Missed, so the word comes back at the end.
-  const [gaveUpOf, setGaveUpOf] = useState<DrillState | null>(null);
-  const gaveUp = gaveUpOf === state;
   // Back to the full page in the middle of a drill, to study it again.
   const [studying, setStudying] = useState(false);
 
-  const reveal = () => {
+  const reveal = (patch: Partial<StepView> = {}) => {
     if (!word || revealed) return;
-    setRevealed(true);
+    update({ revealed: true, ...patch });
     if (settings.autoPlay) speak(word.kana);
   };
+  // The only way on after this is Continue, which counts the step as missed.
   const dontKnow = () => {
-    if (!word || revealed) return;
-    setGaveUpOf(state);
-    reveal();
+    if (!word) return;
+    if (jpPrompt) reveal({ gaveUp: true });
+    else if (!typed) {
+      update({ typed: { value: '', correct: false }, gaveUp: true });
+      if (settings.autoPlay) speak(word.kana);
+    }
   };
   const answer = (correct: boolean) => onChange(answerStep(state, correct));
-
-  const jpPrompt = step?.direction === 'jp_en';
   useKeys(
     {
       Space: () => (jpPrompt && !revealed ? reveal() : undefined),
@@ -159,12 +158,15 @@ function Drill({
     Boolean(step) && jpPrompt && !studying,
   );
 
-  // In order, meaning→Japanese: words still to be asked stay hidden, so the
-  // next answer can't be read off the grid ahead of time.
+  // In order, once meaning→Japanese has begun: words still to be asked that
+  // way stay hidden, so an answer can't be read off the grid ahead of time,
+  // even while a missed Japanese→meaning step comes round again.
   const hidden = useMemo(() => {
-    if (stage !== 'ordered' || jpPrompt) return undefined;
-    return new Set(state.queue.filter((s) => s.direction === 'en_jp').map((s) => s.wordId));
-  }, [stage, jpPrompt, state]);
+    if (stage !== 'ordered') return undefined;
+    const pending = state.queue.filter((s) => s.direction === 'en_jp');
+    const begun = !jpPrompt || pending.length < page.words.length;
+    return begun ? new Set(pending.map((s) => s.wordId)) : undefined;
+  }, [stage, jpPrompt, state, page]);
 
   if (!step || !word) return <p className="muted">Saving…</p>;
 
@@ -174,7 +176,7 @@ function Drill({
         <div className="row row--between">
           <h1>Page {page.number} · study</h1>
         </div>
-        <p className="muted">Take your time. The word you were on comes back at the end of the drill.</p>
+        <p className="muted">Take your time. The word you were on counts as missed and comes back at the end of the drill.</p>
         <PageGrid page={page} mode="full" />
         <button className="button button--primary button--wide" onClick={() => setStudying(false)}>
           Back to the drill
@@ -183,8 +185,8 @@ function Drill({
     );
   }
   const studyAgain = () => {
-    // The current word was on screen unanswered: it counts as missed.
-    if (!revealed && !typed) answer(false);
+    // Looking at the page answers the word on screen: it counts as missed.
+    answer(false);
     setStudying(true);
   };
 
@@ -225,7 +227,7 @@ function Drill({
             {typed && (
               <div className="flash__answer">
                 <p className={typed.correct ? 'result result--right' : 'result result--wrong'} data-testid="typed-result">
-                  {typed.correct ? 'Correct' : typed.gaveUp ? 'Here it is: it comes back at the end' : `Not quite: you typed “${typed.value || '—'}”`}
+                  {typed.correct ? 'Correct' : gaveUp ? 'Here it is: it comes back at the end' : `Not quite: you typed “${typed.value || '—'}”`}
                 </p>
                 <JapaneseWord word={word} showReading size="small" />
                 <SpeakButton text={word.kana} />
@@ -240,7 +242,7 @@ function Drill({
           <button className="button button--again" onClick={dontKnow} title="Shortcut: 1">
             Don’t know yet
           </button>
-          <button className="button button--primary" onClick={reveal} title="Shortcut: Space">
+          <button className="button button--primary" onClick={() => reveal()} title="Shortcut: Space">
             Show answer
           </button>
         </div>
@@ -270,13 +272,7 @@ function Drill({
               if (settings.autoPlay) speak(word.kana);
             }}
           />
-          <button
-            className="button button--again button--wide"
-            onClick={() => {
-              setTyped({ value: '', correct: false, gaveUp: true });
-              if (settings.autoPlay) speak(word.kana);
-            }}
-          >
+          <button className="button button--again button--wide" onClick={dontKnow}>
             Don’t know yet
           </button>
         </div>
@@ -286,7 +282,7 @@ function Drill({
           <button className="button button--primary button--wide" autoFocus onClick={() => answer(typed.correct)}>
             Continue
           </button>
-          {!typed.correct && !typed.gaveUp && (
+          {!typed.correct && !gaveUp && (
             <button className="link-button" onClick={() => answer(true)}>
               It was a typo — count it as correct
             </button>

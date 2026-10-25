@@ -63,6 +63,32 @@ test.describe('drill', () => {
     await expect(page.getByRole('button', { name: /typo/ })).toHaveCount(0);
   });
 
+  test('a missed word coming round again keeps upcoming answers hidden', async ({ page }) => {
+    const card = page.getByTestId('drill-card');
+    // Japanese→meaning: give up on word 1, know words 2 and 3.
+    await page.getByRole('button', { name: 'Don’t know yet' }).click();
+    await page.getByRole('button', { name: 'Continue' }).click();
+    for (const _ of [1, 2]) {
+      await page.getByRole('button', { name: 'Show answer' }).click();
+      await page.getByRole('button', { name: 'Got it' }).click();
+    }
+    // Meaning→Japanese: know word 1, give up on word 2, know word 3.
+    await page.getByLabel('Answer in kana').fill(words[0].kana);
+    await page.getByRole('button', { name: 'Check' }).click();
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('button', { name: 'Don’t know yet' }).click();
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByLabel('Answer in kana').fill(words[2].kana);
+    await page.getByRole('button', { name: 'Check' }).click();
+    await page.getByRole('button', { name: 'Continue' }).click();
+    // Word 1 comes round again Japanese→meaning; word 2 is still to be typed,
+    // so it must not be on the grid.
+    await expect(card).toHaveAttribute('data-direction', 'jp_en');
+    expect(await position(page)).toBe(0);
+    await expect(page.locator('.page-cell[data-position="1"] .page-cell__word')).toHaveCount(0);
+    await expect(page.locator('.page-cell[data-position="2"] .page-cell__word')).toBeVisible();
+  });
+
   test('study the page again in the middle of a drill', async ({ page }, testInfo) => {
     await page.getByRole('button', { name: 'Study the page again' }).click();
     await expect(page.locator('.page-grid--full')).toBeVisible();

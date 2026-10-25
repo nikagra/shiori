@@ -59,5 +59,5 @@ export function PageGrid({
 /** Longer words get a smaller size, so they fit a third of a phone screen without breaking. */
 function lengthClass(written: string): string {
   const n = [...written].length;
-  return n >= 6 ? ' page-cell__word--xlong' : n >= 5 ? ' page-cell__word--long' : '';
+  return n >= 8 ? ' page-cell__word--xxlong' : n >= 6 ? ' page-cell__word--xlong' : n >= 5 ? ' page-cell__word--long' : '';
 }

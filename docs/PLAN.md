@@ -17,8 +17,12 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   to Cloudflare yet. After a reboot, start the server again.
 - Study data is in `.wrangler/state`. An old database holding only test data is
   kept in `.wrangler/state-test-backup-20261025` and can be deleted.
-- Tests on the branch: 56 unit tests, 20 end-to-end tests, and `tsc -b` all
+- Tests on the branch: 56 unit tests, 34 end-to-end runs (17 tests at iPhone and laptop sizes), and `tsc -b` all
   pass.
+- First iPhone feedback (25 Oct) is in: "Don't know" on review and drill
+  cards, next words hidden in the in-order drill, "Study the page again",
+  whole words on the grid, safer iOS speech. Sound on the iPhone still needs
+  a recheck (silent switch off, volume up).
 
 ## Next steps, in order
 
@@ -46,9 +50,9 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
      API key; Pro doesn't include API access) explains it and proposes words,
      each tagged with `source` / `source_list`. New words go to the inbox.
      Roughly $0.05 per panel.
-   - JMdict (via jmdict-simplified) for kana, meanings and per-kanji furigana.
-     That replaces the kana-anchor split, which gives 日本 one reading over both
-     kanji.
+   - JMdict (via jmdict-simplified) for kana and meanings, and per-kanji
+     furigana from JmdictFurigana. Mikita asked for this (25 Oct): readings
+     over a run of kanji (冬眠, 日本) don't line up with each kanji today.
    - Cloze cards using the sentence the word came from.
    - Show "usually written in kana" forms.
 5. **v0.3: kanji, school, leeches.**
@@ -66,6 +70,8 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
 
 ## Open questions
 
+- A hint system for review cards (beyond the page hint and furigana), asked
+  for on 25 Oct as a future improvement: what hints, and what they cost.
 - Should the N5/N4 kanji lists be editable in bulk, or are "Also known" and
   "Still learning" enough?
 - `NEW_PER_DAY` is fixed at 20. Should it be a setting?

@@ -13,7 +13,7 @@ function japaneseVoice(): SpeechSynthesisVoice | undefined {
     const v = voices.find((x) => x.name.startsWith(name));
     if (v) return v;
   }
-  return voices.find((v) => v.default) ?? voices.find((v) => v.localService) ?? voices[0];
+  return voices.find((v) => v.localService) ?? voices[0];
 }
 
 export function canSpeak(): boolean {
