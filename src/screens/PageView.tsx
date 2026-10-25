@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { api, type PageDetail } from '../api';
+import { api, shortPos, type PageDetail } from '../api';
 import { PageGrid } from '../components/PageGrid';
 import { JapaneseWord, KanaInput, Meaning, Notice, Progress, SpeakButton, useKeys } from '../components/ui';
 import { answerStep, currentStep, isDrillDone, startDrill, type DrillState } from '../../shared/pageSession';
@@ -164,7 +164,7 @@ function Drill({
         ) : (
           <>
             <p className="prompt-meaning">{word.coreMeaning}</p>
-            {word.pos && <p className="meaning__pos">{word.pos}</p>}
+            {word.pos && <p className="meaning__pos">{shortPos(word.pos)}</p>}
             {typed && (
               <div className="flash__answer">
                 <p className={typed.correct ? 'result result--right' : 'result result--wrong'} data-testid="typed-result">

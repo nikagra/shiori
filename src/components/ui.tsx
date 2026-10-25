@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { bind, unbind } from 'wanakana';
-import { writtenForm, type Word } from '../api';
+import { shortPos, writtenForm, type Word } from '../api';
 import { speak } from '../speech';
 
 export function SpeakButton({ text, label = 'Play audio' }: { text: string; label?: string }) {
@@ -66,7 +66,7 @@ export function Meaning({ word, onEdit }: { word: Word; onEdit?: (meaning: strin
           )}
         </p>
       )}
-      {word.pos && <p className="meaning__pos">{word.pos}</p>}
+      {word.pos && <p className="meaning__pos">{shortPos(word.pos)}</p>}
       {word.senses.length > 1 && (
         <details className="meaning__all">
           <summary>All meanings ({word.senses.length})</summary>

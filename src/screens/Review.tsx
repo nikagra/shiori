@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api, type PageDetail, type QueueItem } from '../api';
+import { api, shortPos, type PageDetail, type QueueItem } from '../api';
 import { PageGrid } from '../components/PageGrid';
 import { JapaneseWord, KanaInput, Meaning, Notice, Progress, SpeakButton, useKeys } from '../components/ui';
 import { checkReading } from '../../shared/kana';
@@ -187,7 +187,7 @@ function ReviewCard({
         ) : (
           <>
             <p className="prompt-meaning">{word.coreMeaning}</p>
-            {word.pos && <p className="meaning__pos">{word.pos}</p>}
+            {word.pos && <p className="meaning__pos">{shortPos(word.pos)}</p>}
             {typed && (
               <div className="flash__answer">
                 <p className={typed.correct || typed.typo ? 'result result--right' : 'result result--wrong'} data-testid="typed-result">

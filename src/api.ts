@@ -97,3 +97,6 @@ export const api = {
 };
 
 export const writtenForm = (w: Pick<Word, 'kanji' | 'kana'>) => w.kanji ?? w.kana;
+
+/** "Godan verb - る (ます = stem+ります)/intransitive" → "Godan verb - る · intransitive" */
+export const shortPos = (pos: string) => pos.replace(/\s*\(ます = [^)]*\)/g, '').replace(/\//g, ' · ');

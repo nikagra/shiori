@@ -28,7 +28,7 @@ export function Home() {
     <div className="stack">
       {empty && (
         <Notice>
-          Welcome. Start by <a href="#/import">importing a Renshuu list</a>.
+          <p>Welcome. Start by <a href="#/import">importing a Renshuu list</a>.</p>
         </Notice>
       )}
 
@@ -51,7 +51,7 @@ export function Home() {
         </a>
       </section>
 
-      <p className="muted">{stats.learned} words in spaced review.</p>
+      <p className="muted">{stats.learned} {stats.learned === 1 ? 'word' : 'words'} in spaced review.</p>
 
       <section className="card stack">
         <h2>Audio</h2>
