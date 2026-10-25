@@ -28,7 +28,7 @@ export default defineConfig({
     { name: 'laptop', use: { browserName: 'chromium', viewport: { width: 1280, height: 800 } } },
   ],
   webServer: {
-    command: `node e2e/prepare.mjs && vite --port ${PORT} --strictPort`,
+    command: `node e2e/prepare.mjs && SHIORI_E2E=1 vite --port ${PORT} --strictPort`,
     url: `http://localhost:${PORT}`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

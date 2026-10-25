@@ -15,7 +15,6 @@ school and Renshuu imports.
 
 ```sh
 npm install
-cp .dev.vars.example .dev.vars
 npm run db:migrate:local
 npm run dev            # http://localhost:5173
 ```
@@ -27,6 +26,9 @@ npm test               # unit tests (Vitest)
 npx playwright install chromium   # once
 npm run test:e2e       # end-to-end tests at iPhone and laptop sizes
 ```
+
+End-to-end tests use their own database in `.wrangler/e2e`; they never touch
+your study data in `.wrangler/state`.
 
 ## Deploy
 

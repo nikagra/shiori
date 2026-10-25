@@ -5,7 +5,7 @@ import * as db from './db';
 
 export interface Env {
   DB: D1Database;
-  /** Set to "1" in .dev.vars only; enables reset and time-travel endpoints for tests. */
+  /** Set to "1" only by the end-to-end test server (vite.config.ts); enables reset and time-travel endpoints. */
   ALLOW_TEST_ENDPOINTS?: string;
 }
 
