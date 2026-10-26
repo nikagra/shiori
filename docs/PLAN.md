@@ -26,9 +26,9 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   in `.wrangler/state`, separate from the cloud one. An old database holding
   only test data is kept in `.wrangler/state-test-backup-20261025` and can be
   deleted.
-- Tests: 99 unit tests, 48 end-to-end runs (24 tests at iPhone and laptop
+- Tests: 99 unit tests, 54 end-to-end runs (27 tests at iPhone and laptop
   sizes), and `tsc -b` all pass.
-- **Backup and export** (26 Oct): Home › Backup downloads all study data as
+- **Backup and export** (26 Oct): Settings › Backup downloads all study data as
   one JSON file, a nightly cron saves the same file to the private R2 bucket
   `shiori-backups` (30 days kept), and `npm run backup:sql` turns a file back
   into SQL. A restore through local D1 was checked by hand. See "Backup and
@@ -43,6 +43,11 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   Today's 20 new review cards are shared by weight. Older backups still load
   and get their lists. See "Lists" in DESIGN.md. After pulling on the laptop,
   run `npm run db:migrate:local`; the deploy applies it to D1.
+- **Settings** (26 Oct): a Settings tab replaces the Import tab and holds
+  words per page, audio, furigana, Import (`#/settings/import`; old
+  `#/import` links still work) and Backup. Home is the tiles only, plus a red
+  warning when the nightly backup has stopped. Pages shows the page size and
+  links to Settings. No data or API changes.
 - First iPhone feedback (25 Oct) is in: "Don't know" on review and drill
   cards, next words hidden in the in-order drill, "Study the page again",
   whole words on the grid, safer iOS speech. Sound on the iPhone still needs
@@ -64,8 +69,6 @@ What the word loop can't do yet:
 - Add one word. Import only takes a pasted or uploaded Renshuu export.
 - Shape a page: drop a word with a similar meaning, pick the words yourself,
   or delete a page.
-- Find settings in one place. Audio, furigana, page size, backup and import are spread
-  over Home and the screens.
 - Handle leeches, show what each grade button does, or change the 20 new
   cards a day.
 
@@ -73,15 +76,15 @@ What the word loop can't do yet:
 
 Done: v0.1 core loop (import, check pass, pages, FSRS review, audio,
 furigana), deploy on merge, backup and export (26 Oct; check the first
-nightly copy shows on Home), lists you manage with their own pace (26 Oct;
+nightly copy shows in Settings), lists you manage with their own pace (26 Oct;
 try it on the iPhone: the Lists tab, then a page from School and one from
-Manga).
+Manga), Settings (26 Oct).
 
 ### v0.2: a complete word tool
 
-1. **Settings.** One Settings screen for audio, furigana, page size, backup
-   and import (Mikita, 26 Oct), so Home, Pages, Review and Lists are only
-   about studying. Small, and it gives the later steps a place to live.
+1. ~~**Settings.**~~ Done (26 Oct): one Settings screen for audio,
+   furigana, page size, backup and import, so Home, Pages, Review and Lists
+   are only about studying. Later settings (new cards a day, step 5) go here.
 2. **Words you can see and change.** Each list opens to its words, with a
    search box (kana, romaji, kanji or meaning) and filters by state (to
    check, waiting, on a page, learning, set aside). Edit a word's kanji,

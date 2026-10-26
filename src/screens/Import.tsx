@@ -39,6 +39,9 @@ export function Import() {
 
   return (
     <div className="stack">
+      <a href="#/settings" className="link-button link-button--back">
+        ‹ Settings
+      </a>
       <h1>Import from Renshuu</h1>
       <p className="muted">
         In Renshuu, export a list as <strong>Custom</strong> with all fields (word, reading, definition, type, mastery), one word per line. Basic exports work

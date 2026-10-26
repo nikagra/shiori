@@ -10,7 +10,7 @@ test.beforeEach(async ({ request }) => {
 });
 
 test('download a backup of everything, and see the nightly copy', async ({ page, request }, testInfo) => {
-  await page.goto('/');
+  await page.goto('/#/settings');
   const section = page.getByRole('region', { name: 'Backup' });
   await expect(section.getByTestId('nightly-status')).toHaveText('No nightly copy yet. The first one is saved tonight.');
   await expectNoHorizontalScroll(page);
@@ -41,7 +41,7 @@ test('an error from the server is reported, not saved as a backup', async ({ pag
   await page.route('/api/backup', (route) => route.fulfill({ status: 500, json: { error: 'internal error' } }));
   let downloaded = false;
   page.on('download', () => (downloaded = true));
-  await page.goto('/');
+  await page.goto('/#/settings');
   const section = page.getByRole('region', { name: 'Backup' });
   await section.getByRole('button', { name: 'Download backup' }).click();
   await expect(section.getByText('Download failed: the server answered 500')).toBeVisible();

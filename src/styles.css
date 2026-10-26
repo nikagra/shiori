@@ -299,6 +299,10 @@ p {
   align-self: center;
 }
 
+.link-button--back {
+  align-self: flex-start;
+}
+
 .icon-button {
   appearance: none;
   display: inline-grid;

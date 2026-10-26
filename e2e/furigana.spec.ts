@@ -46,13 +46,13 @@ test('peek at furigana on a question; a second peek moves the kanji to still lea
   await expect(page.getByRole('button', { name: 'Good' })).toBeEnabled();
   await expect(page.getByRole('button', { name: 'Easy' })).toBeEnabled();
 
-  // Home shows the kanji under Still learning, on any device.
+  // Settings shows the kanji under Still learning, on any device.
   const prefs = await (await request.get('/api/furigana')).json();
   for (const k of kanjiOf(word)) expect(prefs.prefs.learningKanji).toContain(k);
 });
 
 test('furigana settings are shared between devices', async ({ page, browser }, testInfo) => {
-  await page.goto('/');
+  await page.goto('/#/settings');
   const section = page.getByRole('region', { name: 'Furigana' });
   await section.getByLabel('Kanji I know').selectOption('n5');
   await section.getByLabel('Still learning').fill('験貸');
@@ -62,12 +62,12 @@ test('furigana settings are shared between devices', async ({ page, browser }, t
     knownKanji: expect.any(String),
     learningKanji: '験貸',
   });
-  await shot(page, testInfo, '31-home-furigana');
+  await shot(page, testInfo, '31-settings-furigana');
 
   // A fresh browser has its own local storage, like the other device.
   const other = await browser.newContext({ baseURL: testInfo.project.use.baseURL });
   const phone = await other.newPage();
-  await phone.goto('/');
+  await phone.goto('/#/settings');
   const otherSection = phone.getByRole('region', { name: 'Furigana' });
   await expect(otherSection.getByLabel('Kanji I know')).toHaveValue('n5');
   await expect(otherSection.getByLabel('Still learning')).toHaveValue('験貸');

@@ -6,8 +6,10 @@ import { Pages } from './screens/Pages';
 import { PageView } from './screens/PageView';
 import { Review } from './screens/Review';
 import { Lists } from './screens/Lists';
+import { Settings } from './screens/Settings';
 
-// Hash routes: #/, #/review, #/pages, #/pages/3, #/lists, #/check, #/import
+// Hash routes: #/, #/review, #/pages, #/pages/3, #/lists, #/check, #/settings,
+// #/settings/import (#/import still opens it, for old bookmarks)
 
 function useHashRoute(): string[] {
   const read = () => window.location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
@@ -29,12 +31,13 @@ const NAV = [
   { href: '#/pages', label: 'Pages', match: 'pages' },
   { href: '#/lists', label: 'Lists', match: 'lists' },
   { href: '#/check', label: 'Check', match: 'check' },
-  { href: '#/import', label: 'Import', match: 'import' },
+  { href: '#/settings', label: 'Settings', match: 'settings' },
 ];
 
 export function App() {
   const route = useHashRoute();
   const [section, id] = route;
+  const tab = section === 'import' ? 'settings' : (section ?? '');
 
   let screen;
   switch (section) {
@@ -49,6 +52,9 @@ export function App() {
       break;
     case 'check':
       screen = <Triage />;
+      break;
+    case 'settings':
+      screen = id === 'import' ? <Import /> : <Settings />;
       break;
     case 'import':
       screen = <Import />;
@@ -70,7 +76,7 @@ export function App() {
       <main className="main">{screen}</main>
       <nav className="tabbar" aria-label="Main">
         {NAV.map((n) => (
-          <a key={n.href} href={n.href} className={`tabbar__item${(section ?? '') === n.match ? ' tabbar__item--active' : ''}`}>
+          <a key={n.href} href={n.href} className={`tabbar__item${tab === n.match ? ' tabbar__item--active' : ''}`}>
             {n.label}
           </a>
         ))}

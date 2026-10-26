@@ -3,7 +3,6 @@ import { api, type ListSummary, type PageSummary, type Stats } from '../api';
 import { Notice } from '../components/ui';
 import { navigate } from '../nav';
 import { useSettings } from '../settings';
-import { PAGE_SIZES } from '../../shared/pageSession';
 
 const STAGE_LABEL = { ordered: 'Step 1 of 2', shuffled: 'Step 2 of 2', graduated: 'Learned' } as const;
 /** Above this many reviews, a new page would pile on more than a short session can hold. */
@@ -17,7 +16,7 @@ export function Pages() {
   const [from, setFrom] = useState<number | 'auto'>('auto');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [settings, update] = useSettings();
+  const [settings] = useSettings();
 
   useEffect(() => {
     Promise.all([api.pages(), api.stats(), api.lists()]).then(
@@ -59,7 +58,7 @@ export function Pages() {
         <h2>New page</h2>
         {stats.inbox === 0 ? (
           <p className="muted">
-            No words waiting. {stats.toCheck > 0 ? <a href="#/check">Check imported words</a> : <a href="#/import">Import words</a>} first.
+            No words waiting. {stats.toCheck > 0 ? <a href="#/check">Check imported words</a> : <a href="#/settings/import">Import words</a>} first.
           </p>
         ) : (
           <>
@@ -83,16 +82,9 @@ export function Pages() {
             {stats.reviewsDue > BUSY_REVIEWS && (
               <Notice>You have {stats.reviewsDue} reviews today. New words stick better when reviews are under control; consider reviewing first.</Notice>
             )}
-            <div className="row">
-              <span>Words per page</span>
-              <div className="segmented" role="group" aria-label="Words per page">
-                {PAGE_SIZES.map((s) => (
-                  <button key={s} className={settings.pageSize === s ? 'is-active' : ''} aria-pressed={settings.pageSize === s} onClick={() => update({ pageSize: s })}>
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <p className="muted small" data-testid="page-size">
+              {settings.pageSize} words per page. Change it in <a href="#/settings">Settings</a>.
+            </p>
             <button className="button button--primary" disabled={busy || !chosen} onClick={create}>
               Start a new page
             </button>
