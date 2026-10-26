@@ -16,7 +16,8 @@ export function Import() {
       (all) => {
         const open = all.filter((l) => !l.archived);
         setLists(open);
-        setListId(open[0]?.id ?? null);
+        // Keep a list already picked: a late answer (StrictMode loads twice) mustn't reset it.
+        setListId((picked) => picked ?? open[0]?.id ?? null);
       },
       (e: Error) => setError(e.message),
     );
