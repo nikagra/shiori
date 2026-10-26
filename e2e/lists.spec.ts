@@ -1,12 +1,7 @@
 import { expect, test, type APIRequestContext } from '@playwright/test';
-import { expectNoHorizontalScroll, FIXTURE, resetDb, seedWords, shot } from './helpers';
+import { expectNoHorizontalScroll, listId, FIXTURE, resetDb, seedWords, shot } from './helpers';
 
 const SCHOOL_WORDS = ['学校/がっこう - school', '先生/せんせい - teacher', '宿題/しゅくだい - homework', '教室/きょうしつ - classroom', '試験/しけん - exam'].join('\n');
-
-async function listId(request: APIRequestContext, name: string): Promise<number> {
-  const lists = (await (await request.get(`/api/lists?dayStart=${new Date().toISOString()}&dayEnd=${new Date().toISOString()}`)).json()) as { id: number; name: string }[];
-  return lists.find((l) => l.name === name)!.id;
-}
 
 /** Puts the school words in the inbox. Call it before seedWords, which leaves words to check that come first. */
 async function seedSchool(request: APIRequestContext) {

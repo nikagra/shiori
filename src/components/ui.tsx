@@ -5,6 +5,11 @@ import { furigana as furiganaSegments, hiddenKanji } from '../../shared/furigana
 import { useFurigana } from '../furigana';
 import { speak } from '../speech';
 
+export const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+/** "26 Oct", in the device's language. */
+export const shortDate = (d: Date) => d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+
 export function SpeakButton({ text, label = 'Play audio' }: { text: string; label?: string }) {
   return (
     <button type="button" className="icon-button" aria-label={label} title={label} onClick={() => speak(text)}>

@@ -80,7 +80,8 @@ Each list has its own pace:
 | Focus until a date | Before a test: "Pick for me" takes this list first, and its weight counts `FOCUS_BOOST` (3) times for new cards. One list at a time; it ends by itself after the date |
 | Archive | No new pages (not even by hand) and no new review cards. Hidden from import and the check pass, and its words to check or waiting leave the counts on Home. Its learned words still come up for review |
 
-- **One list per page**, so the word group stays a clean memory anchor. "New
+- **One list per page**, so the word group stays a clean memory anchor
+  (a learned word moved to another list later leaves its page as it was). "New
   page" asks which list. "Pick for me" (`pickList`) takes a focused list
   first, then the list furthest behind its weekly target, then the list with
   the fewest pages in the last 28 days for its weight.
@@ -90,6 +91,32 @@ Each list has its own pace:
   the budget isn't wasted.
 - **Due reviews always come**, from every list, paused and archived ones too.
   FSRS stays per card: memory doesn't care which list a word came from.
+
+### A list's words (`shared/wordSearch.ts`, ListWords, WordFilter)
+
+Each list opens to its words (`#/lists/<id>`), in the order they came in.
+
+- **Search**: one box for kana, romaji, kanji or meaning. Katakana and
+  hiragana match each other. Kana or kanji match the written form and the
+  reading. Latin letters are first a meaning (the core meaning, then the
+  other senses, whole words first) and then romaji, because English often
+  reads as kana too ("home" is ほめ, "cat" starts か): only a reading that is
+  exactly the romaji comes before the meanings. Unfinished romaji matches
+  the start of a reading: "tab" finds たべる, and "kan" finds かな as well
+  as かんじ.
+- **Filters** by state: to check, waiting, on a page, learned, set aside.
+- **Edit** the kanji, kana (romaji turns into kana) and core meaning. The
+  imported senses stay. Kanji and kana must stay unique across all lists.
+- **Move** to another list, **set aside** (out of the check pass, pages and
+  review; cards and history kept), **bring back** (to review if it has
+  cards, otherwise to the check pass) and **delete** (with its cards,
+  reviews and furigana peeks; a learned page keeps its other words).
+- **Check again** undoes a check pass answer: its cards and the check's log
+  row go, and the word is unchecked. Only while it has no page and no real
+  reviews; after that, Again in review is the honest way back.
+- A word on an unfinished page can only be edited, so the page keeps its
+  words and its one list. A learned word can move: its learned page stays
+  in its old list, as history.
 
 ### Pages (`shared/pageSession.ts`, PageView, PageGrid)
 
@@ -271,7 +298,7 @@ again (its deletes come first), or rewind with Time Travel.
 
 | Part | Where | Notes |
 |---|---|---|
-| UI | `src/` (React 19, Vite) | Screens: Home, Triage (Check), Pages, PageView, Lists, Review, Settings (with Import under it) |
+| UI | `src/` (React 19, Vite) | Screens: Home, Triage (Check), Pages, PageView, Lists (with ListWords under it), Review, Settings (with Import under it) |
 | Shared logic | `shared/` | Pure TypeScript used by both UI and worker; unit tested |
 | API | `worker/index.ts` (Hono on Cloudflare Workers) | Under `/api/*`; the rest is the single-page app. Also the nightly cron (`scheduled`) |
 | Data access | `worker/db.ts` | Multi-row changes run as one D1 batch, so a failed or repeated request can't leave half-done state |

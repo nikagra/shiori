@@ -4,7 +4,8 @@ import { parseBackup, type Backup, type NightlyStatus } from '../shared/backup';
 import type { FuriganaPrefs } from '../shared/furigana';
 
 export type Direction = 'jp_en' | 'en_jp';
-export type WordStatus = 'unverified' | 'inbox' | 'on_page' | 'graduated' | 'ignored';
+export type { WordState as WordStatus } from '../shared/wordSearch';
+import type { WordState as WordStatus } from '../shared/wordSearch';
 export type PageStage = 'ordered' | 'shuffled' | 'graduated';
 
 export interface Word {
@@ -18,6 +19,23 @@ export interface Word {
   listId: number | null;
   mastery: number | null;
   status: WordStatus;
+}
+
+/** A word as its list shows it (worker/db.ts ListWord). */
+export interface ListWord extends Word {
+  page: { id: number; number: number; stage: PageStage } | null;
+  nextDue: string | null;
+  lapses: number;
+  reviews: number;
+  hasCards: boolean;
+  canCheckAgain: boolean;
+}
+
+export interface WordChanges {
+  kana?: string;
+  kanji?: string | null;
+  coreMeaning?: string;
+  listId?: number;
 }
 
 export interface Stats {
@@ -117,7 +135,12 @@ export const api = {
   /** listId null: all lists, in priority order. */
   triage: (listId: number | null) => call<{ words: Word[]; remaining: number }>('GET', listId === null ? '/triage' : `/triage?list=${listId}`),
   triageAnswer: (id: number, result: 'known' | 'unknown' | 'ignore') => call<{ ok: true }>('POST', `/triage/${id}`, { result }),
-  updateMeaning: (id: number, coreMeaning: string) => call<Word>('PATCH', `/words/${id}`, { coreMeaning }),
+  listWords: (listId: number) => call<ListWord[]>('GET', `/lists/${listId}/words`),
+  updateWord: (id: number, changes: WordChanges) => call<ListWord>('PATCH', `/words/${id}`, changes),
+  setAside: (id: number) => call<ListWord>('POST', `/words/${id}/set-aside`),
+  bringBack: (id: number) => call<ListWord>('POST', `/words/${id}/bring-back`),
+  checkAgain: (id: number) => call<ListWord>('POST', `/words/${id}/check-again`),
+  deleteWord: (id: number) => call<{ ok: true }>('DELETE', `/words/${id}`),
   pages: () => call<PageSummary[]>('GET', '/pages'),
   page: (id: number) => call<PageDetail>('GET', `/pages/${id}`),
   /** listId null lets the server pick the list furthest behind its pace. */

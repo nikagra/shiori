@@ -6,9 +6,10 @@ import { Pages } from './screens/Pages';
 import { PageView } from './screens/PageView';
 import { Review } from './screens/Review';
 import { Lists } from './screens/Lists';
+import { ListWords } from './screens/ListWords';
 import { Settings } from './screens/Settings';
 
-// Hash routes: #/, #/review, #/pages, #/pages/3, #/lists, #/check, #/settings,
+// Hash routes: #/, #/review, #/pages, #/pages/3, #/lists, #/lists/2 (its words), #/check, #/settings,
 // #/settings/backup (scrolled to that section), #/settings/import
 
 function useHashRoute(): string[] {
@@ -48,7 +49,7 @@ export function App() {
       screen = id ? <PageView key={id} id={Number(id)} /> : <Pages />;
       break;
     case 'lists':
-      screen = <Lists />;
+      screen = id ? <ListWords key={id} id={Number(id)} /> : <Lists />;
       break;
     case 'check':
       screen = <Triage />;

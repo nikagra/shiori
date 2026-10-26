@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, studyDay, type ListChanges, type ListSummary } from '../api';
-import { Notice } from '../components/ui';
+import { Notice, plural, shortDate } from '../components/ui';
 import { useSettings } from '../settings';
 import { FOCUS_BOOST, MAX_NAME, MAX_PAGES_PER_WEEK, NEW_PER_DAY, WEIGHTS } from '../../shared/lists';
 
@@ -16,13 +16,10 @@ const focusEndFromDate = (date: string) => {
   return studyDay(new Date(y, m - 1, d, 12)).end.toISOString();
 };
 const lastFocusDay = (until: string) => studyDay(new Date(Date.parse(until) - 1)).start;
-const shortDate = (d: Date) => d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 const dateInputValue = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 /** Every word in the list, set-aside ones too: a list with any can't be deleted. */
 const wordCount = (l: ListSummary) => Object.values(l.counts).reduce((a, b) => a + b, 0);
-
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 export function Lists() {
   const [lists, setLists] = useState<ListSummary[] | null>(null);
@@ -92,7 +89,7 @@ export function Lists() {
           {archived.map((l) => (
             <div key={l.id} className="list-item" data-testid="archived-list">
               <span>
-                <strong>{l.name}</strong> <span className="muted">· {plural(wordCount(l), 'word')}</span>
+                <strong>{l.name}</strong> · <a href={`#/lists/${l.id}`}>{plural(wordCount(l), 'word')}</a>
               </span>
               <button className="button button--small" onClick={() => run(() => api.updateList(l.id, { archived: false }))}>
                 Unarchive
@@ -154,11 +151,14 @@ function ListCard({
         Today: {plural(l.newToday, 'new card')} · {plural(l.pagesThisWeek, 'page')} in the last 7 days
         {l.pagesPerWeek ? ` (target ${l.pagesPerWeek})` : ''}
       </p>
-      {l.counts.toCheck > 0 && !l.archived && (
-        <a href="#/check" className="small" onClick={() => updateSettings({ checkList: l.id })}>
-          Check {l.name}’s {plural(l.counts.toCheck, 'word')}
-        </a>
-      )}
+      <div className="row small">
+        {words > 0 && <a href={`#/lists/${l.id}`}>See {words === 1 ? 'the word' : `all ${words} words`}</a>}
+        {l.counts.toCheck > 0 && !l.archived && (
+          <a href="#/check" onClick={() => updateSettings({ checkList: l.id })}>
+            Check {l.name}’s {plural(l.counts.toCheck, 'word')}
+          </a>
+        )}
+      </div>
 
       <div className="row row--between">
         <span>Weight</span>

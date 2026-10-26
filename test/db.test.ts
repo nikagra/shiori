@@ -147,8 +147,8 @@ describe('editing', () => {
   it('updates the core meaning and rejects an empty one', async () => {
     await repo.importWords(db, words, MANGA, now);
     const { words: [w] } = await repo.triageNext(db, 1);
-    expect((await repo.updateCoreMeaning(db, w.id, '  rescue ', now)).coreMeaning).toBe('rescue');
-    await expect(repo.updateCoreMeaning(db, w.id, ' ', now)).rejects.toMatchObject({ status: 400 });
+    expect((await repo.updateWord(db, w.id, { coreMeaning: '  rescue ' }, now)).coreMeaning).toBe('rescue');
+    await expect(repo.updateWord(db, w.id, { coreMeaning: ' ' }, now)).rejects.toMatchObject({ status: 400 });
   });
 });
 

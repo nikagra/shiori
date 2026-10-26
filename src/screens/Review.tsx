@@ -202,7 +202,7 @@ function ReviewCard({
                 <Meaning
                   word={word}
                   onEdit={async (m) => {
-                    setWord(await api.updateMeaning(word.id, m));
+                    setWord(await api.updateWord(word.id, { coreMeaning: m }));
                   }}
                 />
               </div>
