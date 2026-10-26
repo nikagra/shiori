@@ -58,12 +58,13 @@ in the everyday loop: finding, adding, editing and arranging words.
 
 What the word loop can't do yet:
 
-- See what's in a list, or find, edit, move or remove a word. A word can
-  only be changed from a review answer (its meaning).
+- See what's in a list, or find, edit or move a word. Only its meaning can
+  be changed (from a review answer), and a word can only be set aside
+  during the check pass ("not worth learning").
 - Add one word. Import only takes a pasted or uploaded Renshuu export.
 - Shape a page: drop a word with a similar meaning, pick the words yourself,
   or delete a page.
-- Find settings in one place. Audio, furigana, backup and import are spread
+- Find settings in one place. Audio, furigana, page size, backup and import are spread
   over Home and the screens.
 - Handle leeches, show what each grade button does, or change the 20 new
   cards a day.
@@ -73,7 +74,8 @@ What the word loop can't do yet:
 Done: v0.1 core loop (import, check pass, pages, FSRS review, audio,
 furigana), deploy on merge, backup and export (26 Oct; check the first
 nightly copy shows on Home), lists you manage with their own pace (26 Oct;
-try it on the iPhone).
+try it on the iPhone: the Lists tab, then a page from School and one from
+Manga).
 
 ### v0.2: a complete word tool
 
@@ -119,7 +121,8 @@ try it on the iPhone).
    - New cards a day as a setting (open question below).
 6. **Use it for real.** Study only in Shiori for about two weeks, add words
    from reading with the dictionary, and fix what gets in the way. Then
-   decide about data care (see project notes) before moving on.
+   decide how much care study data needs once you rely on it (for example
+   checking a restore now and then) before moving on.
 
 ### v0.3: deeper word knowledge
 
@@ -133,7 +136,7 @@ try it on the iPhone).
   `kanji_hints` and the Still learning list, with separate grades. Marugoto
   batches of 10 kanji over about 6 weeks become a kanji list with a focus
   date. (Focus and weekly targets for school vocabulary already work through
-  Lists.)
+  Lists. Topic blocks of about 3 months, before a test, use the same focus.)
 
 ### v0.4: reading assistant
 
@@ -141,8 +144,9 @@ try it on the iPhone).
   [plan doc](https://claude.ai/artifact/1J233eFb8H61zr7WbEZXas)): a photo of
   a manga panel goes to Claude (called only from the Worker, with its own API
   key; Pro doesn't include API access), which explains it and proposes
-  words. Words are matched to dictionary entries and go into a list, and the
-  panel's sentence is saved with each word. Roughly $0.05 per panel. This is
+  words. Words are matched to dictionary entries, go into a list and are
+  tagged with their `source` (the manga and panel), and the panel's
+  sentence is saved with each word. Roughly $0.05 per panel. This is
   the first paid service, so it needs its own decision.
 
 ### Later
