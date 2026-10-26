@@ -189,15 +189,31 @@ const isUniqueViolation = (e: unknown) => e instanceof Error && /UNIQUE constrai
 
 export type TriageResult = 'known' | 'unknown' | 'ignore';
 
-export async function triageNext(db: D1Database, limit: number): Promise<{ words: Word[]; remaining: number }> {
+/**
+ * The next words to check, from one list or from all of them. Across lists,
+ * priority decides: a focused list first, then by weight, paused lists last.
+ * Within a list, lowest Renshuu mastery first.
+ */
+export async function triageNext(
+  db: D1Database,
+  limit: number,
+  { listId = null, now = new Date() }: { listId?: number | null; now?: Date } = {},
+): Promise<{ words: Word[]; remaining: number }> {
+  const where = `w.status = 'unverified' AND ${NOT_ARCHIVED}${listId === null ? '' : ' AND w.list_id = ?'}`;
+  const params = listId === null ? [] : [listId];
   const rows = await db
     .prepare(
-      `SELECT * FROM words w WHERE status = 'unverified' AND ${NOT_ARCHIVED}
-       ORDER BY IFNULL(renshuu_mastery, 50), source_order LIMIT ?`,
+      `SELECT w.* FROM words w LEFT JOIN lists l ON l.id = w.list_id WHERE ${where}
+       ORDER BY IFNULL(l.focus_until > ?, 0) DESC, IFNULL(l.paused, 0), IFNULL(l.weight, ${DEFAULT_WEIGHT}) DESC, l.id,
+         IFNULL(w.renshuu_mastery, 50), w.source_order
+       LIMIT ?`,
     )
-    .bind(limit)
+    .bind(...params, iso(now), limit)
     .all<WordRow>();
-  const count = await db.prepare(`SELECT COUNT(*) AS n FROM words w WHERE status = 'unverified' AND ${NOT_ARCHIVED}`).first<{ n: number }>();
+  const count = await db
+    .prepare(`SELECT COUNT(*) AS n FROM words w WHERE ${where}`)
+    .bind(...params)
+    .first<{ n: number }>();
   return { words: rows.results.map(toWord), remaining: count?.n ?? 0 };
 }
 

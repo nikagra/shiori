@@ -26,7 +26,7 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   in `.wrangler/state`, separate from the cloud one. An old database holding
   only test data is kept in `.wrangler/state-test-backup-20261025` and can be
   deleted.
-- Tests: 98 unit tests, 46 end-to-end runs (23 tests at iPhone and laptop
+- Tests: 99 unit tests, 48 end-to-end runs (24 tests at iPhone and laptop
   sizes), and `tsc -b` all pass.
 - **Backup and export** (26 Oct): Home › Backup downloads all study data as
   one JSON file, a nightly cron saves the same file to the private R2 bucket
@@ -38,6 +38,8 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   Lists (a new tab) adds, renames, merges, archives and deletes lists and sets
   each one's weight, weekly target, pause and focus. Every page comes from one
   list; "New page" asks which, or picks the one furthest behind its pace.
+  Check has a list picker too (Mikita, 26 Oct: one big import blocked the
+  others), and across lists it follows priority.
   Today's 20 new review cards are shared by weight. Older backups still load
   and get their lists. See "Lists" in DESIGN.md. After pulling on the laptop,
   run `npm run db:migrate:local`; the deploy applies it to D1.
@@ -93,8 +95,6 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   "Still learning" enough?
 - `NEW_PER_DAY` is fixed at 20 (now shared between lists by weight). Should
   the total be a setting?
-- Should the check pass also follow list weights, or stay lowest mastery
-  first across all lists?
 - Should a device's page size and audio defaults depend on the device, for
   example audio off on the laptop?
 - Should FSRS parameters be refit from `review_log` once there's enough

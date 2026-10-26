@@ -274,6 +274,25 @@ describe('lists in the database', () => {
     await expect(repo.deleteList(db, SCHOOL)).rejects.toThrow('this list has words');
   });
 
+  it('checks words from one list, or from all of them by priority', async () => {
+    await repo.importWords(db, words.slice(0, 30), MANGA, now);
+    await repo.importWords(db, words.slice(30, 35), SCHOOL, now);
+    const lists = async (opts?: { listId?: number | null; now?: Date }) =>
+      (await repo.triageNext(db, 50, opts)).words.map((w) => w.listId);
+    expect(await repo.triageNext(db, 3, { listId: SCHOOL })).toMatchObject({ remaining: 5 });
+    expect(await lists({ listId: SCHOOL })).toEqual(Array(5).fill(SCHOOL));
+    // Same weight: lists come in id order, so Manga's backlog blocks School.
+    expect((await lists()).slice(0, 30)).toEqual(Array(30).fill(MANGA));
+    await repo.updateList(db, SCHOOL, { weight: 4 }, now);
+    expect((await lists()).slice(0, 5)).toEqual(Array(5).fill(SCHOOL));
+    // Focus beats weight; a paused list comes last.
+    await repo.updateList(db, SCHOOL, { weight: 2 }, now);
+    await repo.updateList(db, SCHOOL, { focusUntil: days(now, 3).toISOString() }, now);
+    expect((await lists({ now })).slice(0, 5)).toEqual(Array(5).fill(SCHOOL));
+    await repo.updateList(db, SCHOOL, { focusUntil: null, weight: 4, paused: true }, now);
+    expect((await lists()).slice(-5)).toEqual(Array(5).fill(SCHOOL));
+  });
+
   it('imports by list name for an app that predates list ids', async () => {
     expect(await repo.listIdByName(db, 'school')).toBe(SCHOOL);
     await expect(repo.listIdByName(db, 'anime')).rejects.toThrow('no list called anime');

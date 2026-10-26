@@ -54,10 +54,13 @@ unknown. Every imported word starts as `unverified`.
 
 ### Check pass (Triage screen)
 
-Each imported word gets one recall attempt. Words with the lowest Renshuu
-mastery come first; words with unknown mastery sit in the middle
-(`triageOrder`). "I knew it" sends the word to review. Otherwise the word goes
-to the inbox, where it waits for a page.
+Each imported word gets one recall attempt. "From list" picks one list to
+check (remembered on the device), or all lists by priority: a focused list
+first, then by weight, paused lists last (`triageNext`). Within a list, words
+with the lowest Renshuu mastery come first; words with unknown mastery sit in
+the middle. "I knew it" sends the word to review. Otherwise the word goes to
+the inbox, where it waits for a page. When the chosen list is done, the check
+moves on to all lists.
 
 ### Lists (`shared/lists.ts`, Lists screen)
 

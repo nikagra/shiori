@@ -114,7 +114,8 @@ const dayQuery = () => {
 export const api = {
   stats: () => call<Stats>('GET', `/stats?${dayQuery()}`),
   importText: (text: string, listId: number) => call<ImportResult>('POST', '/import', { text, listId }),
-  triage: () => call<{ words: Word[]; remaining: number }>('GET', '/triage'),
+  /** listId null: all lists, in priority order. */
+  triage: (listId: number | null) => call<{ words: Word[]; remaining: number }>('GET', listId === null ? '/triage' : `/triage?list=${listId}`),
   triageAnswer: (id: number, result: 'known' | 'unknown' | 'ignore') => call<{ ok: true }>('POST', `/triage/${id}`, { result }),
   updateMeaning: (id: number, coreMeaning: string) => call<Word>('PATCH', `/words/${id}`, { coreMeaning }),
   pages: () => call<PageSummary[]>('GET', '/pages'),

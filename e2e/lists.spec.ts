@@ -1,5 +1,5 @@
 import { expect, test, type APIRequestContext } from '@playwright/test';
-import { expectNoHorizontalScroll, resetDb, seedWords, shot } from './helpers';
+import { expectNoHorizontalScroll, FIXTURE, resetDb, seedWords, shot } from './helpers';
 
 const SCHOOL_WORDS = ['学校/がっこう - school', '先生/せんせい - teacher', '宿題/しゅくだい - homework', '教室/きょうしつ - classroom', '試験/しけん - exam'].join('\n');
 
@@ -144,4 +144,27 @@ test('import into a list you made', async ({ page, request }) => {
   await expect(page.getByTestId('import-result')).toContainText('Added 5 words');
   await page.goto('/#/lists');
   await expect(page.getByRole('region', { name: 'Marugoto A2' }).getByTestId('list-counts')).toContainText('5 to check');
+});
+
+test('check words from one list, and the choice is remembered', async ({ page, request }, testInfo) => {
+  const text = (await import('node:fs')).readFileSync(FIXTURE, 'utf8');
+  await request.post('/api/import', { data: { text, list: 'manga' } });
+  await request.post('/api/import', { data: { text: SCHOOL_WORDS, listId: await listId(request, 'School') } });
+  await page.goto('/#/check');
+  const from = page.getByLabel('From list');
+  await expect(from).toHaveValue('');
+  await expect(page.getByTestId('triage-remaining')).toHaveText('53 left');
+  await from.selectOption({ label: 'School: 5 to check' });
+  await expect(page.getByTestId('triage-remaining')).toHaveText('5 left');
+  await expectNoHorizontalScroll(page);
+  await shot(page, testInfo, '44-check-from-list');
+  await page.reload();
+  await expect(page.getByTestId('triage-remaining')).toHaveText('5 left');
+  // Finishing the list moves on to all the others.
+  for (let i = 0; i < 5; i++) {
+    await page.getByRole('button', { name: 'Show answer' }).click();
+    await page.getByRole('button', { name: 'I didn’t know' }).click();
+  }
+  await expect(page.getByTestId('triage-remaining')).toHaveText('48 left');
+  await expect(page.getByLabel('From list')).toHaveCount(0);
 });
