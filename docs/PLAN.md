@@ -48,15 +48,51 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   whole words on the grid, safer iOS speech. Sound on the iPhone still needs
   a recheck (silent switch off, volume up).
 
+## Direction (26 Oct)
+
+Mikita, 26 Oct: Shiori first becomes a **complete word learning tool**, and
+only then a Japanese reading assistant. Each step should leave a feature you
+can fully use, not several half-usable ones. So the Claude API (photo
+capture) moves to the end of the word work, and the next steps fill the gaps
+in the everyday loop: finding, adding, editing and arranging words.
+
+What the word loop can't do yet:
+
+- See what's in a list, or find, edit, move or remove a word. A word can
+  only be changed from a review answer (its meaning).
+- Add one word. Import only takes a pasted or uploaded Renshuu export.
+- Shape a page: drop a word with a similar meaning, pick the words yourself,
+  or delete a page.
+- Find settings in one place. Audio, furigana, backup and import are spread
+  over Home and the screens.
+- Handle leeches, show what each grade button does, or change the 20 new
+  cards a day.
+
 ## Next steps, in order
 
-1. ~~**Backup and export**~~: done (26 Oct). Check that the first nightly copy
-   shows on Home the morning after the deploy.
-2. ~~**Lists you manage, with their own pace**~~: done (26 Oct). Try it on
-   the iPhone: the Lists tab, then a page from School and one from Manga.
-   Capture (v0.2) should file new words into a list the same way.
-3. **Dictionary** (Mikita, 26 Oct: simpler import and word search). Comes
-   before capture, because capture, furigana and picking words all use it.
+Done: v0.1 core loop (import, check pass, pages, FSRS review, audio,
+furigana), deploy on merge, backup and export (26 Oct; check the first
+nightly copy shows on Home), lists you manage with their own pace (26 Oct;
+try it on the iPhone).
+
+### v0.2: a complete word tool
+
+1. **Settings.** One Settings screen for audio, furigana, page size, backup
+   and import (Mikita, 26 Oct), so Home, Pages, Review and Lists are only
+   about studying. Small, and it gives the later steps a place to live.
+2. **Words you can see and change.** Each list opens to its words, with a
+   search box (kana, romaji, kanji or meaning) and filters by state (to
+   check, waiting, on a page, learning, set aside). Edit a word's kanji,
+   kana and meaning, move it to another list, set it aside or delete it, and
+   check it again. This is the "review and edit list contents after the
+   check" feedback (26 Oct).
+3. **Pages you shape** (Mikita, 26 Oct).
+   - Build a page by picking words from a list, with the same search box.
+   - On a new page, swap out a word (for example one too close in meaning
+     to another); the next waiting word takes its place.
+   - Delete a page. Decide what happens to its words: back to waiting if it
+     isn't graduated, and keep review history if it is.
+4. **Dictionary** (Mikita, 26 Oct: simpler import and word search).
    - Data: English JMdict from jmdict-simplified (about 210k entries, updated
      weekly) and JmdictFurigana, both CC BY-SA 4.0, so the app needs a
      credits line. No Jisho API: it's unofficial and has no uptime promise.
@@ -65,55 +101,68 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
      set fits the free plan's 500 MB, but the free plan allows only 100k row
      writes a day, so the loader is resumable and fills it over a few nights
      (or at once on Workers Paid). The ~23k common entries load first, in a
-     day.
+     day. The loader can start during steps 1 to 3.
    - Add a word: search by kana, romaji (WanaKana), kanji or English, then
-     tap a result to put it in a list's inbox. This replaces the Renshuu
-     Reading Buddy step on the iPhone.
+     tap a result to put it in a list. This replaces the Renshuu Reading
+     Buddy step on the iPhone.
    - Import: match each Renshuu word to a dictionary entry; the check pass
-     flags words with no match.
+     flags words with no match. Editing a word (step 2) can pick another
+     entry.
    - Per-kanji furigana from JmdictFurigana (Mikita, 25 Oct): readings over a
      run of kanji (冬眠, 日本) don't line up with each kanji today. Also show
      "usually written in kana" forms.
-   - The same search box is reused to build pages by picking words from your
-     own lists (backlog idea, 26 Oct).
-4. **v0.2: capture while reading.** Matches the original plan
-   ([plan doc](https://claude.ai/artifact/1J233eFb8H61zr7WbEZXas)):
-   - Photo of a manga panel → Claude (called only from the Worker, with its own
-     API key; Pro doesn't include API access) explains it and proposes words,
-     each tagged with `source` / `source_list`. New words go to the inbox.
-     Roughly $0.05 per panel.
-   - Proposed words are matched to dictionary entries (step 3) for kana and
-     meanings.
-   - Cloze cards using the sentence the word came from.
-   - Keep several related sentences per word (Mikita, 25 Oct), especially from
-     manga, for extra context: a word → sentences table (sentence, source,
-     panel) instead of one sentence column. Cloze and the v0.3 new-context
-     cards pick from it.
-5. **v0.3: kanji, school, leeches.**
-   - Kanji reading cards (on and kun) as their own study vector, seeded from
-     `kanji_hints` and the Still learning list, with separate grades.
-   - School focus: Marugoto batches of 10 kanji over about 6 weeks, and topic
-     blocks of about 3 months, get priority before tests.
-   - Leeches: `LEECH_LAPSES` (6) is defined in `shared/scheduler.ts` but unused.
-     Decide what happens to one, for example a new page, a flag or a suspend.
-   - New-context cards: the same word in a fresh sentence once it's mature.
-6. **v0.4: listening** from YouTube clips, if feasible; otherwise keep it
-   separate.
-7. **v0.5: grammar map**, one structure that ties grammar points together. It
-   needs its own design pass before any code.
+5. **Finish review.**
+   - Leeches: `LEECH_LAPSES` (6) is defined in `shared/scheduler.ts` but
+     unused. A leech gets flagged and shown in its list (step 2), where you
+     can edit it, put it on a fresh page or set it aside.
+   - What each grade does, shown in the app (open question below).
+   - New cards a day as a setting (open question below).
+6. **Use it for real.** Study only in Shiori for about two weeks, add words
+   from reading with the dictionary, and fix what gets in the way. Then
+   decide about data care (see project notes) before moving on.
+
+### v0.3: deeper word knowledge
+
+- **Sentences per word** (Mikita, 25 Oct): a word → sentences table
+  (sentence, source, note) instead of one sentence column. Sentences are
+  typed or pasted by hand, or picked from the Tatoeba examples that
+  jmdict-simplified ships.
+- **Cloze cards** from those sentences, and **new-context cards** (the same
+  word in a fresh sentence once it's mature).
+- **Kanji reading cards** (on and kun) as their own study vector, seeded from
+  `kanji_hints` and the Still learning list, with separate grades. Marugoto
+  batches of 10 kanji over about 6 weeks become a kanji list with a focus
+  date. (Focus and weekly targets for school vocabulary already work through
+  Lists.)
+
+### v0.4: reading assistant
+
+- **Capture while reading** (original
+  [plan doc](https://claude.ai/artifact/1J233eFb8H61zr7WbEZXas)): a photo of
+  a manga panel goes to Claude (called only from the Worker, with its own API
+  key; Pro doesn't include API access), which explains it and proposes
+  words. Words are matched to dictionary entries and go into a list, and the
+  panel's sentence is saved with each word. Roughly $0.05 per panel. This is
+  the first paid service, so it needs its own decision.
+
+### Later
+
+- **Listening** from YouTube clips, if feasible; otherwise keep it separate.
+- **Grammar map**: one structure that ties grammar points together. It needs
+  its own design pass before any code.
 
 ## Open questions
 
 - Grading isn't obvious from the buttons alone (Mikita, 25 Oct). DESIGN.md now
-  has a "Buttons and what they do" guide. Should the app show it too, for
-  example a one-line hint under the grade buttons, or the next interval on
-  each button the way Anki does?
+  has a "Buttons and what they do" guide. In v0.2 step 5, should the app show
+  a one-line hint under the grade buttons, or the next interval on each button
+  the way Anki does?
 - A hint system for review cards (beyond the page hint and furigana), asked
   for on 25 Oct as a future improvement: what hints, and what they cost.
 - Should the N5/N4 kanji lists be editable in bulk, or are "Also known" and
   "Still learning" enough?
-- `NEW_PER_DAY` is fixed at 20 (now shared between lists by weight). Should
-  the total be a setting?
+- `NEW_PER_DAY` is fixed at 20 (now shared between lists by weight). In v0.2
+  step 5 it becomes a setting: one total, or a number per list?
 - Should a device's page size and audio defaults depend on the device, for
   example audio off on the laptop?
 - Should FSRS parameters be refit from `review_log` once there's enough
