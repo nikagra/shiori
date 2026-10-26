@@ -530,7 +530,8 @@ input[type='checkbox'] {
   white-space: nowrap;
 }
 
-.badge--graduated {
+.badge--graduated,
+.badge--state-graduated {
   background: var(--ok-soft);
   border-color: transparent;
   color: var(--good);
@@ -870,10 +871,8 @@ rt {
 }
 
 .word-editor {
-  padding: 4px 12px 14px;
+  padding: 12px 12px 14px;
   border-top: 1px dashed var(--line);
-  margin-top: 0;
-  padding-top: 12px;
 }
 
 .word-editor__fields {
@@ -899,11 +898,6 @@ rt {
   color: var(--accent);
 }
 
-.badge--state-graduated {
-  background: var(--ok-soft);
-  border-color: transparent;
-  color: var(--good);
-}
 
 .badge--state-unverified {
   background: var(--warn-soft);

@@ -1,10 +1,5 @@
-import { expect, test, type APIRequestContext } from '@playwright/test';
-import { expectNoHorizontalScroll, graduatePage, resetDb, seedWords, shot } from './helpers';
-
-async function listId(request: APIRequestContext, name: string): Promise<number> {
-  const lists = (await (await request.get(`/api/lists?dayStart=${new Date().toISOString()}&dayEnd=${new Date().toISOString()}`)).json()) as { id: number; name: string }[];
-  return lists.find((l) => l.name === name)!.id;
-}
+import { expect, test } from '@playwright/test';
+import { expectNoHorizontalScroll, listId, graduatePage, resetDb, seedWords, shot } from './helpers';
 
 test.beforeEach(async ({ request }) => {
   await resetDb(request);
@@ -22,14 +17,14 @@ test("a list's words: search, filter, edit, move, set aside, check again, delete
   await page.goto('/#/lists');
   await page.getByRole('region', { name: 'Manga' }).getByRole('link', { name: /See all \d+ words/ }).click();
   await expect(page.getByRole('heading', { name: 'Manga' })).toBeVisible();
-  await expect(page.getByTestId('word-counts')).toContainText('2 waiting · 4 learning');
+  await expect(page.getByTestId('word-counts')).toContainText('2 waiting · 4 learned');
   const rows = page.getByTestId('word-row');
   await expect(rows).toHaveCount(words.length);
 
   // Filters by state, and a search in romaji finds the kana.
   await page.getByRole('button', { name: /^Waiting/ }).click();
   await expect(rows).toHaveCount(2);
-  await page.getByRole('button', { name: /^Learning/ }).click();
+  await page.getByRole('button', { name: /^Learned/ }).click();
   await expect(rows).toHaveCount(6);
   await page.getByRole('button', { name: /^All/ }).click();
   await expect(rows).toHaveCount(words.length);
@@ -44,12 +39,12 @@ test("a list's words: search, filter, edit, move, set aside, check again, delete
   await expectNoHorizontalScroll(page);
   await shot(page, testInfo, '60-list-words');
 
-  // Edit a word: the kana box turns romaji into kana, as in review.
+  // Edit a word's meaning.
   await search.fill('');
   const row = rows.filter({ hasText: known.kanji ?? known.kana }).first();
   await row.getByRole('button', { name: new RegExp(known.kana) }).click();
   const editor = row.getByRole('group', { name: /^Edit/ });
-  await expect(editor.getByTestId('word-state')).toContainText('Learning');
+  await expect(editor.getByTestId('word-state')).toContainText('Learned');
   await expect(editor.getByTestId('word-state')).toContainText('next review');
   await editor.getByLabel('Meaning').fill('a meaning I wrote');
   await editor.getByRole('button', { name: 'Save' }).click();
@@ -106,4 +101,20 @@ test('a word on an unfinished page can be edited but stays on the page', async (
   await row.getByLabel('Kana').fill(other.kana);
   await row.getByRole('button', { name: 'Save' }).click();
   await expect(page.getByText('you already have a word with that kanji and kana')).toBeVisible();
+
+  // Romaji typed in the kana box turns into kana, a final n into ん; the word
+  // stays on its page.
+  await row.getByLabel('Kanji').fill('本当');
+  await row.getByLabel('Kana').fill('');
+  await row.getByLabel('Kana').pressSequentially('hontou');
+  await expect(row.getByLabel('Kana')).toHaveValue('ほんとう');
+  await row.getByLabel('Kana').fill('');
+  await row.getByLabel('Kana').pressSequentially('hon');
+  await row.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByText('Saved 本当.')).toBeVisible();
+  await expect(row).toContainText('ほん');
+  await expect(row.getByTestId('word-state')).toContainText(`On page ${created.number}`);
+  const after = (await (await request.get(`/api/pages/${created.id}`)).json()) as { words: { kana: string; kanji: string | null }[] };
+  expect(after.words.map((w) => w.kanji)).toContain('本当');
+  expect(after.words.find((w) => w.kanji === '本当')!.kana).toBe('ほん');
 });

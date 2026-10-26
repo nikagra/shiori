@@ -52,9 +52,24 @@ describe('word search', () => {
     expect(find('family')).toEqual(['家']);
   });
 
-  it('puts a meaning before a reading that only contains the romaji', () => {
-    // "home" also reads as ほめ, inside ほめる.
+  it('puts meanings before readings that only start with the romaji', () => {
+    // "home" also reads as ほめ, the start of ほめる.
     expect(find('home')).toEqual(['家', '褒める']);
+    const more = [...words, w('猫', 'ねこ', 'cat'), w('傘', 'かさ', 'umbrella'), w('家庭', 'かてい', 'household', 'inbox', ['household', 'home'])];
+    const in_ = (text: string) => filterWords(more, { text, states: new Set() }).map((x) => x.kanji ?? x.kana);
+    // Also when "home" is only in another sense.
+    expect(in_('home')).toEqual(['家', '家庭', '褒める']);
+    // "cat" starts か: those readings come after every meaning, and only
+    // readings that start with it count.
+    expect(in_('cat')).toEqual(['猫', '傘', '家庭']);
+    expect(in_('ca')).toEqual(['猫', '傘', '家庭']);
+  });
+
+  it('keeps matching while a final n could still become な or に', () => {
+    const more = [w('仮名', 'かな', 'syllabary'), w('蟹', 'かに', 'crab'), w('漢字', 'かんじ', 'Chinese character'), w('本', 'ほん', 'book')];
+    const in_ = (text: string) => filterWords(more, { text, states: new Set() }).map((x) => x.kanji ?? x.kana);
+    expect(in_('kan')).toEqual(['漢字', '仮名', '蟹']);
+    expect(in_('hon')).toEqual(['本']);
   });
 
   it('filters by state, and an empty query shows everything in order', () => {
@@ -124,6 +139,11 @@ describe('words in a list', () => {
     expect((await repo.updateWord(db, a.id, { kanji: '' }, now)).kanji).toBeNull();
     await expect(repo.updateWord(db, a.id, { kana: ' ' }, now)).rejects.toMatchObject({ status: 400 });
     await expect(repo.updateWord(db, a.id, { kana: 'tameshi' }, now)).rejects.toMatchObject({ status: 400 });
+    await expect(repo.updateWord(db, a.id, { kana: '試し' }, now)).rejects.toMatchObject({ status: 400 });
+    expect((await repo.updateWord(db, a.id, { kana: 'コーヒー・〜' }, now)).kana).toBe('コーヒー・〜');
+    await expect(repo.updateWord(db, a.id, { listId: 'school' }, now)).rejects.toMatchObject({ status: 400 });
+    // Nothing to change: the word as it is.
+    expect((await repo.updateWord(db, a.id, {}, now)).id).toBe(a.id);
     await expect(repo.updateWord(db, a.id, { coreMeaning: '' }, now)).rejects.toMatchObject({ status: 400 });
     await expect(repo.updateWord(db, a.id, { kana: b.kana, kanji: b.kanji }, now)).rejects.toMatchObject({ status: 409 });
     await expect(repo.updateWord(db, 999, { kana: 'あ' }, now)).rejects.toMatchObject({ status: 404 });
@@ -153,6 +173,11 @@ describe('words in a list', () => {
     expect((await repo.bringBack(db, known.id, now)).status).toBe('graduated');
     expect((await repo.reviewQueue(db, now, dayEnd, 50)).items.some((i) => i.word.id === known.id)).toBe(true);
     await expect(repo.bringBack(db, known.id, now)).rejects.toMatchObject({ status: 409 });
+    // Setting aside twice, or checking an unchecked word again, changes nothing.
+    await repo.setAside(db, known.id, now);
+    expect((await repo.setAside(db, known.id, now)).status).toBe('ignored');
+    const [unchecked] = (await repo.triageNext(db, 1)).words;
+    expect((await repo.checkAgain(db, unchecked.id, now)).status).toBe('unverified');
   });
 
   it('a set-aside word without cards comes back to the check pass', async () => {

@@ -6,14 +6,17 @@ import { normalizeKana } from './kana';
 
 export type WordState = 'unverified' | 'inbox' | 'on_page' | 'graduated' | 'ignored';
 
+// A Record, so a new state can't be left without a filter.
+const LABELS: Record<WordState, string> = {
+  unverified: 'To check',
+  inbox: 'Waiting',
+  on_page: 'On a page',
+  graduated: 'Learned',
+  ignored: 'Set aside',
+};
+
 /** The filters, in the order a word moves through them. */
-export const WORD_STATES: { state: WordState; label: string }[] = [
-  { state: 'unverified', label: 'To check' },
-  { state: 'inbox', label: 'Waiting' },
-  { state: 'on_page', label: 'On a page' },
-  { state: 'graduated', label: 'Learning' },
-  { state: 'ignored', label: 'Set aside' },
-];
+export const WORD_STATES = (Object.keys(LABELS) as WordState[]).map((state) => ({ state, label: LABELS[state] }));
 
 export interface Searchable {
   kana: string;
@@ -31,10 +34,10 @@ export interface WordQuery {
 
 interface Needle {
   raw: string;
-  /** The query as hiragana, when it can be read as kana (romaji included). */
-  kana: string | null;
-  /** The query in lower case, when it has Latin letters (a meaning). */
+  /** The query in lower case, when it has Latin letters (a meaning, or romaji). */
   latin: string | null;
+  /** The query read as hiragana. `partial` when romaji was cut short ("tab" reads た so far). */
+  readings: { kana: string; partial: boolean }[];
 }
 
 const LATIN = /[a-z]/;
@@ -42,11 +45,23 @@ const LATIN = /[a-z]/;
 function needle(text: string): Needle | null {
   const raw = text.normalize('NFKC').trim().toLowerCase().replace(/\s+/g, ' ');
   if (!raw) return null;
-  const hasLatin = LATIN.test(raw);
-  // Romaji typed so far: "tab" reads as "たb", so the unfinished letters go.
-  const kana = normalizeKana(raw).replace(/[a-z'-]+$/, '');
-  const readable = kana !== '' && !LATIN.test(kana);
-  return { raw, kana: readable ? kana : null, latin: hasLatin ? raw : null };
+  if (!LATIN.test(raw)) return { raw, latin: null, readings: [{ kana: normalizeKana(raw), partial: false }] };
+  const readings: Needle['readings'] = [];
+  const read = (romaji: string) => {
+    const kana = normalizeKana(romaji);
+    if (!LATIN.test(kana)) return { kana, partial: false };
+    // Romaji typed so far: the unfinished letters go.
+    const cut = kana.replace(/[a-z'-]+$/, '');
+    return cut && !LATIN.test(cut) ? { kana: cut, partial: true } : null;
+  };
+  const full = read(raw);
+  if (full) readings.push(full);
+  // A final n is ん, or the start of な, に, ...: "kan" on the way to "kana".
+  if (/[^n]n$/.test(raw)) {
+    const before = read(raw.slice(0, -1));
+    if (before) readings.push({ kana: before.kana, partial: true });
+  }
+  return { raw, latin: raw, readings };
 }
 
 /** 0 exact, 1 starts with it, 2 contains it; null when it isn't there. */
@@ -68,8 +83,11 @@ function placeInMeaning(meaning: string, n: string): number | null {
 }
 
 /**
- * How well a word matches: lower is better, null for no match. The written
- * form and the reading come first, then the core meaning, then other senses.
+ * How well a word matches: lower is better, null for no match. Kana or kanji
+ * typed in Japanese match the written form and the reading first. A query in
+ * Latin letters is first a meaning (core meaning, then other senses) and only
+ * then romaji, since English often reads as kana too ("home" is ほめ, "cat"
+ * starts か); only a reading that is exactly the romaji comes first.
  */
 export function matchScore(word: Searchable, text: string): number | null {
   const n = needle(text);
@@ -77,11 +95,13 @@ export function matchScore(word: Searchable, text: string): number | null {
   const scores: number[] = [];
   const add = (s: number | null, offset: number) => s !== null && scores.push(s + offset);
   if (word.kanji) add(place(word.kanji, n.raw), 0);
-  if (n.kana) {
-    // Romaji can be English too ("home" reads ほめ): unless the reading is
-    // exactly it, meanings with it as a whole word come first.
-    const at = place(normalizeKana(word.kana), n.kana);
-    add(at, at === 0 || !n.latin ? 0 : 10.5);
+  const reading = normalizeKana(word.kana);
+  for (const r of n.readings) {
+    const at = place(reading, r.kana);
+    if (at === null) continue;
+    if (!n.latin) add(at, 0);
+    else if (r.partial) add(at === 2 ? null : 25, 0);
+    else add(at === 0 ? 0 : at === 1 ? 21.5 : 24, 0);
   }
   if (n.latin) {
     add(placeInMeaning(word.coreMeaning, n.latin), 10);

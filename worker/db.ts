@@ -16,9 +16,10 @@ import {
 } from '../shared/scheduler';
 import type { PageStage } from '../shared/pageSession';
 import { BACKUP_FORMAT, BACKUP_SCHEMA, BACKUP_TABLES, LISTS_FROM_LABELS, type Backup, type BackupRow, type BackupTable } from '../shared/backup';
+import type { WordState as WordStatus } from '../shared/wordSearch';
 import { DEFAULT_PREFS, HINTS_TO_LEARNING, isKanji, knownKanjiSet, markLearning, uniqueKanji, type FuriganaPrefs } from '../shared/furigana';
 
-export type WordStatus = 'unverified' | 'inbox' | 'on_page' | 'graduated' | 'ignored';
+export type { WordState as WordStatus } from '../shared/wordSearch';
 
 export interface WordRow {
   id: number;
@@ -129,8 +130,6 @@ export async function getWord(db: D1Database, id: number): Promise<Word> {
   return toWord(row);
 }
 
-export const updateCoreMeaning = (db: D1Database, id: number, meaning: string, now: Date): Promise<Word> => updateWord(db, id, { coreMeaning: meaning }, now);
-
 /** A word as its list shows it: where it is and how its reviews go. */
 export interface ListWord extends Word {
   page: { id: number; number: number; stage: PageStage } | null;
@@ -151,15 +150,29 @@ type ListWordRow = WordRow & {
   next_due: string | null;
   lapses: number | null;
   cards: number;
-  reviews: number;
+  reviews: number | null;
+  /** Log rows other than the check pass's own: reviews and graduations. */
+  since_check: number | null;
 };
 
+// review_log has no index on word_id, so it's read once and grouped, not
+// once per word.
 const LIST_WORD_SQL = `SELECT w.*, pw.page_id, p.number AS page_number, p.stage AS page_stage,
     (SELECT MIN(due) FROM cards c WHERE c.word_id = w.id) AS next_due,
     (SELECT MAX(lapses) FROM cards c WHERE c.word_id = w.id) AS lapses,
     (SELECT COUNT(*) FROM cards c WHERE c.word_id = w.id) AS cards,
-    (SELECT COUNT(*) FROM review_log r WHERE r.word_id = w.id AND r.kind = 'review') AS reviews
-  FROM words w LEFT JOIN page_words pw ON pw.word_id = w.id LEFT JOIN pages p ON p.id = pw.page_id`;
+    r.reviews, r.since_check
+  FROM words w LEFT JOIN page_words pw ON pw.word_id = w.id LEFT JOIN pages p ON p.id = pw.page_id
+  LEFT JOIN (
+    SELECT word_id, SUM(kind = 'review') AS reviews, SUM(kind != 'triage') AS since_check FROM review_log GROUP BY word_id
+  ) r ON r.word_id = w.id`;
+
+/**
+ * SQL: word ? (bound twice) can have its check pass answer undone: nothing
+ * happened to it since, no page and no review or graduation. canCheckAgain
+ * and checkAgain both use it, so the button and the change agree.
+ */
+const UNTOUCHED_SINCE_CHECK = `NOT EXISTS (SELECT 1 FROM page_words WHERE word_id = ?) AND NOT EXISTS (SELECT 1 FROM review_log WHERE word_id = ? AND kind != 'triage')`;
 
 function toListWord(r: ListWordRow): ListWord {
   const status = r.status;
@@ -168,9 +181,10 @@ function toListWord(r: ListWordRow): ListWord {
     page: r.page_id === null ? null : { id: r.page_id, number: r.page_number!, stage: r.page_stage! },
     nextDue: r.next_due,
     lapses: r.lapses ?? 0,
-    reviews: r.reviews,
+    reviews: r.reviews ?? 0,
     hasCards: r.cards > 0,
-    canCheckAgain: status !== 'unverified' && status !== 'on_page' && r.page_id === null && r.reviews === 0,
+    // The same test as UNTOUCHED_SINCE_CHECK.
+    canCheckAgain: status !== 'unverified' && status !== 'on_page' && r.page_id === null && !r.since_check,
   };
 }
 
@@ -199,6 +213,14 @@ function notOnPage(word: ListWord, doing: string) {
   if (word.status === 'on_page') throw new AppError(409, `this word is on page ${word.page?.number ?? '?'}, which isn't finished; ${doing} after the page`);
 }
 
+/** The guarded change found the word changed in between (the other device, say): nothing was done. */
+function changedMeanwhile(result: D1Result | undefined) {
+  if (!result?.meta.changes) throw new AppError(409, 'this word just changed elsewhere; reload and try again');
+}
+
+/** Kana, with ー, 〜 and ・ (as in Renshuu's readings). */
+const KANA = /^[\p{Script=Hiragana}\p{Script=Katakana}ー〜・ ]+$/u;
+
 /**
  * Edits a word's kanji, kana or core meaning, or moves it to another list.
  * The full senses stay as they were imported.
@@ -214,7 +236,7 @@ export async function updateWord(db: D1Database, id: number, changes: WordChange
   if (changes.kana !== undefined) {
     const kana = String(changes.kana ?? '').normalize('NFKC').trim();
     if (!kana) throw new AppError(400, 'a word needs its kana');
-    if (/[A-Za-z]/.test(kana)) throw new AppError(400, 'the reading must be in kana');
+    if (!KANA.test(kana)) throw new AppError(400, 'the reading must be in kana');
     set('kana', kana);
   }
   if (changes.kanji !== undefined) set('kanji', String(changes.kanji ?? '').normalize('NFKC').trim() || null);
@@ -234,8 +256,10 @@ export async function updateWord(db: D1Database, id: number, changes: WordChange
   }
   if (sets.length === 0) return word;
   set('updated_at', iso(now));
+  // A move doesn't take a word that was just put on a page.
+  const guard = sets.some((s) => s.startsWith('list_id')) ? ` AND status != 'on_page'` : '';
   try {
-    await db.prepare(`UPDATE words SET ${sets.join(', ')} WHERE id = ?`).bind(...values, id).run();
+    changedMeanwhile(await db.prepare(`UPDATE words SET ${sets.join(', ')} WHERE id = ?${guard}`).bind(...values, id).run());
   } catch (e) {
     if (isUniqueViolation(e)) throw new AppError(409, 'you already have a word with that kanji and kana');
     throw e;
@@ -248,7 +272,7 @@ export async function setAside(db: D1Database, id: number, now: Date): Promise<L
   const word = await getListWord(db, id);
   if (word.status === 'ignored') return word;
   notOnPage(word, 'set it aside');
-  await db.prepare(`UPDATE words SET status = 'ignored', updated_at = ? WHERE id = ? AND status = ?`).bind(iso(now), id, word.status).run();
+  changedMeanwhile(await db.prepare(`UPDATE words SET status = 'ignored', updated_at = ? WHERE id = ? AND status = ?`).bind(iso(now), id, word.status).run());
   return getListWord(db, id);
 }
 
@@ -256,10 +280,12 @@ export async function setAside(db: D1Database, id: number, now: Date): Promise<L
 export async function bringBack(db: D1Database, id: number, now: Date): Promise<ListWord> {
   const word = await getListWord(db, id);
   if (word.status !== 'ignored') throw new AppError(409, 'this word is not set aside');
-  await db
-    .prepare(`UPDATE words SET status = ?, updated_at = ? WHERE id = ? AND status = 'ignored'`)
-    .bind(word.hasCards ? 'graduated' : 'unverified', iso(now), id)
-    .run();
+  changedMeanwhile(
+    await db
+      .prepare(`UPDATE words SET status = ?, updated_at = ? WHERE id = ? AND status = 'ignored'`)
+      .bind(word.hasCards ? 'graduated' : 'unverified', iso(now), id)
+      .run(),
+  );
   return getListWord(db, id);
 }
 
@@ -276,13 +302,14 @@ export async function checkAgain(db: D1Database, id: number, now: Date): Promise
   }
   // One batch, guarded on the same conditions, so a review that lands in
   // between leaves the word as it was.
-  const untouched = `id = ? AND status = ? AND NOT EXISTS (SELECT 1 FROM review_log WHERE word_id = ? AND kind != 'triage') AND NOT EXISTS (SELECT 1 FROM page_words WHERE word_id = ?)`;
+  const untouched = `id = ? AND status = ? AND ${UNTOUCHED_SINCE_CHECK}`;
   const guard = [id, word.status, id, id];
-  await db.batch([
+  const results = await db.batch([
     db.prepare(`DELETE FROM review_log WHERE word_id = ? AND kind = 'triage' AND EXISTS (SELECT 1 FROM words WHERE ${untouched})`).bind(id, ...guard),
     db.prepare(`DELETE FROM cards WHERE word_id = ? AND EXISTS (SELECT 1 FROM words WHERE ${untouched})`).bind(id, ...guard),
     db.prepare(`UPDATE words SET status = 'unverified', updated_at = ? WHERE ${untouched}`).bind(iso(now), ...guard),
   ]);
+  changedMeanwhile(results.at(-1));
   return getListWord(db, id);
 }
 
@@ -292,13 +319,14 @@ export async function deleteWord(db: D1Database, id: number): Promise<void> {
   notOnPage(word, 'delete it');
   // The status guard keeps a word that was just put on a page.
   const notOnAPage = `NOT EXISTS (SELECT 1 FROM words WHERE id = ? AND status = 'on_page')`;
-  await db.batch([
+  const results = await db.batch([
     db.prepare(`DELETE FROM review_log WHERE word_id = ? AND ${notOnAPage}`).bind(id, id),
     db.prepare(`DELETE FROM cards WHERE word_id = ? AND ${notOnAPage}`).bind(id, id),
     db.prepare(`DELETE FROM kanji_hints WHERE word_id = ? AND ${notOnAPage}`).bind(id, id),
     db.prepare(`DELETE FROM page_words WHERE word_id = ? AND ${notOnAPage}`).bind(id, id),
     db.prepare(`DELETE FROM words WHERE id = ? AND status != 'on_page'`).bind(id),
   ]);
+  changedMeanwhile(results.at(-1));
 }
 
 // ---------------------------------------------------------------- cards

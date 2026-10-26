@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { bind, unbind } from 'wanakana';
+import { bind, toKana, unbind } from 'wanakana';
 import { api, writtenForm, type ListSummary, type ListWord } from '../api';
-import { Notice } from '../components/ui';
+import { Notice, plural, shortDate } from '../components/ui';
 import { useWordFilter, WordFilter } from '../components/WordFilter';
-import { countStates, WORD_STATES } from '../../shared/wordSearch';
+import { WORD_STATES } from '../../shared/wordSearch';
 
 // One list's words: find them, then edit, move, set aside or delete one.
 
@@ -11,8 +11,6 @@ import { countStates, WORD_STATES } from '../../shared/wordSearch';
 const SHOW_AT_ONCE = 100;
 
 const STATE_LABEL = Object.fromEntries(WORD_STATES.map((s) => [s.state, s.label])) as Record<ListWord['status'], string>;
-const shortDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 export function ListWords({ id }: { id: number }) {
   const [lists, setLists] = useState<ListSummary[] | null>(null);
@@ -46,7 +44,7 @@ export function ListWords({ id }: { id: number }) {
     if (!word || word.listId !== id) setOpen(null);
   };
 
-  const counts = countStates(words);
+  const counts = filter.counts;
   const shown = filter.shown.slice(0, limit);
 
   return (
@@ -158,8 +156,8 @@ function WordEditor({
         )}
         {w.status === 'graduated' && (
           <>
-            Learning{w.page && <> since <a href={`#/pages/${w.page.id}`}>page {w.page.number}</a></>}
-            {w.nextDue && ` · next review ${shortDate(w.nextDue)}`} · {plural(w.reviews, 'review')}
+            Learned{w.page && <> since <a href={`#/pages/${w.page.id}`}>page {w.page.number}</a></>}
+            {w.nextDue && ` · next review ${shortDate(new Date(w.nextDue))}`} · {plural(w.reviews, 'review')}
             {w.lapses > 0 && ` · ${plural(w.lapses, 'lapse')}`}
           </>
         )}
@@ -172,7 +170,8 @@ function WordEditor({
           e.preventDefault();
           const data = new FormData(e.currentTarget);
           const kanji = String(data.get('kanji') ?? '').trim();
-          const kana = String(data.get('kana') ?? '').trim();
+          // A final n stays a letter while you type (it could become な); here it's ん.
+          const kana = toKana(String(data.get('kana') ?? '').trim());
           const coreMeaning = String(data.get('meaning') ?? '').trim();
           const changes = {
             ...(kanji !== (w.kanji ?? '') && { kanji: kanji || null }),

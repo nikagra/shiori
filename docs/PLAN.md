@@ -26,7 +26,7 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   in `.wrangler/state`, separate from the cloud one. An old database holding
   only test data is kept in `.wrangler/state-test-backup-20261025` and can be
   deleted.
-- Tests: 113 unit tests, 58 end-to-end runs (29 tests at iPhone and laptop
+- Tests: 114 unit tests, 58 end-to-end runs (29 tests at iPhone and laptop
   sizes), and `tsc -b` all pass.
 - **Backup and export** (26 Oct): Settings › Backup downloads all study data as
   one JSON file, a nightly cron saves the same file to the private R2 bucket
@@ -50,9 +50,10 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   stopped (it links to `#/settings/backup`). Pages shows the page size and
   links to Settings. No data or API changes.
 - **Words you can see and change** (26 Oct): each list opens to its words
-  (`#/lists/<id>`, "See all N words" on its card), with one search box for
-  kana, romaji, kanji or meaning and filters by state (to check, waiting, on
-  a page, learning, set aside). Tap a word to edit its kanji, kana and core
+  (`#/lists/<id>`: the "See all N words" link on its card, or the word count
+  of an archived list), with one search box for kana, romaji, kanji or
+  meaning and filters by state (to check, waiting, on a page, learned, set
+  aside). Tap a word to edit its kanji, kana and core
   meaning, move it to another list, set it aside (or bring it back), check it
   again, or delete it. A word on an unfinished page can only be edited. The
   search and filters (`shared/wordSearch.ts`, `WordFilter`) are ready for
@@ -85,17 +86,17 @@ Done: v0.1 core loop (import, check pass, pages, FSRS review, audio,
 furigana), deploy on merge, backup and export (26 Oct; check the first
 nightly copy shows in Settings), lists you manage with their own pace (26 Oct;
 try it on the iPhone: the Lists tab, then a page from School and one from
-Manga), Settings (26 Oct).
+Manga), Settings (26 Oct), words you can see and change (26 Oct).
 
 ### v0.2: a complete word tool
 
 1. ~~**Settings.**~~ Done (26 Oct): one Settings screen for audio,
    furigana, page size, backup and import, so Home, Pages, Review and Lists
    are only about studying. Later settings (new cards a day, step 5) go here.
-2. ~~**Words you can see and change.**~~ Done (26 Oct). Each list opens to its words, with a
-   search box (kana, romaji, kanji or meaning) and filters by state (to
-   check, waiting, on a page, learning, set aside). Edit a word's kanji,
-   kana and meaning, move it to another list, set it aside or delete it, and
+2. ~~**Words you can see and change.**~~ Done (26 Oct). Each list opens to
+   its words, with a search box (kana, romaji, kanji or meaning) and filters
+   by state (to check, waiting, on a page, learned, set aside). Edit a
+   word's kanji, kana and meaning, move it to another list, set it aside or delete it, and
    check it again. This is the "review and edit list contents after the
    check" feedback (26 Oct). "Check again" undoes a check pass answer while
    the word has no page and no real reviews; after that, Again in review is

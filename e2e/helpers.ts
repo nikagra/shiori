@@ -4,6 +4,12 @@ import { expect, type APIRequestContext, type Page, type TestInfo } from '@playw
 
 export const FIXTURE = join(import.meta.dirname, '..', 'test', 'fixtures', 'renshuu_custom_sample.txt');
 
+/** A list's id by its name. */
+export async function listId(request: APIRequestContext, name: string): Promise<number> {
+  const lists = (await (await request.get(`/api/lists?dayStart=${new Date().toISOString()}&dayEnd=${new Date().toISOString()}`)).json()) as { id: number; name: string }[];
+  return lists.find((l) => l.name === name)!.id;
+}
+
 export async function resetDb(request: APIRequestContext) {
   const r = await request.post('/api/test/reset');
   expect(r.ok()).toBeTruthy();

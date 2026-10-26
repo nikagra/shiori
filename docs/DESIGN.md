@@ -80,7 +80,8 @@ Each list has its own pace:
 | Focus until a date | Before a test: "Pick for me" takes this list first, and its weight counts `FOCUS_BOOST` (3) times for new cards. One list at a time; it ends by itself after the date |
 | Archive | No new pages (not even by hand) and no new review cards. Hidden from import and the check pass, and its words to check or waiting leave the counts on Home. Its learned words still come up for review |
 
-- **One list per page**, so the word group stays a clean memory anchor. "New
+- **One list per page**, so the word group stays a clean memory anchor
+  (a learned word moved to another list later leaves its page as it was). "New
   page" asks which list. "Pick for me" (`pickList`) takes a focused list
   first, then the list furthest behind its weekly target, then the list with
   the fewest pages in the last 28 days for its weight.
@@ -96,12 +97,14 @@ Each list has its own pace:
 Each list opens to its words (`#/lists/<id>`), in the order they came in.
 
 - **Search**: one box for kana, romaji, kanji or meaning. Katakana and
-  hiragana match each other, and unfinished romaji ("tab") matches what it
-  reads so far. Best matches first: the written form or reading, then the
-  core meaning, then the other senses. Romaji that is also English ("home"
-  reads ほめ) puts meanings with that whole word before readings that only
-  start with it.
-- **Filters** by state: to check, waiting, on a page, learning, set aside.
+  hiragana match each other. Kana or kanji match the written form and the
+  reading. Latin letters are first a meaning (the core meaning, then the
+  other senses, whole words first) and then romaji, because English often
+  reads as kana too ("home" is ほめ, "cat" starts か): only a reading that is
+  exactly the romaji comes before the meanings. Unfinished romaji matches
+  the start of a reading: "tab" finds たべる, and "kan" finds かな as well
+  as かんじ.
+- **Filters** by state: to check, waiting, on a page, learned, set aside.
 - **Edit** the kanji, kana (romaji turns into kana) and core meaning. The
   imported senses stay. Kanji and kana must stay unique across all lists.
 - **Move** to another list, **set aside** (out of the check pass, pages and
@@ -112,7 +115,8 @@ Each list opens to its words (`#/lists/<id>`), in the order they came in.
   row go, and the word is unchecked. Only while it has no page and no real
   reviews; after that, Again in review is the honest way back.
 - A word on an unfinished page can only be edited, so the page keeps its
-  words and its one list.
+  words and its one list. A learned word can move: its learned page stays
+  in its old list, as history.
 
 ### Pages (`shared/pageSession.ts`, PageView, PageGrid)
 

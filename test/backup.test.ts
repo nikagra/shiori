@@ -53,7 +53,7 @@ async function studySomething() {
   const withKanji = page.words.find((w) => w.kanji)!;
   await repo.recordFuriganaHint(db, withKanji.id, withKanji.kanji!.replace(/[^\p{Script=Han}]/gu, ''), later);
   // Quotes, semicolons and line breaks must survive the trip through SQL.
-  await repo.updateCoreMeaning(db, batch[0].id, "it's; a test\n-- not a comment", now);
+  await repo.updateWord(db, batch[0].id, { coreMeaning: "it's; a test\n-- not a comment" }, now);
   return batch[0].id;
 }
 
