@@ -6,8 +6,10 @@ import { Pages } from './screens/Pages';
 import { PageView } from './screens/PageView';
 import { Review } from './screens/Review';
 import { Lists } from './screens/Lists';
+import { Settings } from './screens/Settings';
 
-// Hash routes: #/, #/review, #/pages, #/pages/3, #/lists, #/check, #/import
+// Hash routes: #/, #/review, #/pages, #/pages/3, #/lists, #/check, #/settings,
+// #/settings/backup (scrolled to that section), #/settings/import
 
 function useHashRoute(): string[] {
   const read = () => window.location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
@@ -29,12 +31,13 @@ const NAV = [
   { href: '#/pages', label: 'Pages', match: 'pages' },
   { href: '#/lists', label: 'Lists', match: 'lists' },
   { href: '#/check', label: 'Check', match: 'check' },
-  { href: '#/import', label: 'Import', match: 'import' },
+  { href: '#/settings', label: 'Settings', match: 'settings' },
 ];
 
 export function App() {
   const route = useHashRoute();
-  const [section, id] = route;
+  // Old #/import links open Settings › Import.
+  const [section, id] = route[0] === 'import' ? ['settings', 'import'] : route;
 
   let screen;
   switch (section) {
@@ -50,8 +53,8 @@ export function App() {
     case 'check':
       screen = <Triage />;
       break;
-    case 'import':
-      screen = <Import />;
+    case 'settings':
+      screen = id === 'import' ? <Import /> : <Settings key={id} scrollTo={id} />;
       break;
     default:
       screen = <Home />;

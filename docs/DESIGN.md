@@ -133,7 +133,8 @@ Each list has its own pace:
   Taking it off that list clears its count; the rows are kept as history for
   future kanji cards.
 - Furigana settings are stored on the server, so the phone and the laptop
-  agree. Audio and page size stay per device, in localStorage.
+  agree. Audio and page size stay per device, in localStorage. All of them
+  are on the Settings screen, which says which kind each one is.
 
 ## Buttons and what they do
 
@@ -223,18 +224,19 @@ why an honest Again early on is cheaper than a lucky Good.
   D1 batch so it's consistent. It records the format version and the latest
   migration it fits (`BACKUP_SCHEMA`); a unit test fails when a new migration
   or table isn't reflected there.
-- **Download.** Home › Backup › Download backup saves
+- **Download.** Settings › Backup › Download backup saves
   `shiori-backup-YYYY-MM-DD.json` from `GET /api/backup`. The app checks the
   file before saving it, so an error or a Cloudflare Access sign-in page is
   reported instead of being saved as a backup.
 - **Nightly copy.** A cron trigger (03:30 UTC, `wrangler.jsonc`) saves the same
   file to the private R2 bucket `shiori-backups` as
   `nightly/shiori-backup-YYYY-MM-DD.json` and deletes copies older than
-  `KEEP_DAYS` (30) days, so a missed night leaves a gap. Home shows when the
-  last one was saved, and turns red when it's more than a day and a half old,
-  because that means the nightly runs are failing (see the Worker logs). Until
+  `KEEP_DAYS` (30) days, so a missed night leaves a gap. Settings › Backup
+  shows when the last one was saved, and turns red when it's more than a day
+  and a half old, because that means the nightly runs are failing (see the
+  Worker logs). Home then shows a red warning too, so it isn't missed. Until
   the first copy exists it can't tell a failing run from one that hasn't
-  happened yet, so check Home the morning after a deploy that touches this.
+  happened yet, so check Settings the morning after a deploy that touches this.
   The bucket must exist before a deploy:
   `npx wrangler r2 bucket create shiori-backups`.
 - **Time Travel.** D1 also keeps its own point-in-time history (7 days on the
@@ -269,7 +271,7 @@ again (its deletes come first), or rewind with Time Travel.
 
 | Part | Where | Notes |
 |---|---|---|
-| UI | `src/` (React 19, Vite) | Screens: Home, Import, Triage (Check), Pages, PageView, Lists, Review |
+| UI | `src/` (React 19, Vite) | Screens: Home, Triage (Check), Pages, PageView, Lists, Review, Settings (with Import under it) |
 | Shared logic | `shared/` | Pure TypeScript used by both UI and worker; unit tested |
 | API | `worker/index.ts` (Hono on Cloudflare Workers) | Under `/api/*`; the rest is the single-page app. Also the nightly cron (`scheduled`) |
 | Data access | `worker/db.ts` | Multi-row changes run as one D1 batch, so a failed or repeated request can't leave half-done state |

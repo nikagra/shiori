@@ -45,9 +45,10 @@ async function answerDrill(page: Page, words: PageWord[], opts: { missFirstTyped
 }
 
 test('learn a page: study, in order, shuffled, then it graduates', async ({ page, request }, testInfo) => {
+  await page.goto('/#/settings');
+  await page.getByRole('group', { name: 'Words per page' }).getByRole('button', { name: '10' }).click();
   await page.goto('/#/pages');
   await expect(page.getByText('12 words waiting')).toBeVisible();
-  await page.getByRole('button', { name: '10' }).click();
   await shot(page, testInfo, '10-pages-new');
   await page.getByRole('button', { name: 'Start a new page' }).click();
 

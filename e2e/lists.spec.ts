@@ -102,13 +102,14 @@ test('a new page comes from one list, and "pick for me" follows the weekly targe
   await seedWords(request, { unknown: 12 });
   await request.patch(`/api/lists/${await listId(request, 'School')}`, { data: { pagesPerWeek: 1 } });
 
+  await page.goto('/#/settings');
+  await page.getByRole('group', { name: 'Words per page' }).getByRole('button', { name: '10' }).click();
   await page.goto('/#/pages');
   await expect(page.getByText('17 words waiting')).toBeVisible();
   const from = page.getByLabel('From list');
   await expect(from.locator('option').first()).toHaveText('Pick for me (School)');
   await expectNoHorizontalScroll(page);
   await shot(page, testInfo, '43-pages-from-list');
-  await page.getByRole('button', { name: '10' }).click();
   await page.getByRole('button', { name: 'Start a new page' }).click();
   await expect(page.getByRole('heading', { name: 'Page 1 · School' })).toBeVisible();
   await expect(page.locator('.page-cell')).toHaveCount(5);
