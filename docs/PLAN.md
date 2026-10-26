@@ -26,8 +26,8 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   in `.wrangler/state`, separate from the cloud one. An old database holding
   only test data is kept in `.wrangler/state-test-backup-20261025` and can be
   deleted.
-- Tests: 97 unit tests, 46 end-to-end runs (23 tests at iPhone and laptop sizes), and `tsc -b` all
-  pass.
+- Tests: 98 unit tests, 46 end-to-end runs (23 tests at iPhone and laptop
+  sizes), and `tsc -b` all pass.
 - **Backup and export** (26 Oct): Home › Backup downloads all study data as
   one JSON file, a nightly cron saves the same file to the private R2 bucket
   `shiori-backups` (30 days kept), and `npm run backup:sql` turns a file back

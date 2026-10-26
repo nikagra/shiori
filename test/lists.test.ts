@@ -227,8 +227,12 @@ describe('lists in the database', () => {
     for (const item of q.items.filter((i) => i.word.listId === MANGA).slice(0, 10)) {
       await repo.submitReview(db, { cardId: item.cardId, rating: Rating.Good, hintUsed: false, answer: null, correct: null, durationMs: null }, now);
     }
-    const left = (await lists()).map((l) => [l.name, l.newToday]).filter(([, n]) => n);
-    expect(left).toEqual([['School', 10]]);
+    // Manga's 10 were met today and count as its share; School gets the rest.
+    const today = (await lists()).map((l) => [l.name, l.newToday]).filter(([, n]) => n);
+    expect(today).toEqual([
+      ['Manga', 10],
+      ['School', 10],
+    ]);
   });
 
   it('archiving hides a list from the check pass and the counts, and ends its focus', async () => {
@@ -250,7 +254,7 @@ describe('lists in the database', () => {
     const page = await repo.createPage(db, 10, BOOKS, now);
     await repo.mergeList(db, BOOKS, MANGA, now);
     expect((await lists()).map((l) => l.name)).toEqual(['Manga', 'School', 'Other']);
-    expect((await byName('Manga')).counts).toEqual({ toCheck: 0, inbox: 2, onPage: 10, learned: 0 });
+    expect((await byName('Manga')).counts).toEqual({ toCheck: 0, inbox: 2, onPage: 10, learned: 0, ignored: 0 });
     expect((await repo.getPage(db, page.id)).listName).toBe('Manga');
     await expect(repo.mergeList(db, MANGA, MANGA, now)).rejects.toThrow('into itself');
     await expect(repo.mergeList(db, BOOKS, MANGA, now)).rejects.toThrow('list not found');
@@ -261,6 +265,13 @@ describe('lists in the database', () => {
     await expect(repo.deleteList(db, MANGA)).rejects.toThrow('merge it into another list or archive it');
     await repo.deleteList(db, BOOKS);
     expect((await lists()).map((l) => l.name)).toEqual(['Manga', 'School', 'Other']);
+  });
+
+  it('counts set-aside words, so a list holding only those is not shown as empty', async () => {
+    await repo.importWords(db, words.slice(0, 1), SCHOOL, now);
+    await repo.triageAnswer(db, (await repo.triageNext(db, 1)).words[0].id, 'ignore', now);
+    expect((await byName('School')).counts).toEqual({ toCheck: 0, inbox: 0, onPage: 0, learned: 0, ignored: 1 });
+    await expect(repo.deleteList(db, SCHOOL)).rejects.toThrow('this list has words');
   });
 
   it('imports by list name for an app that predates list ids', async () => {

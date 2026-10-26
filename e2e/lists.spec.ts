@@ -31,6 +31,11 @@ test('manage lists: add, weight, weekly target, pause, focus, rename, merge, arc
   await expect(manga.getByTestId('list-counts')).toContainText('4 waiting');
   await expect(manga.getByText('Next page')).toBeVisible();
 
+  // A name that's taken is refused and stays in the box to fix.
+  await page.getByLabel('New list name').fill('manga');
+  await page.getByRole('button', { name: 'Add' }).click();
+  await expect(page.getByText('there is already a list with that name')).toBeVisible();
+  await expect(page.getByLabel('New list name')).toHaveValue('manga');
   await page.getByLabel('New list name').fill('Yotsuba');
   await page.getByRole('button', { name: 'Add' }).click();
   const yotsuba = page.getByRole('region', { name: 'Yotsuba' });
@@ -45,6 +50,10 @@ test('manage lists: add, weight, weekly target, pause, focus, rename, merge, arc
   await expect(school.getByTestId('list-counts')).toContainText('(target 1)');
   await page.getByRole('region', { name: 'Books' }).getByLabel(/Pause/).check();
   await expect(page.getByRole('region', { name: 'Books' }).getByText('Paused', { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(school.getByRole('button', { name: 'High' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(school.getByTestId('list-counts')).toContainText('(target 1)');
+  await expect(page.getByRole('region', { name: 'Books' }).getByLabel(/Pause/)).toBeChecked();
   await expectNoHorizontalScroll(page);
   await shot(page, testInfo, '40-lists');
 

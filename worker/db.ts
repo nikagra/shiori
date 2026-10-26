@@ -1,7 +1,7 @@
 import type { ImportedWord } from '../shared/renshuu';
 import { coreMeaning } from '../shared/meaning';
 import { buildQueue, type QueueCandidate } from '../shared/queue';
-import { DEFAULT_WEIGHT, effectiveWeight, NEW_PER_DAY, MAX_PAGES_PER_WEEK, pickList, RECENT_DAYS, WEIGHT_RANGE } from '../shared/lists';
+import { DEFAULT_WEIGHT, effectiveWeight, MAX_NAME, NEW_PER_DAY, MAX_PAGES_PER_WEEK, pickList, RECENT_DAYS, WEIGHT_RANGE } from '../shared/lists';
 import {
   capForHint,
   DIRECTIONS,
@@ -381,8 +381,11 @@ export interface QueueItem {
   page: { id: number; number: number; position: number } | null;
 }
 
-/** Today's cards in order: every due card, and new cards shared between lists by weight. */
-async function todaysQueue(db: D1Database, dayStart: Date, dayEnd: Date): Promise<QueueCandidate[]> {
+/**
+ * Today's cards in order: every due card, and new cards shared between lists
+ * by weight. Also the new cards each list already had today.
+ */
+async function todaysQueue(db: D1Database, dayStart: Date, dayEnd: Date): Promise<{ queue: QueueCandidate[]; introduced: Map<number, number> }> {
   const candidates = await db
     .prepare(
       `SELECT c.id AS cardId, c.word_id AS wordId, c.direction, c.state, c.due, w.list_id AS listId
@@ -404,17 +407,19 @@ async function todaysQueue(db: D1Database, dayStart: Date, dayEnd: Date): Promis
     .all<{ listId: number; n: number }>();
   // Focus counts for the whole study day it ends in.
   const lists = await db.prepare('SELECT * FROM lists').all<ListRow>();
+  const introduced = new Map(fresh.results.map((r) => [r.listId, r.n]));
 
-  return buildQueue(candidates.results, {
+  const queue = buildQueue(candidates.results, {
     reviewedToday: new Set(reviewed.results.map((r) => r.word_id)),
-    newIntroducedToday: new Map(fresh.results.map((r) => [r.listId, r.n])),
+    newIntroducedToday: introduced,
     newPerDay: NEW_PER_DAY,
     weights: new Map(lists.results.map((l) => [l.id, effectiveWeight(toPace(l, dayStart))])),
   });
+  return { queue, introduced };
 }
 
 export async function reviewQueue(db: D1Database, dayStart: Date, dayEnd: Date, limit: number): Promise<{ items: QueueItem[]; total: number }> {
-  const queue = await todaysQueue(db, dayStart, dayEnd);
+  const { queue } = await todaysQueue(db, dayStart, dayEnd);
 
   const picked = queue.slice(0, limit);
   if (picked.length === 0) return { items: [], total: queue.length };
@@ -544,9 +549,9 @@ export interface ListSummary {
   focusUntil: string | null;
   focused: boolean;
   archived: boolean;
-  counts: { toCheck: number; inbox: number; onPage: number; learned: number };
+  counts: { toCheck: number; inbox: number; onPage: number; learned: number; ignored: number };
   pagesThisWeek: number;
-  /** New review cards this list gets today. */
+  /** New review cards this list gets today: already met plus still to come. */
   newToday: number;
   /** "New page" without a list picks this one. */
   next: boolean;
@@ -572,13 +577,13 @@ async function listInfo(db: D1Database, now: Date) {
     pagesPerWeek: l.pages_per_week,
     pagesThisWeek: paged(l.id)?.week ?? 0,
     pagesRecent: paged(l.id)?.recent ?? 0,
-    counts: { toCheck: count(l.id, 'unverified'), inbox: count(l.id, 'inbox'), onPage: count(l.id, 'on_page'), learned: count(l.id, 'graduated') },
+    counts: { toCheck: count(l.id, 'unverified'), inbox: count(l.id, 'inbox'), onPage: count(l.id, 'on_page'), learned: count(l.id, 'graduated'), ignored: count(l.id, 'ignored') },
   }));
 }
 
 export async function listLists(db: D1Database, dayStart: Date, dayEnd: Date, now: Date): Promise<ListSummary[]> {
   const info = await listInfo(db, now);
-  const queue = await todaysQueue(db, dayStart, dayEnd);
+  const { queue, introduced } = await todaysQueue(db, dayStart, dayEnd);
   const next = pickList(info);
   return info.map((l) => ({
     id: l.id,
@@ -591,12 +596,10 @@ export async function listLists(db: D1Database, dayStart: Date, dayEnd: Date, no
     archived: l.archived,
     counts: l.counts,
     pagesThisWeek: l.pagesThisWeek,
-    newToday: queue.filter((c) => c.listId === l.id && c.state === State.New).length,
+    newToday: (introduced.get(l.id) ?? 0) + queue.filter((c) => c.listId === l.id && c.state === State.New).length,
     next: l.id === next,
   }));
 }
-
-const MAX_NAME = 40;
 
 function cleanName(name: unknown): string {
   const trimmed = String(name ?? '').trim().replace(/\s+/g, ' ');

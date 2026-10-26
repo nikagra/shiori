@@ -14,6 +14,8 @@ export const FOCUS_BOOST = 3;
 /** Pages started in this many days count towards a list's fair share of new pages. */
 export const RECENT_DAYS = 28;
 export const MAX_PAGES_PER_WEEK = 14;
+/** Longest list name, in characters. */
+export const MAX_NAME = 40;
 
 export interface ListPace {
   weight: number;

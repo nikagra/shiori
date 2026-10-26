@@ -63,7 +63,8 @@ to the inbox, where it waits for a page.
 
 Every word belongs to one list, picked at import. The app starts with Manga,
 Books, School and Other; Lists adds, renames, merges, archives and deletes
-them (only an empty list can be deleted). Names are unique, ignoring case.
+them (only a list with no words at all, set-aside ones included, can be
+deleted). Names are unique, ignoring the case of Latin letters.
 `words.source_list` keeps the name the word was imported under, as history.
 
 Each list has its own pace:
@@ -74,7 +75,7 @@ Each list has its own pace:
 | Weekly target (optional, pages a week) | Until it's met (pages started in the last 7 days), "Pick for me" takes this list first |
 | Pause | No new pages from "Pick for me" and no new review cards. You can still start a page from it by hand |
 | Focus until a date | Before a test: "Pick for me" takes this list first, and its weight counts `FOCUS_BOOST` (3) times for new cards. One list at a time; it ends by itself after the date |
-| Archive | Like pause, and also hidden from import, the check pass and the counts on Home |
+| Archive | No new pages (not even by hand) and no new review cards. Hidden from import and the check pass, and its words to check or waiting leave the counts on Home. Its learned words still come up for review |
 
 - **One list per page**, so the word group stays a clean memory anchor. "New
   page" asks which list. "Pick for me" (`pickList`) takes a focused list
@@ -213,8 +214,9 @@ why an honest Again early on is cheaper than a lucky Good.
 
 ## Backup and restore (`shared/backup.ts`, `worker/backup.ts`)
 
-- **The file.** One JSON file holds every row of every table (`lists`, `words`,
-  `pages`, `page_words`, `cards`, `review_log`, `settings`, `kanji_hints`), read in one
+- **The file.** One JSON file holds every row of every table (`lists`,
+  `words`, `pages`, `page_words`, `cards`, `review_log`, `settings`,
+  `kanji_hints`), read in one
   D1 batch so it's consistent. It records the format version and the latest
   migration it fits (`BACKUP_SCHEMA`); a unit test fails when a new migration
   or table isn't reflected there.
@@ -276,8 +278,9 @@ again (its deletes come first), or rewind with Time Travel.
 - `lists`: name, `weight`, `pages_per_week`, `paused`, `focus_until`,
   `archived_at`.
 - `words`: kana, kanji, `senses` (JSON), `core_meaning`, pos, source,
-  `source_list` (the import label), `list_id`, `source_order`, `renshuu_mastery`, `status` (`unverified` →
-  `inbox` → `on_page` → `graduated`, or `ignored`).
+  `source_list` (the import label), `list_id`, `source_order`,
+  `renshuu_mastery`, `status` (`unverified` → `inbox` → `on_page` →
+  `graduated`, or `ignored`).
 - `pages` and `page_words`: page number, stage, `list_id`, and each word's
   fixed position.
 - `cards`: one per word and direction, with the full FSRS state as JSON plus

@@ -40,7 +40,8 @@ app.get('/stats', async (c) => {
 });
 
 app.post('/import', async (c) => {
-  // `list` (a name) is what the app sent before lists had ids.
+  // `list` imports by list name: what the app sent before lists had ids, and
+  // what the end-to-end helpers use. An unknown name is refused.
   const body = await c.req.json<{ text?: string; listId?: number; list?: string }>();
   if (!body.text?.trim()) throw new db.AppError(400, 'the file is empty');
   const listId = body.listId !== undefined ? intParam(body.listId, 'listId') : body.list?.trim() ? await db.listIdByName(c.env.DB, body.list) : null;

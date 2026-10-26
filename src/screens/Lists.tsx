@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, studyDay, type ListChanges, type ListSummary } from '../api';
 import { Notice } from '../components/ui';
-import { FOCUS_BOOST, MAX_PAGES_PER_WEEK, NEW_PER_DAY, WEIGHTS } from '../../shared/lists';
+import { FOCUS_BOOST, MAX_NAME, MAX_PAGES_PER_WEEK, NEW_PER_DAY, WEIGHTS } from '../../shared/lists';
 
 const WEIGHT_LABELS: [keyof typeof WEIGHTS, string][] = [
   ['low', 'Low'],
@@ -12,11 +12,14 @@ const WEIGHT_LABELS: [keyof typeof WEIGHTS, string][] = [
 /** Focus runs to the end of the study day you pick (04:00 the morning after). */
 const focusEndFromDate = (date: string) => {
   const [y, m, d] = date.split('-').map(Number);
-  return new Date(y, m - 1, d + 1, 4).toISOString();
+  return studyDay(new Date(y, m - 1, d, 12)).end.toISOString();
 };
 const lastFocusDay = (until: string) => studyDay(new Date(Date.parse(until) - 1)).start;
 const shortDate = (d: Date) => d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 const dateInputValue = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+/** Every word in the list, set-aside ones too: a list with any can't be deleted. */
+const wordCount = (l: ListSummary) => Object.values(l.counts).reduce((a, b) => a + b, 0);
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
@@ -30,15 +33,18 @@ export function Lists() {
     load();
   }, []);
 
-  /** Runs a change, then shows the lists as the server has them. */
+  /** Runs a change, then shows the lists as the server has them. True when it worked. */
   const run = async (action: () => Promise<unknown>) => {
     setError(null);
+    let ok = true;
     try {
       await action();
     } catch (e) {
       setError((e as Error).message);
+      ok = false;
     }
     await load();
+    return ok;
   };
 
   if (!lists) return error ? <Notice kind="error">{error}</Notice> : <p className="muted">Loading…</p>;
@@ -58,10 +64,10 @@ export function Lists() {
         className="add-row"
         onSubmit={(e) => {
           e.preventDefault();
-          run(() => api.createList(name)).then(() => setName(''));
+          run(() => api.createList(name)).then((ok) => ok && setName(''));
         }}
       >
-        <input aria-label="New list name" placeholder="New list, e.g. Yotsuba" value={name} onChange={(e) => setName(e.target.value)} maxLength={40} />
+        <input aria-label="New list name" placeholder="New list, e.g. Yotsuba" value={name} onChange={(e) => setName(e.target.value)} maxLength={MAX_NAME} />
         <button className="button" disabled={!name.trim()}>
           Add
         </button>
@@ -85,7 +91,7 @@ export function Lists() {
           {archived.map((l) => (
             <div key={l.id} className="list-item" data-testid="archived-list">
               <span>
-                <strong>{l.name}</strong> <span className="muted">· {plural(l.counts.toCheck + l.counts.inbox + l.counts.onPage + l.counts.learned, 'word')}</span>
+                <strong>{l.name}</strong> <span className="muted">· {plural(wordCount(l), 'word')}</span>
               </span>
               <button className="button button--small" onClick={() => run(() => api.updateList(l.id, { archived: false }))}>
                 Unarchive
@@ -106,7 +112,7 @@ function ListCard({
 }: {
   list: ListSummary;
   others: ListSummary[];
-  run: (action: () => Promise<unknown>) => Promise<void>;
+  run: (action: () => Promise<unknown>) => Promise<boolean>;
   show: (changes: Pick<ListSummary, 'weight' | 'pagesPerWeek' | 'paused'>) => void;
 }) {
   const update = (changes: ListChanges) => run(() => api.updateList(l.id, changes));
@@ -120,7 +126,7 @@ function ListCard({
   tomorrow.setDate(tomorrow.getDate() + 1);
   const [focusDate, setFocusDate] = useState(dateInputValue(new Date(tomorrow.getTime() + 13 * 86_400_000)));
   useEffect(() => setRename(l.name), [l.name]);
-  const words = l.counts.toCheck + l.counts.inbox + l.counts.onPage + l.counts.learned;
+  const words = wordCount(l);
 
   return (
     <section className="card stack" aria-label={l.name} data-testid="list-card">
@@ -138,6 +144,7 @@ function ListCard({
               l.counts.inbox && `${l.counts.inbox} waiting`,
               l.counts.onPage && `${l.counts.onPage} on pages`,
               l.counts.learned && `${l.counts.learned} learned`,
+              l.counts.ignored && `${l.counts.ignored} set aside`,
             ]
               .filter(Boolean)
               .join(' · ')}
@@ -207,7 +214,7 @@ function ListCard({
               update({ name: rename });
             }}
           >
-            <input aria-label={`Rename ${l.name}`} value={rename} onChange={(e) => setRename(e.target.value)} maxLength={40} />
+            <input aria-label={`Rename ${l.name}`} value={rename} onChange={(e) => setRename(e.target.value)} maxLength={MAX_NAME} />
             <button className="button" disabled={!rename.trim() || rename.trim() === l.name}>
               Rename
             </button>

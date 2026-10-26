@@ -47,7 +47,7 @@ export interface ListSummary {
   focusUntil: string | null;
   focused: boolean;
   archived: boolean;
-  counts: { toCheck: number; inbox: number; onPage: number; learned: number };
+  counts: { toCheck: number; inbox: number; onPage: number; learned: number; ignored: number };
   pagesThisWeek: number;
   newToday: number;
   /** "New page" without a list picks this one. */
