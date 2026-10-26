@@ -14,6 +14,7 @@ import {
   type StoredCard,
 } from '../shared/scheduler';
 import type { PageStage } from '../shared/pageSession';
+import { BACKUP_FORMAT, BACKUP_SCHEMA, BACKUP_TABLES, type Backup, type BackupRow, type BackupTable } from '../shared/backup';
 import { DEFAULT_PREFS, HINTS_TO_LEARNING, isKanji, knownKanjiSet, markLearning, uniqueKanji, type FuriganaPrefs } from '../shared/furigana';
 
 export type WordStatus = 'unverified' | 'inbox' | 'on_page' | 'graduated' | 'ignored';
@@ -468,8 +469,6 @@ export async function stats(db: D1Database, dayStart: Date, dayEnd: Date): Promi
   };
 }
 
-// ---------------------------------------------------------------- test support
-
 // ---------------------------------------------------------------- furigana
 
 export interface FuriganaState {
@@ -545,8 +544,20 @@ export async function recordFuriganaHint(
   return { prefs, stored: true, movedToLearning: moved };
 }
 
+// ---------------------------------------------------------------- backup
+
+/** Every row of every table, read in one batch so the copy is consistent. */
+export async function exportAll(db: D1Database, now: Date): Promise<Backup> {
+  const results = await db.batch<BackupRow>(BACKUP_TABLES.map((t) => db.prepare(`SELECT * FROM ${t} ORDER BY rowid`)));
+  const tables = Object.fromEntries(BACKUP_TABLES.map((t, i) => [t, results[i].results])) as Record<BackupTable, BackupRow[]>;
+  return { app: 'shiori', format: BACKUP_FORMAT, schema: BACKUP_SCHEMA, exportedAt: iso(now), tables };
+}
+
+// ---------------------------------------------------------------- test support
+
 export async function resetAll(db: D1Database): Promise<void> {
-  await db.batch(['kanji_hints', 'settings', 'review_log', 'cards', 'page_words', 'pages', 'words'].map((t) => db.prepare(`DELETE FROM ${t}`)));
+  // Children before parents, for the foreign keys.
+  await db.batch([...BACKUP_TABLES].reverse().map((t) => db.prepare(`DELETE FROM ${t}`)));
 }
 
 /** Makes cards due now (all, or one direction), to exercise reviews in end-to-end tests. */

@@ -3,7 +3,8 @@ import react from '@vitejs/plugin-react';
 import { cloudflare } from '@cloudflare/vite-plugin';
 
 // End-to-end tests run against their own database, apart from the one you
-// study from, and only there are the reset and time-travel endpoints on.
+// study from, and only there are the /api/test endpoints on (reset, time
+// travel, a nightly backup run). Its R2 copies stay in .wrangler/e2e too.
 const e2e = process.env.SHIORI_E2E === '1';
 
 export default defineConfig({

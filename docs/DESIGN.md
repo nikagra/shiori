@@ -182,15 +182,61 @@ On a well-known word, Again costs a lot: about 4 months of stability drops to
 about 4 days, and the higher difficulty slows its growth afterwards. That's
 why an honest Again early on is cheaper than a lucky Good.
 
+## Backup and restore (`shared/backup.ts`, `worker/backup.ts`)
+
+- **The file.** One JSON file holds every row of every table (`words`, `pages`,
+  `page_words`, `cards`, `review_log`, `settings`, `kanji_hints`), read in one
+  D1 batch so it's consistent. It records the format version and the latest
+  migration it fits (`BACKUP_SCHEMA`); a unit test fails when a new migration
+  or table isn't reflected there.
+- **Download.** Home › Backup › Download backup saves
+  `shiori-backup-YYYY-MM-DD.json` from `GET /api/backup`. The app checks the
+  file before saving it, so an error or a Cloudflare Access sign-in page is
+  reported instead of being saved as a backup.
+- **Nightly copy.** A cron trigger (03:30 UTC, `wrangler.jsonc`) saves the same
+  file to the private R2 bucket `shiori-backups` as
+  `nightly/shiori-backup-YYYY-MM-DD.json` and deletes copies older than
+  `KEEP_DAYS` (30) days, so a missed night leaves a gap. Home shows when the
+  last one was saved, and turns red when it's more than a day and a half old,
+  because that means the nightly runs are failing (see the Worker logs). Until
+  the first copy exists it can't tell a failing run from one that hasn't
+  happened yet, so check Home the morning after a deploy that touches this.
+  The bucket must exist before a deploy:
+  `npx wrangler r2 bucket create shiori-backups`.
+- **Time Travel.** D1 also keeps its own point-in-time history (7 days on the
+  free plan, 30 on paid), which is the quickest undo while the database exists.
+  The files are for everything else: a deleted database, a lost account, or
+  keeping a copy off Cloudflare.
+
+**Restoring from a file**
+
+1. Get a file: download one, or fetch a nightly copy with
+   `npx wrangler r2 object get shiori-backups/nightly/shiori-backup-2026-10-25.json --remote --file backup.json`.
+2. Turn it into SQL: `npm run backup:sql -- backup.json --replace > restore.sql`.
+   `--replace` deletes the rows already in the database first; leave it out
+   for an empty one.
+3. If the database is gone, create it again (`npx wrangler d1 create shiori`,
+   put the new id in `wrangler.jsonc`) and apply the migrations
+   (`npx wrangler d1 migrations apply shiori --remote`).
+4. Load it: `npx wrangler d1 execute shiori --remote --file restore.sql`.
+
+The script checks the backup's schema against `migrations/`: it refuses a
+backup from code newer than the checkout, and notes an older one. An older
+backup still loads: each INSERT names its columns, so new columns take their
+defaults, and a table added after the backup (`TABLE_SINCE`) starts empty.
+If a `--replace` load fails partway, fix the cause and run the same file
+again (its deletes come first), or rewind with Time Travel.
+
 ## Architecture
 
 | Part | Where | Notes |
 |---|---|---|
 | UI | `src/` (React 19, Vite) | Screens: Home, Import, Triage (Check), Pages, PageView, Review |
 | Shared logic | `shared/` | Pure TypeScript used by both UI and worker; unit tested |
-| API | `worker/index.ts` (Hono on Cloudflare Workers) | Under `/api/*`; the rest is the single-page app |
+| API | `worker/index.ts` (Hono on Cloudflare Workers) | Under `/api/*`; the rest is the single-page app. Also the nightly cron (`scheduled`) |
 | Data access | `worker/db.ts` | Multi-row changes run as one D1 batch, so a failed or repeated request can't leave half-done state |
 | Database | D1 (SQLite), `migrations/` | `0001_init.sql`, `0002_furigana.sql` |
+| Backups | R2 bucket `shiori-backups` | Nightly JSON copies, 30 days (`worker/backup.ts`) |
 
 ### Data model
 
@@ -214,8 +260,8 @@ why an honest Again early on is cheaper than a lucky Good.
 - `npm test` runs Vitest over `test/`: pure logic and the database layer
   against a local D1.
 - `npm run test:e2e` runs Playwright at iPhone and laptop sizes, on port 5174
-  with its own database in `.wrangler/e2e`. The test-only endpoints
-  (`/api/test/reset`, `/api/test/make-due`) are on only for that server. Never
-  point the end-to-end tests at `.wrangler/state`: an early run wiped real
-  study data that way.
+  with its own database (and R2 copies) in `.wrangler/e2e`. The test-only
+  endpoints (`/api/test/reset`, `/api/test/make-due`, `/api/test/nightly`)
+  are on only for that server. Never point the end-to-end tests at
+  `.wrangler/state`: an early run wiped real study data that way.
 - Commits end their subject line with an emoji that fits the change.

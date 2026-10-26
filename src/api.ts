@@ -1,5 +1,6 @@
 // Typed client for the Shiori API.
 
+import { parseBackup, type Backup, type NightlyStatus } from '../shared/backup';
 import type { FuriganaPrefs } from '../shared/furigana';
 
 export type Direction = 'jp_en' | 'en_jp';
@@ -98,6 +99,19 @@ export const api = {
   setFurigana: (prefs: FuriganaPrefs) => call<{ prefs: FuriganaPrefs; stored: boolean }>('PUT', '/furigana', prefs),
   furiganaHint: (wordId: number, kanji: string) =>
     call<{ prefs: FuriganaPrefs; movedToLearning: string }>('POST', '/furigana/hint', { wordId, kanji }),
+  nightlyBackups: () => call<NightlyStatus>('GET', '/backup/nightly'),
+  /** Fetched and checked here, so an error page is never saved as a backup. */
+  backup: async (): Promise<{ backup: Backup; text: string }> => {
+    let res: Response;
+    try {
+      res = await fetch('/api/backup', { cache: 'no-store' });
+    } catch {
+      throw new ApiError('the server could not be reached. If the app has been open a long time, reload it to sign in again.');
+    }
+    const text = await res.text();
+    if (!res.ok) throw new ApiError(`the server answered ${res.status}`);
+    return { backup: parseBackup(text), text };
+  },
   submitReview: (cardId: number, body: { rating: number; hintUsed: boolean; answer?: string; correct?: boolean; durationMs: number }) =>
     call<{ due: string; rating: number }>('POST', `/review/${cardId}`, body),
 };

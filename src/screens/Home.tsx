@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, type Stats } from '../api';
 import { Notice } from '../components/ui';
+import { backupFileName, KEEP_DAYS, nightlyIsStale, type NightlyStatus } from '../../shared/backup';
 import { HINTS_TO_LEARNING, type FuriganaPrefs, type KanjiLevel } from '../../shared/furigana';
 import { useFurigana } from '../furigana';
 import { useSettings } from '../settings';
@@ -71,7 +72,59 @@ export function Home() {
       </section>
 
       <FuriganaSettings />
+
+      <Backup />
     </div>
+  );
+}
+
+function Backup() {
+  const [nightly, setNightly] = useState<NightlyStatus | null>(null);
+  const [nightlyError, setNightlyError] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    api.nightlyBackups().then(setNightly, () => setNightlyError(true));
+  }, []);
+
+  const download = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const { backup, text } = await api.backup();
+      const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = backupFileName(backup.exportedAt);
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (e) {
+      setError(`Download failed: ${(e as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const savedAt = nightly?.latest?.savedAt;
+  return (
+    <section className="card stack" aria-label="Backup">
+      <h2>Backup</h2>
+      <p className="muted">One file with all your words, pages, cards, review history and settings.</p>
+      <button type="button" className="button" onClick={download} disabled={busy}>
+        {busy ? 'Preparing…' : 'Download backup'}
+      </button>
+      {error && <p className="error">{error}</p>}
+      <p className={nightlyError || (savedAt && nightlyIsStale(savedAt, new Date())) ? 'error' : 'muted'} data-testid="nightly-status">
+        {nightlyError
+          ? 'Could not check the nightly copies.'
+          : !nightly
+            ? 'Checking the nightly copies…'
+            : savedAt
+              ? `Nightly copy saved ${new Date(savedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}. ${nightly.count} ${nightly.count === 1 ? 'copy' : 'copies'} kept, the last ${KEEP_DAYS} days at most.` +
+                (nightlyIsStale(savedAt, new Date()) ? ' Newer runs have failed: check the Worker logs in Cloudflare.' : '')
+              : 'No nightly copy yet. The first one is saved tonight.'}
+      </p>
+    </section>
   );
 }
 
