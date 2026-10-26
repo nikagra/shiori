@@ -96,8 +96,8 @@ Manga), Settings (26 Oct), words you can see and change (26 Oct).
 2. ~~**Words you can see and change.**~~ Done (26 Oct). Each list opens to
    its words, with a search box (kana, romaji, kanji or meaning) and filters
    by state (to check, waiting, on a page, learned, set aside). Edit a
-   word's kanji, kana and meaning, move it to another list, set it aside or delete it, and
-   check it again. This is the "review and edit list contents after the
+   word's kanji, kana and meaning, move it to another list, set it aside or
+   delete it, and check it again. This is the "review and edit list contents after the
    check" feedback (26 Oct). "Check again" undoes a check pass answer while
    the word has no page and no real reviews; after that, Again in review is
    the way back.
