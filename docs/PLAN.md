@@ -55,22 +55,41 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
 2. ~~**Lists you manage, with their own pace**~~: done (26 Oct). Try it on
    the iPhone: the Lists tab, then a page from School and one from Manga.
    Capture (v0.2) should file new words into a list the same way.
-3. **v0.2: capture while reading.** Matches the original plan
+3. **Dictionary** (Mikita, 26 Oct: simpler import and word search). Comes
+   before capture, because capture, furigana and picking words all use it.
+   - Data: English JMdict from jmdict-simplified (about 210k entries, updated
+     weekly) and JmdictFurigana, both CC BY-SA 4.0, so the app needs a
+     credits line. No Jisho API: it's unofficial and has no uptime promise.
+   - Storage: a separate D1 database `shiori-dict`, so backups stay small and
+     the dictionary can be rebuilt any time. Search uses SQLite FTS5. The full
+     set fits the free plan's 500 MB, but the free plan allows only 100k row
+     writes a day, so the loader is resumable and fills it over a few nights
+     (or at once on Workers Paid). The ~23k common entries load first, in a
+     day.
+   - Add a word: search by kana, romaji (WanaKana), kanji or English, then
+     tap a result to put it in a list's inbox. This replaces the Renshuu
+     Reading Buddy step on the iPhone.
+   - Import: match each Renshuu word to a dictionary entry; the check pass
+     flags words with no match.
+   - Per-kanji furigana from JmdictFurigana (Mikita, 25 Oct): readings over a
+     run of kanji (冬眠, 日本) don't line up with each kanji today. Also show
+     "usually written in kana" forms.
+   - The same search box is reused to build pages by picking words from your
+     own lists (backlog idea, 26 Oct).
+4. **v0.2: capture while reading.** Matches the original plan
    ([plan doc](https://claude.ai/artifact/1J233eFb8H61zr7WbEZXas)):
    - Photo of a manga panel → Claude (called only from the Worker, with its own
      API key; Pro doesn't include API access) explains it and proposes words,
      each tagged with `source` / `source_list`. New words go to the inbox.
      Roughly $0.05 per panel.
-   - JMdict (via jmdict-simplified) for kana and meanings, and per-kanji
-     furigana from JmdictFurigana. Mikita asked for this (25 Oct): readings
-     over a run of kanji (冬眠, 日本) don't line up with each kanji today.
+   - Proposed words are matched to dictionary entries (step 3) for kana and
+     meanings.
    - Cloze cards using the sentence the word came from.
    - Keep several related sentences per word (Mikita, 25 Oct), especially from
      manga, for extra context: a word → sentences table (sentence, source,
      panel) instead of one sentence column. Cloze and the v0.3 new-context
      cards pick from it.
-   - Show "usually written in kana" forms.
-4. **v0.3: kanji, school, leeches.**
+5. **v0.3: kanji, school, leeches.**
    - Kanji reading cards (on and kun) as their own study vector, seeded from
      `kanji_hints` and the Still learning list, with separate grades.
    - School focus: Marugoto batches of 10 kanji over about 6 weeks, and topic
@@ -78,9 +97,9 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
    - Leeches: `LEECH_LAPSES` (6) is defined in `shared/scheduler.ts` but unused.
      Decide what happens to one, for example a new page, a flag or a suspend.
    - New-context cards: the same word in a fresh sentence once it's mature.
-5. **v0.4: listening** from YouTube clips, if feasible; otherwise keep it
+6. **v0.4: listening** from YouTube clips, if feasible; otherwise keep it
    separate.
-6. **v0.5: grammar map**, one structure that ties grammar points together. It
+7. **v0.5: grammar map**, one structure that ties grammar points together. It
    needs its own design pass before any code.
 
 ## Open questions
