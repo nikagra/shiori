@@ -64,8 +64,16 @@ app.post('/triage/:id', async (c) => {
 });
 
 app.patch('/words/:id', async (c) => {
-  const { coreMeaning } = await c.req.json<{ coreMeaning: string }>();
-  return c.json(await db.updateCoreMeaning(c.env.DB, intParam(c.req.param('id'), 'id'), coreMeaning ?? '', new Date()));
+  return c.json(await db.updateWord(c.env.DB, intParam(c.req.param('id'), 'id'), await c.req.json<db.WordChanges>(), new Date()));
+});
+
+app.post('/words/:id/set-aside', async (c) => c.json(await db.setAside(c.env.DB, intParam(c.req.param('id'), 'id'), new Date())));
+app.post('/words/:id/bring-back', async (c) => c.json(await db.bringBack(c.env.DB, intParam(c.req.param('id'), 'id'), new Date())));
+app.post('/words/:id/check-again', async (c) => c.json(await db.checkAgain(c.env.DB, intParam(c.req.param('id'), 'id'), new Date())));
+
+app.delete('/words/:id', async (c) => {
+  await db.deleteWord(c.env.DB, intParam(c.req.param('id'), 'id'));
+  return c.json({ ok: true });
 });
 
 app.get('/pages', async (c) => c.json(await db.listPages(c.env.DB)));
@@ -125,6 +133,8 @@ app.patch('/lists/:id', async (c) => {
   await db.updateList(c.env.DB, intParam(c.req.param('id'), 'id'), await c.req.json<db.ListChanges>(), new Date());
   return c.json({ ok: true });
 });
+
+app.get('/lists/:id/words', async (c) => c.json(await db.listWords(c.env.DB, intParam(c.req.param('id'), 'id'))));
 
 app.post('/lists/:id/merge', async (c) => {
   const { into } = await c.req.json<{ into: number }>();

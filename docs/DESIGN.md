@@ -91,6 +91,29 @@ Each list has its own pace:
 - **Due reviews always come**, from every list, paused and archived ones too.
   FSRS stays per card: memory doesn't care which list a word came from.
 
+### A list's words (`shared/wordSearch.ts`, ListWords, WordFilter)
+
+Each list opens to its words (`#/lists/<id>`), in the order they came in.
+
+- **Search**: one box for kana, romaji, kanji or meaning. Katakana and
+  hiragana match each other, and unfinished romaji ("tab") matches what it
+  reads so far. Best matches first: the written form or reading, then the
+  core meaning, then the other senses. Romaji that is also English ("home"
+  reads ほめ) puts meanings with that whole word before readings that only
+  start with it.
+- **Filters** by state: to check, waiting, on a page, learning, set aside.
+- **Edit** the kanji, kana (romaji turns into kana) and core meaning. The
+  imported senses stay. Kanji and kana must stay unique across all lists.
+- **Move** to another list, **set aside** (out of the check pass, pages and
+  review; cards and history kept), **bring back** (to review if it has
+  cards, otherwise to the check pass) and **delete** (with its cards,
+  reviews and furigana peeks; a learned page keeps its other words).
+- **Check again** undoes a check pass answer: its cards and the check's log
+  row go, and the word is unchecked. Only while it has no page and no real
+  reviews; after that, Again in review is the honest way back.
+- A word on an unfinished page can only be edited, so the page keeps its
+  words and its one list.
+
 ### Pages (`shared/pageSession.ts`, PageView, PageGrid)
 
 - Each page has a fixed size of 10, 12 or 15 words (`PAGE_SIZES`), all from
@@ -271,7 +294,7 @@ again (its deletes come first), or rewind with Time Travel.
 
 | Part | Where | Notes |
 |---|---|---|
-| UI | `src/` (React 19, Vite) | Screens: Home, Triage (Check), Pages, PageView, Lists, Review, Settings (with Import under it) |
+| UI | `src/` (React 19, Vite) | Screens: Home, Triage (Check), Pages, PageView, Lists (with ListWords under it), Review, Settings (with Import under it) |
 | Shared logic | `shared/` | Pure TypeScript used by both UI and worker; unit tested |
 | API | `worker/index.ts` (Hono on Cloudflare Workers) | Under `/api/*`; the rest is the single-page app. Also the nightly cron (`scheduled`) |
 | Data access | `worker/db.ts` | Multi-row changes run as one D1 batch, so a failed or repeated request can't leave half-done state |

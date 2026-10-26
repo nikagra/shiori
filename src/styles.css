@@ -768,3 +768,145 @@ rt {
 .more[open] summary {
   margin-bottom: 12px;
 }
+
+/* A list's words */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  appearance: none;
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 6px 12px;
+  min-height: 36px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.chip.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+
+.chip__count {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
+
+.word-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.word-row {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.word-row--open {
+  border-color: var(--accent);
+}
+
+.word-row__head {
+  appearance: none;
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: none;
+  background: none;
+  font: inherit;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.word-row__jp {
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-jp);
+  min-width: 0;
+}
+
+.word-row__written {
+  font-size: 1.2rem;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.word-row__kana {
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.word-row__meaning {
+  font-size: 0.9rem;
+  line-height: 1.3;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.word-editor {
+  padding: 4px 12px 14px;
+  border-top: 1px dashed var(--line);
+  margin-top: 0;
+  padding-top: 12px;
+}
+
+.word-editor__fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.word-editor__fields input {
+  font-family: var(--font-jp);
+  font-size: 1.1rem;
+}
+
+.word-editor__senses {
+  margin: 6px 0 0;
+  padding-left: 1.4em;
+}
+
+.badge--state-inbox,
+.badge--state-on_page {
+  background: var(--accent-soft);
+  border-color: transparent;
+  color: var(--accent);
+}
+
+.badge--state-graduated {
+  background: var(--ok-soft);
+  border-color: transparent;
+  color: var(--good);
+}
+
+.badge--state-unverified {
+  background: var(--warn-soft);
+  border-color: transparent;
+  color: var(--hard);
+}

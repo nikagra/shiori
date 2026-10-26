@@ -92,7 +92,7 @@ export function Lists() {
           {archived.map((l) => (
             <div key={l.id} className="list-item" data-testid="archived-list">
               <span>
-                <strong>{l.name}</strong> <span className="muted">· {plural(wordCount(l), 'word')}</span>
+                <strong>{l.name}</strong> · <a href={`#/lists/${l.id}`}>{plural(wordCount(l), 'word')}</a>
               </span>
               <button className="button button--small" onClick={() => run(() => api.updateList(l.id, { archived: false }))}>
                 Unarchive
@@ -154,11 +154,14 @@ function ListCard({
         Today: {plural(l.newToday, 'new card')} · {plural(l.pagesThisWeek, 'page')} in the last 7 days
         {l.pagesPerWeek ? ` (target ${l.pagesPerWeek})` : ''}
       </p>
-      {l.counts.toCheck > 0 && !l.archived && (
-        <a href="#/check" className="small" onClick={() => updateSettings({ checkList: l.id })}>
-          Check {l.name}’s {plural(l.counts.toCheck, 'word')}
-        </a>
-      )}
+      <div className="row small">
+        {words > 0 && <a href={`#/lists/${l.id}`}>See {words === 1 ? 'the word' : `all ${words} words`}</a>}
+        {l.counts.toCheck > 0 && !l.archived && (
+          <a href="#/check" onClick={() => updateSettings({ checkList: l.id })}>
+            Check {l.name}’s {plural(l.counts.toCheck, 'word')}
+          </a>
+        )}
+      </div>
 
       <div className="row row--between">
         <span>Weight</span>
