@@ -59,6 +59,10 @@ mastery come first; words with unknown mastery sit in the middle
 (`triageOrder`). "I knew it" sends the word to review. Otherwise the word goes
 to the inbox, where it waits for a page.
 
+You can check one list at a time (the List picker, or "N to check" on Lists),
+so a big import doesn't hold up the others. Checking all lists puts the
+focused list first and paused lists last, then goes by mastery.
+
 ### Lists (`shared/lists.ts`, Lists screen)
 
 Every word belongs to one list, picked at import. The app starts with Manga,

@@ -145,3 +145,25 @@ test('import into a list you made', async ({ page, request }) => {
   await page.goto('/#/lists');
   await expect(page.getByRole('region', { name: 'Marugoto A2' }).getByTestId('list-counts')).toContainText('5 to check');
 });
+
+test('check one list at a time, so a big import does not block the others', async ({ page, request }, testInfo) => {
+  expect((await request.post('/api/import', { data: { text: SCHOOL_WORDS, listId: await listId(request, 'School') } })).ok()).toBeTruthy();
+  await seedWords(request, { unknown: 0 });
+  await page.goto('/#/lists');
+  await page.getByRole('region', { name: 'School' }).getByRole('link', { name: '5 to check' }).click();
+  await expect(page).toHaveURL(/#\/check\/\d+$/);
+  await expect(page.getByTestId('triage-remaining')).toHaveText('5 left');
+  await expect(page.getByLabel('List to check')).toHaveValue(String(await listId(request, 'School')));
+  await expectNoHorizontalScroll(page);
+  await shot(page, testInfo, 'check-one-list');
+
+  for (let i = 0; i < 5; i++) {
+    await page.getByRole('button', { name: 'Show answer' }).click();
+    await page.getByRole('button', { name: 'I didn’t know' }).click();
+  }
+  await expect(page.getByText('Nothing left to check in School.')).toBeVisible();
+
+  await page.getByLabel('List to check').selectOption({ index: 0 });
+  await expect(page).toHaveURL(/#\/check$/);
+  await expect(page.getByTestId('triage-remaining')).toHaveText('48 left');
+});

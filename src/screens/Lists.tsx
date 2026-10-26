@@ -137,10 +137,16 @@ function ListCard({
         {l.focused && l.focusUntil && <span className="badge badge--focus">Focus until {shortDate(lastFocusDay(l.focusUntil))}</span>}
       </div>
       <p className="muted small" data-testid="list-counts">
+        {words > 0 && l.counts.toCheck > 0 && !l.archived && (
+          <>
+            <a href={`#/check/${l.id}`}>{l.counts.toCheck} to check</a>
+            {words > l.counts.toCheck && ' · '}
+          </>
+        )}
         {words === 0
           ? 'No words yet.'
           : [
-              l.counts.toCheck && `${l.counts.toCheck} to check`,
+              l.archived && l.counts.toCheck && `${l.counts.toCheck} to check`,
               l.counts.inbox && `${l.counts.inbox} waiting`,
               l.counts.onPage && `${l.counts.onPage} on pages`,
               l.counts.learned && `${l.counts.learned} learned`,

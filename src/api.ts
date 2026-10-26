@@ -54,6 +54,13 @@ export interface ListSummary {
   next: boolean;
 }
 
+/** A list the check pass can be narrowed to (archived ones aren't). */
+export interface TriageList {
+  id: number;
+  name: string;
+  remaining: number;
+}
+
 export interface ListChanges {
   name?: string;
   weight?: number;
@@ -114,7 +121,9 @@ const dayQuery = () => {
 export const api = {
   stats: () => call<Stats>('GET', `/stats?${dayQuery()}`),
   importText: (text: string, listId: number) => call<ImportResult>('POST', '/import', { text, listId }),
-  triage: () => call<{ words: Word[]; remaining: number }>('GET', '/triage'),
+  /** listId null checks words from every list. */
+  triage: (listId: number | null) =>
+    call<{ words: Word[]; remaining: number; lists: TriageList[] }>('GET', listId === null ? '/triage' : `/triage?list=${listId}`),
   triageAnswer: (id: number, result: 'known' | 'unknown' | 'ignore') => call<{ ok: true }>('POST', `/triage/${id}`, { result }),
   updateMeaning: (id: number, coreMeaning: string) => call<Word>('PATCH', `/words/${id}`, { coreMeaning }),
   pages: () => call<PageSummary[]>('GET', '/pages'),

@@ -7,7 +7,7 @@ import { PageView } from './screens/PageView';
 import { Review } from './screens/Review';
 import { Lists } from './screens/Lists';
 
-// Hash routes: #/, #/review, #/pages, #/pages/3, #/lists, #/check, #/import
+// Hash routes: #/, #/review, #/pages, #/pages/3, #/lists, #/check, #/check/2, #/import
 
 function useHashRoute(): string[] {
   const read = () => window.location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
@@ -48,7 +48,7 @@ export function App() {
       screen = <Lists />;
       break;
     case 'check':
-      screen = <Triage />;
+      screen = <Triage key={id ?? 'all'} listId={id ? Number(id) : null} />;
       break;
     case 'import':
       screen = <Import />;

@@ -249,6 +249,29 @@ describe('lists in the database', () => {
     expect((await repo.triageNext(db, 50)).remaining).toBe(8);
   });
 
+  it('checks one list at a time, or all with the focused list first and paused ones last', async () => {
+    await repo.importWords(db, words.slice(0, 20), MANGA, now);
+    await repo.importWords(db, words.slice(20, 23), SCHOOL, now);
+    await repo.importWords(db, words.slice(23, 25), BOOKS, now);
+    const order = async (at = now) => (await repo.triageNext(db, 50, { now: at })).words.map((w) => w.listId);
+
+    const school = await repo.triageNext(db, 50, { listId: SCHOOL, now });
+    expect(school.remaining).toBe(3);
+    expect(school.words.map((w) => w.listId)).toEqual([SCHOOL, SCHOOL, SCHOOL]);
+    expect(school.lists.map((l) => [l.name, l.remaining])).toEqual([
+      ['Manga', 20],
+      ['Books', 2],
+      ['School', 3],
+      ['Other', 0],
+    ]);
+
+    await repo.updateList(db, SCHOOL, { focusUntil: days(now, 3).toISOString() }, now);
+    await repo.updateList(db, MANGA, { paused: true }, now);
+    expect(await order()).toEqual([SCHOOL, SCHOOL, SCHOOL, BOOKS, BOOKS, ...Array(20).fill(MANGA)]);
+    // Once the focus ends, the paused list still comes last.
+    expect((await order(days(now, 4))).slice(5)).toEqual(Array(20).fill(MANGA));
+  });
+
   it('merges a list into another, words and pages alike', async () => {
     await addWords(BOOKS, 0, 12);
     const page = await repo.createPage(db, 10, BOOKS, now);

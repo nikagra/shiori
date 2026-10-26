@@ -26,7 +26,7 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   in `.wrangler/state`, separate from the cloud one. An old database holding
   only test data is kept in `.wrangler/state-test-backup-20261025` and can be
   deleted.
-- Tests: 98 unit tests, 46 end-to-end runs (23 tests at iPhone and laptop
+- Tests: 99 unit tests, 48 end-to-end runs (24 tests at iPhone and laptop
   sizes), and `tsc -b` all pass.
 - **Backup and export** (26 Oct): Home › Backup downloads all study data as
   one JSON file, a nightly cron saves the same file to the private R2 bucket
@@ -41,6 +41,11 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   Today's 20 new review cards are shared by weight. Older backups still load
   and get their lists. See "Lists" in DESIGN.md. After pulling on the laptop,
   run `npm run db:migrate:local`; the deploy applies it to D1.
+- **Check one list at a time** (26 Oct, from trying lists): a 450-word Manga
+  import meant clicking through hundreds of words before reaching another
+  list. Check now has a list picker (`#/check/<id>`), and "N to check" on
+  Lists opens that list. Checking all lists puts the focused list first and
+  paused lists last.
 - First iPhone feedback (25 Oct) is in: "Don't know" on review and drill
   cards, next words hidden in the in-order drill, "Study the page again",
   whole words on the grid, safer iOS speech. Sound on the iPhone still needs

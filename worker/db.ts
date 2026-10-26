@@ -189,16 +189,45 @@ const isUniqueViolation = (e: unknown) => e instanceof Error && /UNIQUE constrai
 
 export type TriageResult = 'known' | 'unknown' | 'ignore';
 
-export async function triageNext(db: D1Database, limit: number): Promise<{ words: Word[]; remaining: number }> {
+/** A list the check pass can be narrowed to (archived ones aren't). */
+export interface TriageList {
+  id: number;
+  name: string;
+  remaining: number;
+}
+
+/**
+ * The next words to check, from one list or from all of them. Across all
+ * lists the focused list comes first and paused lists last; within that,
+ * lowest mastery first.
+ */
+export async function triageNext(
+  db: D1Database,
+  limit: number,
+  { listId = null, now = new Date() }: { listId?: number | null; now?: Date } = {},
+): Promise<{ words: Word[]; remaining: number; lists: TriageList[] }> {
+  const inList = listId === null ? '' : 'AND w.list_id = ?';
+  const binds = listId === null ? [] : [listId];
   const rows = await db
     .prepare(
-      `SELECT * FROM words w WHERE status = 'unverified' AND ${NOT_ARCHIVED}
-       ORDER BY IFNULL(renshuu_mastery, 50), source_order LIMIT ?`,
+      `SELECT w.* FROM words w LEFT JOIN lists l ON l.id = w.list_id
+       WHERE w.status = 'unverified' AND ${NOT_ARCHIVED} ${inList}
+       ORDER BY IFNULL(l.focus_until > ?, 0) DESC, IFNULL(l.paused, 0), IFNULL(w.renshuu_mastery, 50), w.source_order LIMIT ?`,
     )
-    .bind(limit)
+    .bind(...binds, iso(now), limit)
     .all<WordRow>();
-  const count = await db.prepare(`SELECT COUNT(*) AS n FROM words w WHERE status = 'unverified' AND ${NOT_ARCHIVED}`).first<{ n: number }>();
-  return { words: rows.results.map(toWord), remaining: count?.n ?? 0 };
+  const count = await db
+    .prepare(`SELECT COUNT(*) AS n FROM words w WHERE status = 'unverified' AND ${NOT_ARCHIVED} ${inList}`)
+    .bind(...binds)
+    .first<{ n: number }>();
+  const lists = await db
+    .prepare(
+      `SELECT l.id, l.name, COUNT(w.id) AS remaining FROM lists l
+       LEFT JOIN words w ON w.list_id = l.id AND w.status = 'unverified'
+       WHERE l.archived_at IS NULL GROUP BY l.id ORDER BY l.id`,
+    )
+    .all<TriageList>();
+  return { words: rows.results.map(toWord), remaining: count?.n ?? 0, lists: lists.results };
 }
 
 export async function triageAnswer(db: D1Database, wordId: number, result: TriageResult, now: Date): Promise<void> {

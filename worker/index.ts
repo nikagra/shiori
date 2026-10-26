@@ -52,7 +52,8 @@ app.post('/import', async (c) => {
 });
 
 app.get('/triage', async (c) => {
-  return c.json(await db.triageNext(c.env.DB, 20));
+  const list = c.req.query('list');
+  return c.json(await db.triageNext(c.env.DB, 20, { listId: list ? intParam(list, 'list') : null }));
 });
 
 app.post('/triage/:id', async (c) => {

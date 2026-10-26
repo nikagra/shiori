@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api, type Word } from '../api';
+import { api, type TriageList, type Word } from '../api';
 import { JapaneseWord, Meaning, Notice, SpeakButton, useKeys } from '../components/ui';
 import { useSettings } from '../settings';
 import { speak } from '../speech';
 
 // One recall check per imported word: known words go straight to spaced
-// review, the rest wait for a page.
+// review, the rest wait for a page. A big import doesn't have to block the
+// others: pick one list to check (#/check/3), or all of them (#/check).
 
-export function Triage() {
+export function Triage({ listId }: { listId: number | null }) {
   const [batch, setBatch] = useState<Word[] | null>(null);
   const [remaining, setRemaining] = useState(0);
+  const [lists, setLists] = useState<TriageList[]>([]);
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
   const [moved, setMoved] = useState('');
@@ -19,17 +21,18 @@ export function Triage() {
   const [settings] = useSettings();
 
   const load = useCallback(() => {
-    api.triage().then(
+    api.triage(listId).then(
       (r) => {
         setBatch(r.words);
         setRemaining(r.remaining);
+        setLists(r.lists);
         setIndex(0);
         setRevealed(false);
         setMoved('');
       },
       (e: Error) => setError(e.message),
     );
-  }, []);
+  }, [listId]);
   useEffect(load, [load]);
 
   const word = batch?.[index];
@@ -67,12 +70,35 @@ export function Triage() {
   if (error) return <Notice kind="error">{error}</Notice>;
   if (!batch) return <p className="muted">Loading…</p>;
 
+  const listName = lists.find((l) => l.id === listId)?.name;
+  // Lists with words to check, plus the chosen one even once it's done.
+  const choices = lists.filter((l) => l.remaining > 0 || l.id === listId);
+  const picker = (choices.length > 1 || listId !== null) && (
+    <label className="row row--between">
+      <span>List</span>
+      <select
+        className="select--auto"
+        aria-label="List to check"
+        value={listId ?? ''}
+        onChange={(e) => (window.location.hash = e.target.value ? `#/check/${e.target.value}` : '#/check')}
+      >
+        <option value="">All lists ({lists.reduce((n, l) => n + l.remaining, 0)})</option>
+        {choices.map((l) => (
+          <option key={l.id} value={l.id}>
+            {l.name} ({l.remaining})
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+
   if (!word) {
     return (
       <div className="stack">
         <h1>Check imported words</h1>
+        {picker}
         <Notice kind="success">
-          <p>Nothing left to check.</p>
+          <p>Nothing left to check{listName ? ` in ${listName}` : ''}.</p>
           {counts.known + counts.unknown > 0 && (
             <p>
               This session: {counts.known} known, {counts.unknown} to learn on pages.
@@ -94,6 +120,7 @@ export function Triage() {
           {remaining} left
         </span>
       </div>
+      {picker}
       <p className="muted">Say the meaning to yourself first, then reveal. Be strict: only “I knew it” if it came without guessing.</p>
 
       <article className="card flash" data-testid="triage-card">
