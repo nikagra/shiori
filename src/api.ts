@@ -15,6 +15,7 @@ export interface Word {
   coreMeaning: string;
   pos: string | null;
   sourceList: string | null;
+  listId: number | null;
   mastery: number | null;
   status: WordStatus;
 }
@@ -33,6 +34,33 @@ export interface PageSummary {
   stage: PageStage;
   wordCount: number;
   createdAt: string;
+  listId: number | null;
+  listName: string | null;
+}
+
+export interface ListSummary {
+  id: number;
+  name: string;
+  weight: number;
+  pagesPerWeek: number | null;
+  paused: boolean;
+  focusUntil: string | null;
+  focused: boolean;
+  archived: boolean;
+  counts: { toCheck: number; inbox: number; onPage: number; learned: number };
+  pagesThisWeek: number;
+  newToday: number;
+  /** "New page" without a list picks this one. */
+  next: boolean;
+}
+
+export interface ListChanges {
+  name?: string;
+  weight?: number;
+  pagesPerWeek?: number | null;
+  paused?: boolean;
+  focusUntil?: string | null;
+  archived?: boolean;
 }
 
 export interface PageDetail extends PageSummary {
@@ -85,13 +113,19 @@ const dayQuery = () => {
 
 export const api = {
   stats: () => call<Stats>('GET', `/stats?${dayQuery()}`),
-  importText: (text: string, list: string) => call<ImportResult>('POST', '/import', { text, list }),
+  importText: (text: string, listId: number) => call<ImportResult>('POST', '/import', { text, listId }),
   triage: () => call<{ words: Word[]; remaining: number }>('GET', '/triage'),
   triageAnswer: (id: number, result: 'known' | 'unknown' | 'ignore') => call<{ ok: true }>('POST', `/triage/${id}`, { result }),
   updateMeaning: (id: number, coreMeaning: string) => call<Word>('PATCH', `/words/${id}`, { coreMeaning }),
   pages: () => call<PageSummary[]>('GET', '/pages'),
   page: (id: number) => call<PageDetail>('GET', `/pages/${id}`),
-  createPage: (size: number) => call<PageDetail>('POST', '/pages', { size }),
+  /** listId null lets the server pick the list furthest behind its pace. */
+  createPage: (size: number, listId: number | null) => call<PageDetail>('POST', '/pages', { size, listId }),
+  lists: () => call<ListSummary[]>('GET', `/lists?${dayQuery()}`),
+  createList: (name: string) => call<{ id: number; name: string }>('POST', '/lists', { name }),
+  updateList: (id: number, changes: ListChanges) => call<{ ok: true }>('PATCH', `/lists/${id}`, changes),
+  mergeList: (id: number, into: number) => call<{ ok: true }>('POST', `/lists/${id}/merge`, { into }),
+  deleteList: (id: number) => call<{ ok: true }>('DELETE', `/lists/${id}`),
   completeStage: (id: number, stage: 'ordered' | 'shuffled') =>
     call<PageDetail>('POST', `/pages/${id}/complete`, { stage, nextDayStart: studyDay().end.toISOString() }),
   reviewQueue: () => call<{ items: QueueItem[]; total: number }>('GET', `/review?${dayQuery()}`),

@@ -1,6 +1,7 @@
 import type { ImportedWord } from '../shared/renshuu';
 import { coreMeaning } from '../shared/meaning';
-import { buildQueue, NEW_PER_DAY, type QueueCandidate } from '../shared/queue';
+import { buildQueue, type QueueCandidate } from '../shared/queue';
+import { DEFAULT_WEIGHT, effectiveWeight, NEW_PER_DAY, MAX_PAGES_PER_WEEK, pickList, RECENT_DAYS, WEIGHT_RANGE } from '../shared/lists';
 import {
   capForHint,
   DIRECTIONS,
@@ -14,7 +15,7 @@ import {
   type StoredCard,
 } from '../shared/scheduler';
 import type { PageStage } from '../shared/pageSession';
-import { BACKUP_FORMAT, BACKUP_SCHEMA, BACKUP_TABLES, type Backup, type BackupRow, type BackupTable } from '../shared/backup';
+import { BACKUP_FORMAT, BACKUP_SCHEMA, BACKUP_TABLES, LISTS_FROM_LABELS, type Backup, type BackupRow, type BackupTable } from '../shared/backup';
 import { DEFAULT_PREFS, HINTS_TO_LEARNING, isKanji, knownKanjiSet, markLearning, uniqueKanji, type FuriganaPrefs } from '../shared/furigana';
 
 export type WordStatus = 'unverified' | 'inbox' | 'on_page' | 'graduated' | 'ignored';
@@ -31,6 +32,7 @@ export interface WordRow {
   source_order: number;
   renshuu_mastery: number | null;
   status: WordStatus;
+  list_id: number | null;
 }
 
 export interface Word {
@@ -41,6 +43,7 @@ export interface Word {
   coreMeaning: string;
   pos: string | null;
   sourceList: string | null;
+  listId: number | null;
   mastery: number | null;
   status: WordStatus;
 }
@@ -54,6 +57,7 @@ export function toWord(r: WordRow): Word {
     coreMeaning: r.core_meaning,
     pos: r.pos,
     sourceList: r.source_list,
+    listId: r.list_id,
     mastery: r.renshuu_mastery,
     status: r.status,
   };
@@ -69,6 +73,10 @@ export class AppError extends Error {
 }
 
 const iso = (d: Date) => d.toISOString();
+const daysBefore = (d: Date, days: number) => new Date(d.getTime() - days * 86_400_000);
+
+/** SQL: the word (aliased w) isn't in an archived list. */
+const NOT_ARCHIVED = 'NOT EXISTS (SELECT 1 FROM lists l WHERE l.id = w.list_id AND l.archived_at IS NOT NULL)';
 
 // ---------------------------------------------------------------- import
 
@@ -77,13 +85,16 @@ export interface ImportSummary {
   duplicates: number;
 }
 
-export async function importWords(db: D1Database, words: ImportedWord[], list: string | null, now: Date): Promise<ImportSummary> {
+export async function importWords(db: D1Database, words: ImportedWord[], listId: number, now: Date): Promise<ImportSummary> {
+  const list = await db.prepare('SELECT name, archived_at FROM lists WHERE id = ?').bind(listId).first<{ name: string; archived_at: string | null }>();
+  if (!list) throw new AppError(404, 'list not found');
+  if (list.archived_at) throw new AppError(409, 'that list is archived; unarchive it first');
   const max = await db.prepare('SELECT IFNULL(MAX(source_order), 0) AS m FROM words').first<{ m: number }>();
   const base = max?.m ?? 0;
   const stmt = db.prepare(
     `INSERT OR IGNORE INTO words
-       (kana, kanji, senses, core_meaning, pos, source, source_list, source_order, renshuu_mastery, status, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, 'renshuu', ?, ?, ?, 'unverified', ?, ?)`,
+       (kana, kanji, senses, core_meaning, pos, source, source_list, list_id, source_order, renshuu_mastery, status, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, 'renshuu', ?, ?, ?, ?, 'unverified', ?, ?)`,
   );
   let added = 0;
   const chunk = 50;
@@ -96,7 +107,8 @@ export async function importWords(db: D1Database, words: ImportedWord[], list: s
           JSON.stringify(w.senses),
           coreMeaning(w.senses),
           w.pos,
-          list,
+          list.name,
+          listId,
           base + i + j + 1,
           w.mastery,
           iso(now),
@@ -180,12 +192,12 @@ export type TriageResult = 'known' | 'unknown' | 'ignore';
 export async function triageNext(db: D1Database, limit: number): Promise<{ words: Word[]; remaining: number }> {
   const rows = await db
     .prepare(
-      `SELECT * FROM words WHERE status = 'unverified'
+      `SELECT * FROM words w WHERE status = 'unverified' AND ${NOT_ARCHIVED}
        ORDER BY IFNULL(renshuu_mastery, 50), source_order LIMIT ?`,
     )
     .bind(limit)
     .all<WordRow>();
-  const count = await db.prepare(`SELECT COUNT(*) AS n FROM words WHERE status = 'unverified'`).first<{ n: number }>();
+  const count = await db.prepare(`SELECT COUNT(*) AS n FROM words w WHERE status = 'unverified' AND ${NOT_ARCHIVED}`).first<{ n: number }>();
   return { words: rows.results.map(toWord), remaining: count?.n ?? 0 };
 }
 
@@ -222,27 +234,44 @@ export interface PageSummary {
   stage: PageStage;
   wordCount: number;
   createdAt: string;
+  listId: number | null;
+  listName: string | null;
 }
 
 export interface PageDetail extends PageSummary {
   words: (Word & { position: number })[];
 }
 
-export async function createPage(db: D1Database, size: number, now: Date): Promise<PageDetail> {
+/**
+ * Starts a page from one list: the one given, or the one furthest behind its
+ * pace (pickList). A page never mixes lists, so its words stay one group.
+ */
+export async function createPage(db: D1Database, size: number, listId: number | null, now: Date): Promise<PageDetail> {
   if (!Number.isInteger(size) || size < 1 || size > 20) throw new AppError(400, 'page size must be 1–20');
+  const lists = await listInfo(db, now);
+  if (listId === null) {
+    listId = pickList(lists);
+    if (listId === null) {
+      throw new AppError(409, lists.some((l) => l.inbox > 0 && !l.archived) ? 'every list with words waiting is paused; pick one' : 'no words waiting for a page');
+    }
+  } else {
+    const list = lists.find((l) => l.id === listId);
+    if (!list) throw new AppError(404, 'list not found');
+    if (list.archived) throw new AppError(409, 'that list is archived');
+  }
   const inbox = await db
-    .prepare(`SELECT id FROM words WHERE status = 'inbox' ORDER BY source_order LIMIT ?`)
-    .bind(size)
+    .prepare(`SELECT id FROM words WHERE status = 'inbox' AND list_id = ? ORDER BY source_order LIMIT ?`)
+    .bind(listId, size)
     .all<{ id: number }>();
-  if (inbox.results.length === 0) throw new AppError(409, 'no words waiting for a page');
+  if (inbox.results.length === 0) throw new AppError(409, 'no words from that list are waiting for a page');
   // One batch: a failure leaves no empty page behind. The new page is the one
   // with the highest number, inside the batch's transaction.
   const newPage = '(SELECT id FROM pages WHERE number = (SELECT MAX(number) FROM pages))';
   try {
     await db.batch([
       db
-        .prepare(`INSERT INTO pages (number, stage, created_at) VALUES ((SELECT IFNULL(MAX(number), 0) + 1 FROM pages), 'ordered', ?)`)
-        .bind(iso(now)),
+        .prepare(`INSERT INTO pages (number, stage, list_id, created_at) VALUES ((SELECT IFNULL(MAX(number), 0) + 1 FROM pages), 'ordered', ?, ?)`)
+        .bind(listId, iso(now)),
       ...inbox.results.flatMap((w, i) => [
         db.prepare(`INSERT INTO page_words (page_id, word_id, position) VALUES (${newPage}, ?, ?)`).bind(w.id, i),
         db.prepare(`UPDATE words SET status = 'on_page', updated_at = ? WHERE id = ?`).bind(iso(now), w.id),
@@ -262,6 +291,8 @@ interface PageRow {
   stage: PageStage;
   created_at: string;
   word_count: number;
+  list_id: number | null;
+  list_name: string | null;
 }
 
 const toSummary = (r: PageRow): PageSummary => ({
@@ -270,13 +301,17 @@ const toSummary = (r: PageRow): PageSummary => ({
   stage: r.stage,
   wordCount: r.word_count,
   createdAt: r.created_at,
+  listId: r.list_id,
+  listName: r.list_name,
 });
+
+const PAGE_COLUMNS = `p.*, (SELECT COUNT(*) FROM page_words pw WHERE pw.page_id = p.id) AS word_count,
+  (SELECT name FROM lists l WHERE l.id = p.list_id) AS list_name`;
 
 export async function listPages(db: D1Database): Promise<PageSummary[]> {
   const rows = await db
     .prepare(
-      `SELECT p.*, (SELECT COUNT(*) FROM page_words pw WHERE pw.page_id = p.id) AS word_count
-       FROM pages p ORDER BY p.number DESC`,
+      `SELECT ${PAGE_COLUMNS} FROM pages p ORDER BY p.number DESC`,
     )
     .all<PageRow>();
   return rows.results.map(toSummary);
@@ -285,8 +320,7 @@ export async function listPages(db: D1Database): Promise<PageSummary[]> {
 export async function getPage(db: D1Database, id: number): Promise<PageDetail> {
   const page = await db
     .prepare(
-      `SELECT p.*, (SELECT COUNT(*) FROM page_words pw WHERE pw.page_id = p.id) AS word_count
-       FROM pages p WHERE p.id = ?`,
+      `SELECT ${PAGE_COLUMNS} FROM pages p WHERE p.id = ?`,
     )
     .bind(id)
     .first<PageRow>();
@@ -347,10 +381,11 @@ export interface QueueItem {
   page: { id: number; number: number; position: number } | null;
 }
 
-export async function reviewQueue(db: D1Database, dayStart: Date, dayEnd: Date, limit: number): Promise<{ items: QueueItem[]; total: number }> {
+/** Today's cards in order: every due card, and new cards shared between lists by weight. */
+async function todaysQueue(db: D1Database, dayStart: Date, dayEnd: Date): Promise<QueueCandidate[]> {
   const candidates = await db
     .prepare(
-      `SELECT c.id AS cardId, c.word_id AS wordId, c.direction, c.state, c.due
+      `SELECT c.id AS cardId, c.word_id AS wordId, c.direction, c.state, c.due, w.list_id AS listId
        FROM cards c JOIN words w ON w.id = c.word_id
        WHERE w.status = 'graduated' AND c.due < ?`,
     )
@@ -361,15 +396,25 @@ export async function reviewQueue(db: D1Database, dayStart: Date, dayEnd: Date, 
     .bind(iso(dayStart))
     .all<{ word_id: number }>();
   const fresh = await db
-    .prepare(`SELECT COUNT(*) AS n FROM review_log WHERE kind = 'review' AND state_before = ? AND reviewed_at >= ?`)
+    .prepare(
+      `SELECT IFNULL(w.list_id, 0) AS listId, COUNT(*) AS n FROM review_log r JOIN words w ON w.id = r.word_id
+       WHERE r.kind = 'review' AND r.state_before = ? AND r.reviewed_at >= ? GROUP BY IFNULL(w.list_id, 0)`,
+    )
     .bind(State.New, iso(dayStart))
-    .first<{ n: number }>();
+    .all<{ listId: number; n: number }>();
+  // Focus counts for the whole study day it ends in.
+  const lists = await db.prepare('SELECT * FROM lists').all<ListRow>();
 
-  const queue = buildQueue(candidates.results, {
+  return buildQueue(candidates.results, {
     reviewedToday: new Set(reviewed.results.map((r) => r.word_id)),
-    newIntroducedToday: fresh?.n ?? 0,
+    newIntroducedToday: new Map(fresh.results.map((r) => [r.listId, r.n])),
     newPerDay: NEW_PER_DAY,
+    weights: new Map(lists.results.map((l) => [l.id, effectiveWeight(toPace(l, dayStart))])),
   });
+}
+
+export async function reviewQueue(db: D1Database, dayStart: Date, dayEnd: Date, limit: number): Promise<{ items: QueueItem[]; total: number }> {
+  const queue = await todaysQueue(db, dayStart, dayEnd);
 
   const picked = queue.slice(0, limit);
   if (picked.length === 0) return { items: [], total: queue.length };
@@ -454,8 +499,9 @@ export interface Stats {
 }
 
 export async function stats(db: D1Database, dayStart: Date, dayEnd: Date): Promise<Stats> {
+  // Words in archived lists wait for nothing until the list comes back.
   const counts = await db
-    .prepare('SELECT status, COUNT(*) AS n FROM words GROUP BY status')
+    .prepare(`SELECT status, COUNT(*) AS n FROM words w WHERE status NOT IN ('unverified', 'inbox') OR ${NOT_ARCHIVED} GROUP BY status`)
     .all<{ status: WordStatus; n: number }>();
   const by = Object.fromEntries(counts.results.map((r) => [r.status, r.n])) as Partial<Record<WordStatus, number>>;
   const pages = await db.prepare(`SELECT COUNT(*) AS n FROM pages WHERE stage != 'graduated'`).first<{ n: number }>();
@@ -467,6 +513,213 @@ export async function stats(db: D1Database, dayStart: Date, dayEnd: Date): Promi
     pagesInProgress: pages?.n ?? 0,
     learned: by.graduated ?? 0,
   };
+}
+
+// ---------------------------------------------------------------- lists
+
+interface ListRow {
+  id: number;
+  name: string;
+  weight: number;
+  pages_per_week: number | null;
+  paused: number;
+  focus_until: string | null;
+  archived_at: string | null;
+}
+
+const toPace = (l: ListRow, at: Date) => ({
+  weight: l.weight,
+  paused: l.paused === 1,
+  archived: l.archived_at !== null,
+  focused: l.focus_until !== null && l.focus_until > iso(at),
+});
+
+export interface ListSummary {
+  id: number;
+  name: string;
+  weight: number;
+  pagesPerWeek: number | null;
+  paused: boolean;
+  /** Focused (boosted) until this time, or null. */
+  focusUntil: string | null;
+  focused: boolean;
+  archived: boolean;
+  counts: { toCheck: number; inbox: number; onPage: number; learned: number };
+  pagesThisWeek: number;
+  /** New review cards this list gets today. */
+  newToday: number;
+  /** "New page" without a list picks this one. */
+  next: boolean;
+}
+
+/** Every list with what pickList needs. */
+async function listInfo(db: D1Database, now: Date) {
+  const [lists, words, pages] = await db.batch<Record<string, unknown>>([
+    db.prepare('SELECT * FROM lists ORDER BY id'),
+    db.prepare('SELECT list_id, status, COUNT(*) AS n FROM words GROUP BY list_id, status'),
+    db
+      .prepare('SELECT list_id, SUM(created_at >= ?) AS week, SUM(created_at >= ?) AS recent FROM pages GROUP BY list_id')
+      .bind(iso(daysBefore(now, 7)), iso(daysBefore(now, RECENT_DAYS))),
+  ]);
+  const count = (id: number, status: WordStatus) =>
+    (words.results as { list_id: number; status: WordStatus; n: number }[]).find((r) => r.list_id === id && r.status === status)?.n ?? 0;
+  const paged = (id: number) => (pages.results as { list_id: number; week: number; recent: number }[]).find((r) => r.list_id === id);
+  return (lists.results as unknown as ListRow[]).map((l) => ({
+    ...toPace(l, now),
+    row: l,
+    id: l.id,
+    inbox: count(l.id, 'inbox'),
+    pagesPerWeek: l.pages_per_week,
+    pagesThisWeek: paged(l.id)?.week ?? 0,
+    pagesRecent: paged(l.id)?.recent ?? 0,
+    counts: { toCheck: count(l.id, 'unverified'), inbox: count(l.id, 'inbox'), onPage: count(l.id, 'on_page'), learned: count(l.id, 'graduated') },
+  }));
+}
+
+export async function listLists(db: D1Database, dayStart: Date, dayEnd: Date, now: Date): Promise<ListSummary[]> {
+  const info = await listInfo(db, now);
+  const queue = await todaysQueue(db, dayStart, dayEnd);
+  const next = pickList(info);
+  return info.map((l) => ({
+    id: l.id,
+    name: l.row.name,
+    weight: l.weight,
+    pagesPerWeek: l.pagesPerWeek,
+    paused: l.paused,
+    focusUntil: l.focused ? l.row.focus_until : null,
+    focused: l.focused,
+    archived: l.archived,
+    counts: l.counts,
+    pagesThisWeek: l.pagesThisWeek,
+    newToday: queue.filter((c) => c.listId === l.id && c.state === State.New).length,
+    next: l.id === next,
+  }));
+}
+
+const MAX_NAME = 40;
+
+function cleanName(name: unknown): string {
+  const trimmed = String(name ?? '').trim().replace(/\s+/g, ' ');
+  if (!trimmed) throw new AppError(400, 'a list needs a name');
+  if (trimmed.length > MAX_NAME) throw new AppError(400, `a list name can be at most ${MAX_NAME} characters`);
+  return trimmed;
+}
+
+async function getListRow(db: D1Database, id: number): Promise<ListRow> {
+  const row = await db.prepare('SELECT * FROM lists WHERE id = ?').bind(id).first<ListRow>();
+  if (!row) throw new AppError(404, 'list not found');
+  return row;
+}
+
+const nameTaken = (e: unknown) => isUniqueViolation(e) && new AppError(409, 'there is already a list with that name');
+
+export async function createList(db: D1Database, name: unknown, now: Date): Promise<{ id: number; name: string }> {
+  const clean = cleanName(name);
+  try {
+    const row = await db
+      .prepare('INSERT INTO lists (name, weight, created_at, updated_at) VALUES (?, ?, ?, ?) RETURNING id, name')
+      .bind(clean, DEFAULT_WEIGHT, iso(now), iso(now))
+      .first<{ id: number; name: string }>();
+    return row!;
+  } catch (e) {
+    throw nameTaken(e) || e;
+  }
+}
+
+/** Finds a list by name, for old clients that import with a label instead of a list id. */
+export async function listIdByName(db: D1Database, name: string): Promise<number> {
+  const row = await db.prepare('SELECT id FROM lists WHERE name = ?').bind(name.trim()).first<{ id: number }>();
+  if (!row) throw new AppError(404, `no list called ${name}`);
+  return row.id;
+}
+
+export interface ListChanges {
+  name?: unknown;
+  weight?: unknown;
+  pagesPerWeek?: unknown;
+  paused?: unknown;
+  focusUntil?: unknown;
+  archived?: unknown;
+}
+
+/**
+ * Renames, re-weights, pauses, focuses or archives a list. Focus is on one
+ * list at a time, so focusing one ends any other focus; archiving ends it too.
+ */
+export async function updateList(db: D1Database, id: number, changes: ListChanges, now: Date): Promise<void> {
+  const row = await getListRow(db, id);
+  const sets: string[] = [];
+  const values: (string | number | null)[] = [];
+  const set = (col: string, value: string | number | null) => {
+    sets.push(`${col} = ?`);
+    values.push(value);
+  };
+  const stmts: D1PreparedStatement[] = [];
+  if (changes.name !== undefined) set('name', cleanName(changes.name));
+  if (changes.weight !== undefined) {
+    const w = Number(changes.weight);
+    if (!Number.isInteger(w) || w < WEIGHT_RANGE[0] || w > WEIGHT_RANGE[1]) throw new AppError(400, `weight must be ${WEIGHT_RANGE[0]}–${WEIGHT_RANGE[1]}`);
+    set('weight', w);
+  }
+  if (changes.pagesPerWeek !== undefined) {
+    const p = changes.pagesPerWeek === null ? null : Number(changes.pagesPerWeek);
+    if (p !== null && (!Number.isInteger(p) || p < 1 || p > MAX_PAGES_PER_WEEK)) throw new AppError(400, `pagesPerWeek must be 1–${MAX_PAGES_PER_WEEK} or null`);
+    set('pages_per_week', p);
+  }
+  if (changes.paused !== undefined) {
+    if (typeof changes.paused !== 'boolean') throw new AppError(400, 'paused must be true or false');
+    set('paused', changes.paused ? 1 : 0);
+  }
+  const archiving = changes.archived === true;
+  if (changes.archived !== undefined) {
+    if (typeof changes.archived !== 'boolean') throw new AppError(400, 'archived must be true or false');
+    set('archived_at', changes.archived ? (row.archived_at ?? iso(now)) : null);
+  }
+  if (changes.focusUntil !== undefined) {
+    let until: string | null = null;
+    if (changes.focusUntil !== null) {
+      const d = new Date(String(changes.focusUntil));
+      if (Number.isNaN(d.getTime())) throw new AppError(400, 'focusUntil must be an ISO date or null');
+      if (d <= now) throw new AppError(400, 'focusUntil must be in the future');
+      if (archiving || (row.archived_at && changes.archived !== false)) throw new AppError(409, 'an archived list cannot be focused');
+      until = iso(d);
+      stmts.push(db.prepare('UPDATE lists SET focus_until = NULL, updated_at = ? WHERE id != ? AND focus_until IS NOT NULL').bind(iso(now), id));
+    }
+    set('focus_until', until);
+  } else if (archiving) {
+    set('focus_until', null);
+  }
+  if (sets.length === 0) return;
+  set('updated_at', iso(now));
+  stmts.push(db.prepare(`UPDATE lists SET ${sets.join(', ')} WHERE id = ?`).bind(...values, id));
+  try {
+    await db.batch(stmts);
+  } catch (e) {
+    throw nameTaken(e) || e;
+  }
+}
+
+/** Moves every word and page of one list into another, then removes the first. */
+export async function mergeList(db: D1Database, id: number, into: number, now: Date): Promise<void> {
+  if (id === into) throw new AppError(400, 'a list cannot be merged into itself');
+  await getListRow(db, id);
+  await getListRow(db, into);
+  await db.batch([
+    db.prepare('UPDATE words SET list_id = ?, updated_at = ? WHERE list_id = ?').bind(into, iso(now), id),
+    db.prepare('UPDATE pages SET list_id = ? WHERE list_id = ?').bind(into, id),
+    db.prepare('DELETE FROM lists WHERE id = ?').bind(id),
+  ]);
+}
+
+/** Deletes a list with no words. One with words is merged or archived instead. */
+export async function deleteList(db: D1Database, id: number): Promise<void> {
+  await getListRow(db, id);
+  const used = await db
+    .prepare('SELECT (SELECT COUNT(*) FROM words WHERE list_id = ?) + (SELECT COUNT(*) FROM pages WHERE list_id = ?) AS n')
+    .bind(id, id)
+    .first<{ n: number }>();
+  if (used!.n > 0) throw new AppError(409, 'this list has words; merge it into another list or archive it instead');
+  await db.prepare('DELETE FROM lists WHERE id = ?').bind(id).run();
 }
 
 // ---------------------------------------------------------------- furigana
@@ -556,8 +809,11 @@ export async function exportAll(db: D1Database, now: Date): Promise<Backup> {
 // ---------------------------------------------------------------- test support
 
 export async function resetAll(db: D1Database): Promise<void> {
-  // Children before parents, for the foreign keys.
+  // Children before parents, for the foreign keys. Then the starting lists
+  // again, as after the migrations.
   await db.batch([...BACKUP_TABLES].reverse().map((t) => db.prepare(`DELETE FROM ${t}`)));
+  const seed = LISTS_FROM_LABELS.split(/;\s*$/m).filter((sql) => sql.trim());
+  await db.batch(seed.map((sql) => db.prepare(sql)));
 }
 
 /** Makes cards due now (all, or one direction), to exercise reviews in end-to-end tests. */

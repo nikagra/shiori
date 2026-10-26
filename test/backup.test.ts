@@ -3,7 +3,7 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'n
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { BACKUP_SCHEMA, BACKUP_TABLES, backupToSql, dateOfBackupFile, KEEP_DAYS, nightlyIsStale, parseBackup, schemaCheck, TABLE_SINCE, type Backup } from '../shared/backup';
+import { BACKUP_SCHEMA, BACKUP_TABLES, backupToSql, LISTS_FROM_LABELS, dateOfBackupFile, KEEP_DAYS, nightlyIsStale, parseBackup, schemaCheck, TABLE_SINCE, type Backup } from '../shared/backup';
 import { parseRenshuuExport } from '../shared/renshuu';
 import { Rating } from '../shared/scheduler';
 import { nightlyStatus, saveNightly } from '../worker/backup';
@@ -17,6 +17,9 @@ const now = new Date('2026-10-25T20:00:00Z');
 const dayStart = new Date('2026-10-25T03:00:00Z');
 const dayEnd = new Date('2026-10-26T03:00:00Z');
 const days = (d: Date, n: number) => new Date(d.getTime() + n * 86_400_000);
+
+/** The starting lists are Manga, Books, School and Other, in that order. */
+const MANGA = 1;
 
 let db: D1Database;
 const tempDirs: string[] = [];
@@ -34,15 +37,15 @@ const tempDir = () => {
 
 /** Some of everything: checked words, a graduated page, a review, furigana settings and a peek. */
 async function studySomething() {
-  await repo.importWords(db, words, 'manga', now);
+  await repo.importWords(db, words, MANGA, now);
   const { words: batch } = await repo.triageNext(db, 14);
   for (const w of batch.slice(0, 2)) await repo.triageAnswer(db, w.id, 'known', now);
   for (const w of batch.slice(2, 14)) await repo.triageAnswer(db, w.id, 'unknown', now);
   await repo.triageAnswer(db, (await repo.triageNext(db, 1)).words[0].id, 'ignore', now);
-  const page = await repo.createPage(db, 10, now);
+  const page = await repo.createPage(db, 10, null, now);
   await repo.completeStage(db, page.id, 'ordered', dayEnd, now);
   await repo.completeStage(db, page.id, 'shuffled', dayEnd, now);
-  await repo.createPage(db, 10, now).catch(() => undefined);
+  await repo.createPage(db, 10, null, now).catch(() => undefined);
   const later = days(now, 2);
   const q = await repo.reviewQueue(db, days(dayStart, 2), days(dayEnd, 2), 50);
   await repo.submitReview(db, { cardId: q.items[0].cardId, rating: Rating.Hard, hintUsed: true, answer: 'たすける', correct: true, durationMs: 4200 }, later);
@@ -91,7 +94,7 @@ describe('backup file', () => {
     await studySomething();
     const backup = await repo.exportAll(db, now);
     const other = createTestDb();
-    await repo.importWords(other, words.slice(0, 5), 'school', now);
+    await repo.importWords(other, words.slice(0, 5), MANGA + 2, now);
     await expect(other.exec(backupToSql(backup))).rejects.toThrow();
     await other.exec(backupToSql(backup, { replace: true }));
     expect((await repo.exportAll(other, now)).tables).toEqual(backup.tables);
@@ -112,6 +115,33 @@ describe('backup file', () => {
     // A current backup without a table is broken, not old.
     delete (backup.tables as Partial<Backup['tables']>).settings;
     expect(() => parseBackup(JSON.stringify(backup))).toThrow('missing table settings');
+  });
+
+  it('puts words and pages from a backup made before lists on their lists', async () => {
+    await studySomething();
+    await repo.importWords(db, words.slice(-3), MANGA + 2, now);
+    const backup = await repo.exportAll(db, now);
+    const old = structuredClone(backup);
+    old.schema = '0002_furigana';
+    delete (old.tables as Partial<Backup['tables']>).lists;
+    for (const row of [...old.tables.words, ...old.tables.pages]) delete row.list_id;
+    // An import label that isn't one of the starting lists becomes a list of its own.
+    old.tables.words.at(-1)!.source_list = 'Yotsuba';
+    for (const replace of [false, true]) {
+      const restored = createTestDb();
+      if (replace) await repo.importWords(restored, words.slice(0, 5), MANGA + 1, now);
+      await restored.exec(backupToSql(parseBackup(JSON.stringify(old)), { replace }));
+      const tables = (await repo.exportAll(restored, now)).tables;
+      expect(tables.lists.map((l) => l.name)).toEqual(['Manga', 'Books', 'School', 'Other', 'Yotsuba']);
+      expect(tables.words.slice(0, -1).map((w) => w.list_id)).toEqual(backup.tables.words.slice(0, -1).map((w) => w.list_id));
+      expect(tables.words.at(-1)!.list_id).toBe(5);
+      expect(tables.pages.map((p) => p.list_id)).toEqual(backup.tables.pages.map((p) => p.list_id));
+    }
+  });
+
+  it('upgrades old backups with the same SQL as the lists migration', () => {
+    const migration = readFileSync(join(root, 'migrations', '0003_lists.sql'), 'utf8');
+    expect(migration.trimEnd().endsWith(LISTS_FROM_LABELS)).toBe(true);
   });
 
   it('knows which migration added each table', () => {

@@ -713,3 +713,54 @@ rt {
 .page-cell__reading--long {
   font-size: 0.68rem;
 }
+
+/* Lists */
+.h1__sub {
+  font-weight: 500;
+}
+
+.add-row {
+  display: flex;
+  gap: 8px;
+}
+
+.add-row input,
+.add-row select {
+  flex: 1;
+  min-width: 0;
+}
+
+.add-row .button {
+  flex: none;
+}
+
+.list-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.list-head h2 {
+  margin-right: auto;
+}
+
+.badge--focus {
+  background: var(--warn-soft);
+  border-color: transparent;
+  color: var(--hard);
+}
+
+.select--auto {
+  width: auto;
+}
+
+.more summary {
+  cursor: pointer;
+  color: var(--accent);
+  padding: 4px 0;
+}
+
+.more[open] summary {
+  margin-bottom: 12px;
+}

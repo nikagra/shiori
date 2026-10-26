@@ -13,13 +13,16 @@ const dayStart = new Date('2026-10-25T03:00:00Z');
 const dayEnd = new Date('2026-10-26T03:00:00Z');
 const nextDay = (d: Date, days: number) => new Date(d.getTime() + days * 86_400_000);
 
+/** The starting lists are Manga, Books, School and Other, in that order. */
+const MANGA = 1;
+
 let db: D1Database;
 beforeEach(() => {
   db = createTestDb();
 });
 
 async function importAndSort(known: number, unknown: number) {
-  await repo.importWords(db, words, 'manga', now);
+  await repo.importWords(db, words, MANGA, now);
   const { words: batch } = await repo.triageNext(db, known + unknown);
   for (const w of batch.slice(0, known)) await repo.triageAnswer(db, w.id, 'known', now);
   for (const w of batch.slice(known, known + unknown)) await repo.triageAnswer(db, w.id, 'unknown', now);
@@ -28,25 +31,25 @@ async function importAndSort(known: number, unknown: number) {
 
 describe('import', () => {
   it('adds words as unverified and skips duplicates on re-import', async () => {
-    expect(await repo.importWords(db, words, 'manga', now)).toEqual({ added: 48, duplicates: 0 });
-    expect(await repo.importWords(db, words, 'manga', now)).toEqual({ added: 0, duplicates: 48 });
+    expect(await repo.importWords(db, words, MANGA, now)).toEqual({ added: 48, duplicates: 0 });
+    expect(await repo.importWords(db, words, MANGA, now)).toEqual({ added: 0, duplicates: 48 });
     const s = await repo.stats(db, dayStart, dayEnd);
     expect(s).toMatchObject({ toCheck: 48, inbox: 0, learned: 0, reviewsDue: 0 });
   });
 
   it('stores a short core meaning next to the full senses', async () => {
-    await repo.importWords(db, words, 'manga', now);
+    await repo.importWords(db, words, MANGA, now);
     const { words: list } = await repo.triageNext(db, 50);
     const toru = list.find((w) => w.kanji === '助ける')!;
     expect(toru.coreMeaning).toBe('to save, to rescue, to spare');
     expect(toru.senses.length).toBeGreaterThan(1);
-    expect(toru.sourceList).toBe('manga');
+    expect(toru).toMatchObject({ sourceList: 'Manga', listId: MANGA });
   });
 });
 
 describe('triage', () => {
   it('goes from lowest mastery up', async () => {
-    await repo.importWords(db, words, 'manga', now);
+    await repo.importWords(db, words, MANGA, now);
     const { words: list, remaining } = await repo.triageNext(db, 50);
     expect(remaining).toBe(48);
     const masteries = list.map((w) => w.mastery ?? 50);
@@ -63,7 +66,7 @@ describe('triage', () => {
   });
 
   it('unknown words wait in the inbox; ignored words leave', async () => {
-    await repo.importWords(db, words, 'manga', now);
+    await repo.importWords(db, words, MANGA, now);
     const { words: list } = await repo.triageNext(db, 2);
     await repo.triageAnswer(db, list[0].id, 'unknown', now);
     await repo.triageAnswer(db, list[1].id, 'ignore', now);
@@ -76,7 +79,7 @@ describe('triage', () => {
 describe('pages', () => {
   it('builds a page from the inbox in source order and keeps positions', async () => {
     const sorted = await importAndSort(0, 12);
-    const page = await repo.createPage(db, 10, now);
+    const page = await repo.createPage(db, 10, null, now);
     expect(page.number).toBe(1);
     expect(page.stage).toBe('ordered');
     expect(page.words.map((w) => w.position)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
@@ -86,12 +89,12 @@ describe('pages', () => {
   });
 
   it('refuses an empty inbox', async () => {
-    await expect(repo.createPage(db, 10, now)).rejects.toMatchObject({ status: 409 });
+    await expect(repo.createPage(db, 10, null, now)).rejects.toMatchObject({ status: 409 });
   });
 
   it('graduates after both stages; reviews start the next day', async () => {
     await importAndSort(0, 3);
-    const page = await repo.createPage(db, 10, now);
+    const page = await repo.createPage(db, 10, null, now);
     expect((await repo.completeStage(db, page.id, 'ordered', dayEnd, now)).stage).toBe('shuffled');
     // Repeating a finished stage is harmless.
     expect((await repo.completeStage(db, page.id, 'ordered', dayEnd, now)).stage).toBe('shuffled');
@@ -110,7 +113,7 @@ describe('pages', () => {
 describe('review', () => {
   it('records a review, reschedules the card and buries the sibling for the day', async () => {
     await importAndSort(0, 1);
-    const page = await repo.createPage(db, 10, now);
+    const page = await repo.createPage(db, 10, null, now);
     await repo.completeStage(db, page.id, 'ordered', dayEnd, now);
     await repo.completeStage(db, page.id, 'shuffled', dayEnd, now);
 
@@ -124,7 +127,7 @@ describe('review', () => {
 
   it('a hint caps the stored rating at Hard', async () => {
     await importAndSort(0, 1);
-    const page = await repo.createPage(db, 10, now);
+    const page = await repo.createPage(db, 10, null, now);
     await repo.completeStage(db, page.id, 'ordered', dayEnd, now);
     await repo.completeStage(db, page.id, 'shuffled', dayEnd, now);
     const q = await repo.reviewQueue(db, dayEnd, nextDay(dayEnd, 1), 50);
@@ -142,7 +145,7 @@ describe('review', () => {
 
 describe('editing', () => {
   it('updates the core meaning and rejects an empty one', async () => {
-    await repo.importWords(db, words, 'manga', now);
+    await repo.importWords(db, words, MANGA, now);
     const { words: [w] } = await repo.triageNext(db, 1);
     expect((await repo.updateCoreMeaning(db, w.id, '  rescue ', now)).coreMeaning).toBe('rescue');
     await expect(repo.updateCoreMeaning(db, w.id, ' ', now)).rejects.toMatchObject({ status: 400 });
@@ -161,7 +164,7 @@ describe('furigana prefs and hints', () => {
   });
 
   it('a kanji peeked at twice moves to still learning; marking it known again starts over', async () => {
-    await repo.importWords(db, words, 'manga', now);
+    await repo.importWords(db, words, MANGA, now);
     const [a, b] = (await repo.triageNext(db, 2)).words;
     const first = await repo.recordFuriganaHint(db, a.id, '時代', now);
     expect(first.movedToLearning).toBe('');
@@ -177,7 +180,7 @@ describe('furigana prefs and hints', () => {
   });
 
   it('only counts kanji you are meant to know', async () => {
-    await repo.importWords(db, words, 'manga', now);
+    await repo.importWords(db, words, MANGA, now);
     const [a] = (await repo.triageNext(db, 1)).words;
     await repo.setFurigana(db, { kanjiLevel: 'n4', knownKanji: '', learningKanji: '験' }, now);
     await repo.recordFuriganaHint(db, a.id, '験', now);
@@ -194,7 +197,7 @@ describe('furigana prefs and hints', () => {
 
 describe('repeated and concurrent requests', () => {
   it('answering a word twice leaves one set of cards and reports it was already checked', async () => {
-    await repo.importWords(db, words, 'manga', now);
+    await repo.importWords(db, words, MANGA, now);
     const [w] = (await repo.triageNext(db, 1)).words;
     const results = await Promise.allSettled([repo.triageAnswer(db, w.id, 'known', now), repo.triageAnswer(db, w.id, 'known', now)]);
     expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
@@ -204,7 +207,7 @@ describe('repeated and concurrent requests', () => {
 
   it('graduating a page twice is harmless', async () => {
     await importAndSort(0, 3);
-    const page = await repo.createPage(db, 3, now);
+    const page = await repo.createPage(db, 3, null, now);
     await repo.completeStage(db, page.id, 'ordered', nextDay(dayStart, 1), now);
     const both = await Promise.all([
       repo.completeStage(db, page.id, 'shuffled', nextDay(dayStart, 1), now),
@@ -223,7 +226,7 @@ describe('repeated and concurrent requests', () => {
     // Another page took one of these words a moment ago.
     await db.prepare(`INSERT INTO pages (number, stage, created_at) VALUES (7, 'ordered', ?)`).bind(now.toISOString()).run();
     await db.prepare('INSERT INTO page_words (page_id, word_id, position) VALUES ((SELECT id FROM pages WHERE number = 7), ?, 0)').bind(inbox[1].id).run();
-    await expect(repo.createPage(db, 2, now)).rejects.toThrow('try again');
+    await expect(repo.createPage(db, 2, null, now)).rejects.toThrow('try again');
     expect((await repo.listPages(db)).map((p) => p.number)).toEqual([7]);
   });
 });

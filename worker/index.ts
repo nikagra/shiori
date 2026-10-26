@@ -40,11 +40,13 @@ app.get('/stats', async (c) => {
 });
 
 app.post('/import', async (c) => {
-  const body = await c.req.json<{ text?: string; list?: string }>();
+  // `list` (a name) is what the app sent before lists had ids.
+  const body = await c.req.json<{ text?: string; listId?: number; list?: string }>();
   if (!body.text?.trim()) throw new db.AppError(400, 'the file is empty');
+  const listId = body.listId !== undefined ? intParam(body.listId, 'listId') : body.list?.trim() ? await db.listIdByName(c.env.DB, body.list) : null;
+  if (listId === null) throw new db.AppError(400, 'pick a list for the words');
   const parsed = parseRenshuuExport(body.text);
-  const list = body.list?.trim() || null;
-  const summary = await db.importWords(c.env.DB, parsed.words, list, new Date());
+  const summary = await db.importWords(c.env.DB, parsed.words, listId, new Date());
   return c.json({ format: parsed.format, ...summary, issues: parsed.issues });
 });
 
@@ -67,8 +69,9 @@ app.patch('/words/:id', async (c) => {
 app.get('/pages', async (c) => c.json(await db.listPages(c.env.DB)));
 
 app.post('/pages', async (c) => {
-  const { size } = await c.req.json<{ size: number }>();
-  return c.json(await db.createPage(c.env.DB, intParam(size, 'size'), new Date()), 201);
+  const { size, listId } = await c.req.json<{ size: number; listId?: number | null }>();
+  const list = listId === undefined || listId === null ? null : intParam(listId, 'listId');
+  return c.json(await db.createPage(c.env.DB, intParam(size, 'size'), list, new Date()), 201);
 });
 
 app.get('/pages/:id', async (c) => c.json(await db.getPage(c.env.DB, intParam(c.req.param('id'), 'id'))));
@@ -103,6 +106,33 @@ app.post('/review/:cardId', async (c) => {
     new Date(),
   );
   return c.json(result);
+});
+
+app.get('/lists', async (c) => {
+  const start = dateParam(c.req.query('dayStart'), 'dayStart');
+  const end = dateParam(c.req.query('dayEnd'), 'dayEnd');
+  return c.json(await db.listLists(c.env.DB, start, end, new Date()));
+});
+
+app.post('/lists', async (c) => {
+  const { name } = await c.req.json<{ name?: string }>();
+  return c.json(await db.createList(c.env.DB, name, new Date()), 201);
+});
+
+app.patch('/lists/:id', async (c) => {
+  await db.updateList(c.env.DB, intParam(c.req.param('id'), 'id'), await c.req.json<db.ListChanges>(), new Date());
+  return c.json({ ok: true });
+});
+
+app.post('/lists/:id/merge', async (c) => {
+  const { into } = await c.req.json<{ into: number }>();
+  await db.mergeList(c.env.DB, intParam(c.req.param('id'), 'id'), intParam(into, 'into'), new Date());
+  return c.json({ ok: true });
+});
+
+app.delete('/lists/:id', async (c) => {
+  await db.deleteList(c.env.DB, intParam(c.req.param('id'), 'id'));
+  return c.json({ ok: true });
 });
 
 app.get('/furigana', async (c) => c.json(await db.getFurigana(c.env.DB)));

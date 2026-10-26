@@ -26,13 +26,21 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   in `.wrangler/state`, separate from the cloud one. An old database holding
   only test data is kept in `.wrangler/state-test-backup-20261025` and can be
   deleted.
-- Tests: 71 unit tests, 38 end-to-end runs (19 tests at iPhone and laptop sizes), and `tsc -b` all
+- Tests: 97 unit tests, 46 end-to-end runs (23 tests at iPhone and laptop sizes), and `tsc -b` all
   pass.
 - **Backup and export** (26 Oct): Home › Backup downloads all study data as
   one JSON file, a nightly cron saves the same file to the private R2 bucket
   `shiori-backups` (30 days kept), and `npm run backup:sql` turns a file back
   into SQL. A restore through local D1 was checked by hand. See "Backup and
   restore" in DESIGN.md. Mikita enabled R2 and created the bucket on 26 Oct.
+- **Lists you manage** (26 Oct): a `lists` table (migration `0003_lists`)
+  with the four starting lists; existing words and pages moved onto them.
+  Lists (a new tab) adds, renames, merges, archives and deletes lists and sets
+  each one's weight, weekly target, pause and focus. Every page comes from one
+  list; "New page" asks which, or picks the one furthest behind its pace.
+  Today's 20 new review cards are shared by weight. Older backups still load
+  and get their lists. See "Lists" in DESIGN.md. After pulling on the laptop,
+  run `npm run db:migrate:local`; the deploy applies it to D1.
 - First iPhone feedback (25 Oct) is in: "Don't know" on review and drill
   cards, next words hidden in the in-order drill, "Study the page again",
   whole words on the grid, safer iOS speech. Sound on the iPhone still needs
@@ -42,19 +50,9 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
 
 1. ~~**Backup and export**~~: done (26 Oct). Check that the first nightly copy
    shows on Home the morning after the deploy.
-2. **Lists you manage, with their own pace** (Mikita, 25 Oct; before v0.2 so
-   capture and school focus build on real lists). Today a list is only a
-   label on each word (`words.source_list`, picked at import: manga, books,
-   school, other); "New page" takes the next inbox words in import order
-   across all lists, and reviews and `NEW_PER_DAY` (20) are global.
-   - A `lists` table: create, rename, merge and archive lists in the app. The
-     four current lists are the starting set; existing words keep theirs.
-   - One list per page, so the word group stays a clean memory anchor. "New
-     page" asks which list, or picks the one furthest behind its pace.
-   - Per-list pace and priority: a weight or a target (for example one page a
-     week for school), the daily new-card budget split by weight, and pausing.
-   - Focus: boost one list before a deadline such as a Marugoto test. Due
-     reviews from every list still come; FSRS stays per card.
+2. ~~**Lists you manage, with their own pace**~~: done (26 Oct). Try it on
+   the iPhone: the Lists tab, then a page from School and one from Manga.
+   Capture (v0.2) should file new words into a list the same way.
 3. **v0.2: capture while reading.** Matches the original plan
    ([plan doc](https://claude.ai/artifact/1J233eFb8H61zr7WbEZXas)):
    - Photo of a manga panel → Claude (called only from the Worker, with its own
@@ -93,7 +91,10 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   for on 25 Oct as a future improvement: what hints, and what they cost.
 - Should the N5/N4 kanji lists be editable in bulk, or are "Also known" and
   "Still learning" enough?
-- `NEW_PER_DAY` is fixed at 20. Should it be a setting?
+- `NEW_PER_DAY` is fixed at 20 (now shared between lists by weight). Should
+  the total be a setting?
+- Should the check pass also follow list weights, or stay lowest mastery
+  first across all lists?
 - Should a device's page size and audio defaults depend on the device, for
   example audio off on the laptop?
 - Should FSRS parameters be refit from `review_log` once there's enough
@@ -101,8 +102,8 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
 
 ## Working agreements
 
-- Development happens on a branch with a PR into `main`. Run `/code-review`
-  and check its findings before merging.
+- Development happens on a branch with a PR into `main`. Run `/code-review-ad`
+  (on the Mac, through Remote Control) and check its findings before merging.
 - Commit subject lines and PR titles start with a Conventional Commits
   prefix (`feat:`, `fix:`, `docs:`, `ci:`, `chore:`...) and end with an emoji
   that fits the change (prefixes from 25 Oct on). Don't rewrite

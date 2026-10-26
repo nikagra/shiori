@@ -3,11 +3,12 @@
 // load into a fresh database. No imports, so Node can run that script directly.
 
 /** Tables in an order that satisfies the foreign keys when loading. */
-export const BACKUP_TABLES = ['words', 'pages', 'page_words', 'cards', 'review_log', 'settings', 'kanji_hints'] as const;
+export const BACKUP_TABLES = ['lists', 'words', 'pages', 'page_words', 'cards', 'review_log', 'settings', 'kanji_hints'] as const;
 export type BackupTable = (typeof BACKUP_TABLES)[number];
 
 /** The migration that added each table: a backup from before it has no rows for it. */
 export const TABLE_SINCE: Record<BackupTable, string> = {
+  lists: '0003_lists',
   words: '0001_init',
   pages: '0001_init',
   page_words: '0001_init',
@@ -18,7 +19,28 @@ export const TABLE_SINCE: Record<BackupTable, string> = {
 };
 
 /** The latest migration the backup's rows fit. A test keeps it in step with migrations/. */
-export const BACKUP_SCHEMA = '0002_furigana';
+export const BACKUP_SCHEMA = '0003_lists';
+
+/**
+ * The end of migrations/0003_lists.sql, word for word (a test checks): makes
+ * the starting lists and one per import label, then puts every word and page
+ * without a list on its list. Loading a backup from before lists runs it too.
+ */
+export const LISTS_FROM_LABELS = `INSERT OR IGNORE INTO lists (name, created_at, updated_at) VALUES
+  ('Manga', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  ('Books', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  ('School', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  ('Other', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
+INSERT OR IGNORE INTO lists (name, created_at, updated_at)
+  SELECT TRIM(source_list), strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+  FROM words WHERE TRIM(IFNULL(source_list, '')) != '' GROUP BY TRIM(source_list) ORDER BY MIN(source_order);
+UPDATE words SET list_id = (SELECT id FROM lists WHERE name = IFNULL(NULLIF(TRIM(words.source_list), ''), 'Other'))
+  WHERE list_id IS NULL;
+UPDATE pages SET list_id = (
+    SELECT w.list_id FROM page_words pw JOIN words w ON w.id = pw.word_id
+    WHERE pw.page_id = pages.id GROUP BY w.list_id ORDER BY COUNT(*) DESC, MIN(pw.position) LIMIT 1
+  ) WHERE list_id IS NULL;`;
+
 export const BACKUP_FORMAT = 1;
 
 /** How long the nightly copies are kept (worker/backup.ts). */
@@ -113,11 +135,14 @@ function literal(value: BackupValue): string {
 export function backupToSql(backup: Backup, { replace = false } = {}): string {
   const lines = [`-- Shiori backup from ${backup.exportedAt}, schema ${backup.schema}`];
   if (replace) for (const table of [...BACKUP_TABLES].reverse()) lines.push(`DELETE FROM ${table};`);
+  // A migrated database starts with the default lists; the backup brings its own.
+  else if (backup.schema >= TABLE_SINCE.lists) lines.push('DELETE FROM lists;');
   for (const table of BACKUP_TABLES) {
     for (const row of backup.tables[table]) {
       const cols = Object.keys(row);
       lines.push(`INSERT INTO ${table} (${cols.join(', ')}) VALUES (${cols.map((c) => literal(row[c])).join(', ')});`);
     }
   }
+  if (backup.schema < TABLE_SINCE.lists) lines.push('-- From before lists: give every word and page its list.', LISTS_FROM_LABELS);
   return lines.join('\n') + '\n';
 }

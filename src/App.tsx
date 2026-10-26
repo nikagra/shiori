@@ -5,8 +5,9 @@ import { Triage } from './screens/Triage';
 import { Pages } from './screens/Pages';
 import { PageView } from './screens/PageView';
 import { Review } from './screens/Review';
+import { Lists } from './screens/Lists';
 
-// Hash routes: #/, #/review, #/pages, #/pages/3, #/check, #/import
+// Hash routes: #/, #/review, #/pages, #/pages/3, #/lists, #/check, #/import
 
 function useHashRoute(): string[] {
   const read = () => window.location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
@@ -26,6 +27,7 @@ const NAV = [
   { href: '#/', label: 'Home', match: '' },
   { href: '#/review', label: 'Review', match: 'review' },
   { href: '#/pages', label: 'Pages', match: 'pages' },
+  { href: '#/lists', label: 'Lists', match: 'lists' },
   { href: '#/check', label: 'Check', match: 'check' },
   { href: '#/import', label: 'Import', match: 'import' },
 ];
@@ -41,6 +43,9 @@ export function App() {
       break;
     case 'pages':
       screen = id ? <PageView key={id} id={Number(id)} /> : <Pages />;
+      break;
+    case 'lists':
+      screen = <Lists />;
       break;
     case 'check':
       screen = <Triage />;

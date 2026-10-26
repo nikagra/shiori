@@ -101,6 +101,7 @@ describe('review queue', () => {
     state,
     due,
     direction,
+    listId: null,
   });
 
   it('puts due cards first, most overdue first, and caps new cards', () => {
@@ -112,7 +113,7 @@ describe('review queue', () => {
         c(4, 4, State.New, '2026-10-02'),
         c(5, 5, State.New, '2026-10-03'),
       ],
-      { reviewedToday: new Set(), newIntroducedToday: 18, newPerDay: 20 },
+      { reviewedToday: new Set(), newIntroducedToday: new Map([[0, 18]]), newPerDay: 20, weights: new Map() },
     );
     expect(q.map((x) => x.cardId)).toEqual([3, 2, 1, 4]);
   });
@@ -120,7 +121,7 @@ describe('review queue', () => {
   it('shows only one direction of a word per day', () => {
     const q = buildQueue(
       [c(1, 1, State.Review, '2026-10-01', 'jp_en'), c(2, 1, State.Review, '2026-10-02', 'en_jp'), c(3, 2, State.Review, '2026-10-03')],
-      { reviewedToday: new Set([2]), newIntroducedToday: 0, newPerDay: 20 },
+      { reviewedToday: new Set([2]), newIntroducedToday: new Map(), newPerDay: 20, weights: new Map() },
     );
     expect(q.map((x) => x.cardId)).toEqual([1]);
   });

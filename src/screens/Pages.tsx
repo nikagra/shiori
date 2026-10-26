@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api, type PageSummary, type Stats } from '../api';
+import { api, type ListSummary, type PageSummary, type Stats } from '../api';
 import { Notice } from '../components/ui';
 import { navigate } from '../nav';
 import { useSettings } from '../settings';
@@ -12,15 +12,19 @@ const BUSY_REVIEWS = 60;
 export function Pages() {
   const [pages, setPages] = useState<PageSummary[] | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
+  const [lists, setLists] = useState<ListSummary[] | null>(null);
+  /** The list to take words from; 'auto' lets the server pick. */
+  const [from, setFrom] = useState<number | 'auto'>('auto');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [settings, update] = useSettings();
 
   useEffect(() => {
-    Promise.all([api.pages(), api.stats()]).then(
-      ([p, s]) => {
+    Promise.all([api.pages(), api.stats(), api.lists()]).then(
+      ([p, s, l]) => {
         setPages(p);
         setStats(s);
+        setLists(l);
       },
       (e: Error) => setError(e.message),
     );
@@ -29,7 +33,7 @@ export function Pages() {
   async function create() {
     setBusy(true);
     try {
-      const page = await api.createPage(settings.pageSize);
+      const page = await api.createPage(settings.pageSize, from === 'auto' ? null : from);
       navigate(`/pages/${page.id}`);
     } catch (e) {
       setError((e as Error).message);
@@ -38,7 +42,11 @@ export function Pages() {
   }
 
   if (error) return <Notice kind="error">{error}</Notice>;
-  if (!pages || !stats) return <p className="muted">Loading…</p>;
+  if (!pages || !stats || !lists) return <p className="muted">Loading…</p>;
+
+  const waiting = lists.filter((l) => !l.archived && l.counts.inbox > 0);
+  const next = lists.find((l) => l.next);
+  const chosen = from === 'auto' ? next : waiting.find((l) => l.id === from);
 
   const inProgress = pages.filter((p) => p.stage !== 'graduated');
   const learned = pages.filter((p) => p.stage === 'graduated');
@@ -56,8 +64,22 @@ export function Pages() {
         ) : (
           <>
             <p>
-              <strong>{stats.inbox}</strong> words waiting. A page takes the next ones, in the order you met them.
+              <strong>{stats.inbox}</strong> words waiting. A page takes the next ones from one list, in the order you met them.
             </p>
+            <label className="field">
+              <span>From list</span>
+              <select value={from} onChange={(e) => setFrom(e.target.value === 'auto' ? 'auto' : Number(e.target.value))}>
+                <option value="auto">{next ? `Pick for me (${next.name})` : 'Pick for me'}</option>
+                {waiting.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name}: {l.counts.inbox} waiting{l.paused ? ', paused' : ''}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {from === 'auto' && !next && (
+              <Notice>Every list with words waiting is paused. Pick one above, or unpause it in <a href="#/lists">Lists</a>.</Notice>
+            )}
             {stats.reviewsDue > BUSY_REVIEWS && (
               <Notice>You have {stats.reviewsDue} reviews today. New words stick better when reviews are under control; consider reviewing first.</Notice>
             )}
@@ -71,9 +93,12 @@ export function Pages() {
                 ))}
               </div>
             </div>
-            <button className="button button--primary" disabled={busy} onClick={create}>
+            <button className="button button--primary" disabled={busy || !chosen} onClick={create}>
               Start a new page
             </button>
+            <a href="#/lists" className="link-button">
+              Lists, weights and weekly targets
+            </a>
           </>
         )}
       </section>
@@ -102,7 +127,11 @@ function PageLink({ page }: { page: PageSummary }) {
   return (
     <a href={`#/pages/${page.id}`} className="list-item">
       <span>
-        <strong>Page {page.number}</strong> <span className="muted">· {page.wordCount} words</span>
+        <strong>Page {page.number}</strong>{' '}
+        <span className="muted">
+          · {page.listName ? `${page.listName} · ` : ''}
+          {page.wordCount} words
+        </span>
       </span>
       <span className={`badge badge--${page.stage}`}>{STAGE_LABEL[page.stage]}</span>
     </a>
