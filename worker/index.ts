@@ -79,12 +79,27 @@ app.delete('/words/:id', async (c) => {
 app.get('/pages', async (c) => c.json(await db.listPages(c.env.DB)));
 
 app.post('/pages', async (c) => {
-  const { size, listId } = await c.req.json<{ size: number; listId?: number | null }>();
+  const { size, listId, wordIds } = await c.req.json<{ size: number; listId?: number | null; wordIds?: unknown }>();
   const list = listId === undefined || listId === null ? null : intParam(listId, 'listId');
-  return c.json(await db.createPage(c.env.DB, intParam(size, 'size'), list, new Date()), 201);
+  if (wordIds !== undefined && !Array.isArray(wordIds)) throw new db.AppError(400, 'wordIds must be a list of word ids');
+  const picked = wordIds?.map((id) => intParam(id, 'wordIds'));
+  return c.json(await db.createPage(c.env.DB, intParam(size, 'size'), list, new Date(), picked), 201);
 });
 
 app.get('/pages/:id', async (c) => c.json(await db.getPage(c.env.DB, intParam(c.req.param('id'), 'id'))));
+
+// Swap, take off or add one word of a page still in step 1.
+app.post('/pages/:id/words', async (c) => {
+  const body = await c.req.json<{ wordId?: unknown; replacement?: unknown; setAside?: unknown }>();
+  const wordId = body.wordId === undefined || body.wordId === null ? null : intParam(body.wordId, 'wordId');
+  const replacement = body.replacement === 'next' ? 'next' : body.replacement === undefined || body.replacement === null ? null : intParam(body.replacement, 'replacement');
+  return c.json(await db.changePageWord(c.env.DB, intParam(c.req.param('id'), 'id'), { wordId, replacement, setAside: body.setAside === true }, new Date()));
+});
+
+app.delete('/pages/:id', async (c) => {
+  await db.deletePage(c.env.DB, intParam(c.req.param('id'), 'id'), new Date());
+  return c.json({ ok: true });
+});
 
 app.post('/pages/:id/complete', async (c) => {
   const body = await c.req.json<{ stage: 'ordered' | 'shuffled'; nextDayStart: string }>();

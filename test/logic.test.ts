@@ -4,6 +4,7 @@ import { checkReading, normalizeKana } from '../shared/kana';
 import { capForHint, graduate, newCard, Rating, review, State } from '../shared/scheduler';
 import { answerStep, currentStep, isDrillDone, startDrill } from '../shared/pageSession';
 import { buildQueue, triageOrder, type QueueCandidate } from '../shared/queue';
+import { meaningWords, similarPairs } from '../shared/similar';
 
 describe('core meaning', () => {
   it('takes the first sense, at most three glosses', () => {
@@ -140,5 +141,19 @@ describe('long-vowel mark', () => {
   it('accepts ー typed as romaji, hiragana or katakana for katakana words', () => {
     for (const typed of ['ko-hi-', 'こーひー', 'コーヒー']) expect(checkReading(typed, { kana: 'コーヒー', kanji: null }).correct).toBe(true);
     expect(checkReading('こうひい', { kana: 'コーヒー', kanji: null }).correct).toBe(false);
+  });
+});
+
+describe('words close in meaning', () => {
+  const word = (id: number, coreMeaning: string) => ({ id, coreMeaning });
+
+  it('finds pairs that share a meaning word, ignoring filler', () => {
+    const page = [word(1, 'to save, to rescue'), word(2, 'to help, to rescue (someone)'), word(3, 'to eat'), word(4, 'to be able to do'), word(5, 'to do something')];
+    expect(similarPairs(page).map((p) => [p.a.id, p.b.id, p.shared])).toEqual([[1, 2, ['rescue']]]);
+  });
+
+  it('ignores case, brackets and very short words', () => {
+    expect([...meaningWords('Cat (animal); a CAT, an ox')]).toEqual(['cat']);
+    expect(similarPairs([word(1, 'big (in size)'), word(2, 'size')])).toEqual([]);
   });
 });

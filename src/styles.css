@@ -904,3 +904,85 @@ rt {
   border-color: transparent;
   color: var(--hard);
 }
+
+/* Pages you shape */
+.word-row__head--pick {
+  grid-template-columns: 28px minmax(0, auto) minmax(0, 1fr) auto;
+}
+
+.word-row__head:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.word-row--picked {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.pick-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line);
+  font-size: 0.85rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.word-row--picked .pick-mark {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.picker__picked {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Stays above the tab bar while you scroll the list. */
+.picker__bar {
+  position: sticky;
+  bottom: calc(64px + env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.12);
+}
+
+.picker__bar p {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.picker__bar .button {
+  flex: none;
+}
+
+.picker__warn {
+  color: var(--hard);
+}
+
+.similar-list {
+  margin: 4px 0;
+  padding-left: 1.2em;
+}
+
+.page-edit-row {
+  display: grid;
+  grid-template-columns: 28px minmax(0, auto) minmax(0, 1fr);
+}
+
+.danger-zone {
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}

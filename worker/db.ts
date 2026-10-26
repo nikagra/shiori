@@ -451,13 +451,50 @@ export interface PageDetail extends PageSummary {
   words: (Word & { position: number })[];
 }
 
+/** Words that can go on a page: waiting, or still to check (picking one says you don't know it yet). */
+const PICKABLE = `status IN ('inbox', 'unverified')`;
+
+/**
+ * SQL for a word that goes on a page: word ? (from list ?), or NULL if it
+ * just became unpickable (checked, set aside or put on another page), which
+ * fails the NOT NULL on page_words.word_id and rolls the whole batch back.
+ */
+const PICKED_WORD = `(SELECT id FROM words WHERE id = ? AND list_id = ? AND ${PICKABLE})`;
+
+/** A batch that put words on a page failed because one of them changed in between. */
+const wordsTakenMeanwhile = (e: unknown) =>
+  e instanceof Error && /(UNIQUE|NOT NULL) constraint failed/i.test(e.message) && new AppError(409, 'those words were just put on another page or changed; try again');
+
+/** A page of `size` words needs at least one word and at most this many. */
+export const MAX_PAGE_WORDS = 20;
+
 /**
  * Starts a page from one list: the one given, or the one furthest behind its
  * pace (pickList). A page never mixes lists, so its words stay one group.
+ * With `wordIds`, the page holds those words in that order (waiting or still
+ * to check, all from one list); otherwise the next waiting ones.
  */
-export async function createPage(db: D1Database, size: number, listId: number | null, now: Date): Promise<PageDetail> {
-  if (!Number.isInteger(size) || size < 1 || size > 20) throw new AppError(400, 'page size must be 1–20');
+export async function createPage(db: D1Database, size: number, listId: number | null, now: Date, wordIds?: number[]): Promise<PageDetail> {
+  if (!Number.isInteger(size) || size < 1 || size > MAX_PAGE_WORDS) throw new AppError(400, `page size must be 1–${MAX_PAGE_WORDS}`);
+  if (wordIds) {
+    if (wordIds.length === 0) throw new AppError(400, 'pick at least one word');
+    if (wordIds.length > size) throw new AppError(400, `a page holds at most ${size} words`);
+    if (new Set(wordIds).size !== wordIds.length) throw new AppError(400, 'a word can be on a page only once');
+  }
   const lists = await listInfo(db, now);
+  if (wordIds) {
+    const placeholders = wordIds.map(() => '?').join(', ');
+    const picked = await db.prepare(`SELECT id, list_id, status FROM words WHERE id IN (${placeholders})`).bind(...wordIds).all<{ id: number; list_id: number; status: WordStatus }>();
+    if (picked.results.length !== wordIds.length) throw new AppError(404, 'word not found');
+    const from = new Set(picked.results.map((w) => w.list_id));
+    if (from.size !== 1) throw new AppError(400, 'a page takes its words from one list');
+    const [only] = from;
+    if (listId !== null && listId !== only) throw new AppError(400, 'those words are in another list');
+    listId = only;
+    if (picked.results.some((w) => w.status !== 'inbox' && w.status !== 'unverified')) {
+      throw new AppError(409, 'only words waiting or still to check can go on a new page');
+    }
+  }
   if (listId === null) {
     listId = pickList(lists);
     if (listId === null) {
@@ -468,11 +505,15 @@ export async function createPage(db: D1Database, size: number, listId: number | 
     if (!list) throw new AppError(404, 'list not found');
     if (list.archived) throw new AppError(409, 'that list is archived');
   }
-  const inbox = await db
-    .prepare(`SELECT id FROM words WHERE status = 'inbox' AND list_id = ? ORDER BY source_order LIMIT ?`)
-    .bind(listId, size)
-    .all<{ id: number }>();
-  if (inbox.results.length === 0) throw new AppError(409, 'no words from that list are waiting for a page');
+  const ids =
+    wordIds ??
+    (
+      await db
+        .prepare(`SELECT id FROM words WHERE status = 'inbox' AND list_id = ? ORDER BY source_order LIMIT ?`)
+        .bind(listId, size)
+        .all<{ id: number }>()
+    ).results.map((w) => w.id);
+  if (ids.length === 0) throw new AppError(409, 'no words from that list are waiting for a page');
   // One batch: a failure leaves no empty page behind. The new page is the one
   // with the highest number, inside the batch's transaction.
   const newPage = '(SELECT id FROM pages WHERE number = (SELECT MAX(number) FROM pages))';
@@ -481,17 +522,122 @@ export async function createPage(db: D1Database, size: number, listId: number | 
       db
         .prepare(`INSERT INTO pages (number, stage, list_id, created_at) VALUES ((SELECT IFNULL(MAX(number), 0) + 1 FROM pages), 'ordered', ?, ?)`)
         .bind(listId, iso(now)),
-      ...inbox.results.flatMap((w, i) => [
-        db.prepare(`INSERT INTO page_words (page_id, word_id, position) VALUES (${newPage}, ?, ?)`).bind(w.id, i),
-        db.prepare(`UPDATE words SET status = 'on_page', updated_at = ? WHERE id = ?`).bind(iso(now), w.id),
+      ...ids.flatMap((id, i) => [
+        db.prepare(`INSERT INTO page_words (page_id, word_id, position) VALUES (${newPage}, ${PICKED_WORD}, ?)`).bind(id, listId, i),
+        db.prepare(`UPDATE words SET status = 'on_page', updated_at = ? WHERE id = ?`).bind(iso(now), id),
       ]),
     ]);
   } catch (e) {
-    if (isUniqueViolation(e)) throw new AppError(409, 'those words were just put on another page; try again');
-    throw e;
+    throw wordsTakenMeanwhile(e) || e;
   }
   const created = await db.prepare('SELECT MAX(id) AS id FROM pages').first<{ id: number }>();
   return getPage(db, created!.id);
+}
+
+export interface PageWordChange {
+  /** The word to take off the page; null adds a word at the end instead. */
+  wordId: number | null;
+  /** The word that takes its place: one you picked, the list's next waiting word, or none (the page gets shorter). */
+  replacement: number | 'next' | null;
+  /** The word taken off is set aside instead of going back to waiting. */
+  setAside?: boolean;
+}
+
+/**
+ * Changes one word of a new page (still in step 1): swaps it for another
+ * word from the page's list, takes it off, or adds a word. The word taken off
+ * goes back to waiting, or is set aside. Positions stay 1…n with no gaps.
+ */
+export async function changePageWord(db: D1Database, pageId: number, change: PageWordChange, now: Date): Promise<PageDetail> {
+  const page = await getPage(db, pageId);
+  if (page.stage !== 'ordered') throw new AppError(409, 'only a page still in step 1 can change its words');
+  if (page.listId === null) throw new AppError(409, 'this page has no list');
+  const listId = page.listId;
+  const out = change.wordId === null ? null : page.words.find((w) => w.id === change.wordId);
+  if (change.wordId !== null && !out) throw new AppError(404, 'that word is not on this page');
+  if (!out && change.replacement === null) throw new AppError(400, 'pick a word to add');
+  if (!out && page.words.length >= MAX_PAGE_WORDS) throw new AppError(409, `a page holds at most ${MAX_PAGE_WORDS} words`);
+  if (out && change.replacement === null && page.words.length === 1) throw new AppError(409, 'this is the last word on the page; delete the page instead');
+
+  let incoming: number | null = null;
+  if (change.replacement === 'next') {
+    const next = await db
+      .prepare(`SELECT id FROM words WHERE status = 'inbox' AND list_id = ? ORDER BY source_order LIMIT 1`)
+      .bind(listId)
+      .first<{ id: number }>();
+    if (!next) throw new AppError(409, `no other words from ${page.listName ?? 'this list'} are waiting`);
+    incoming = next.id;
+  } else if (change.replacement !== null) {
+    if (!Number.isInteger(change.replacement)) throw new AppError(400, 'replacement must be a word id, "next" or null');
+    const word = await db.prepare('SELECT list_id, status FROM words WHERE id = ?').bind(change.replacement).first<{ list_id: number; status: WordStatus }>();
+    if (!word) throw new AppError(404, 'word not found');
+    if (word.list_id !== listId) throw new AppError(400, `a page takes its words from one list: pick one from ${page.listName ?? 'its list'}`);
+    if (word.status !== 'inbox' && word.status !== 'unverified') throw new AppError(409, 'only a word waiting or still to check can go on the page');
+    incoming = change.replacement;
+  }
+  if (incoming !== null && incoming === out?.id) throw new AppError(400, 'that word is already in this spot');
+
+  // One batch, guarded so it does nothing unless the page is still in step 1
+  // and the word still in its spot. If the word didn't come off, putting the
+  // new one in its spot breaks the (page, position) key and rolls it all back.
+  const stillNew = `EXISTS (SELECT 1 FROM pages WHERE id = ? AND stage = 'ordered')`;
+  const stmts: D1PreparedStatement[] = [];
+  const position = out ? out.position : page.words.length;
+  if (out) {
+    stmts.push(
+      db.prepare(`DELETE FROM page_words WHERE page_id = ? AND word_id = ? AND position = ? AND ${stillNew}`).bind(pageId, out.id, position, pageId),
+      db
+        .prepare(`UPDATE words SET status = ?, updated_at = ? WHERE id = ? AND status = 'on_page' AND NOT EXISTS (SELECT 1 FROM page_words WHERE word_id = ?)`)
+        .bind(change.setAside ? 'ignored' : 'inbox', iso(now), out.id, out.id),
+    );
+  }
+  if (incoming !== null) {
+    stmts.push(
+      db.prepare(`INSERT INTO page_words (page_id, word_id, position) SELECT ?, ${PICKED_WORD}, ? WHERE ${stillNew}`).bind(pageId, incoming, listId, position, pageId),
+      db.prepare(`UPDATE words SET status = 'on_page', updated_at = ? WHERE id = ? AND EXISTS (SELECT 1 FROM page_words WHERE word_id = ? AND page_id = ?)`).bind(iso(now), incoming, incoming, pageId),
+    );
+  } else {
+    // Close the gap, in two steps so no two words share a position on the way.
+    const emptied = `NOT EXISTS (SELECT 1 FROM page_words WHERE page_id = ? AND position = ?)`;
+    stmts.push(
+      db.prepare(`UPDATE page_words SET position = -position WHERE page_id = ? AND position > ? AND ${emptied}`).bind(pageId, position, pageId, position),
+      db.prepare(`UPDATE page_words SET position = -position - 1 WHERE page_id = ? AND position < 0`).bind(pageId),
+    );
+  }
+  let results: D1Result[];
+  try {
+    results = await db.batch(stmts);
+  } catch (e) {
+    throw wordsTakenMeanwhile(e) || e;
+  }
+  // Adding: the insert is the first statement. Otherwise the delete.
+  if (!results[0]?.meta.changes) throw new AppError(409, 'this page just changed elsewhere; reload and try again');
+  return getPage(db, pageId);
+}
+
+/**
+ * Deletes a page. Words on an unfinished page go back to waiting. A learned
+ * page's words stay in review with their history; only the page goes.
+ */
+export async function deletePage(db: D1Database, id: number, now: Date): Promise<void> {
+  const page = await getPage(db, id);
+  // Guarded on the stage seen here, so a page graduated in between (on the
+  // other device) isn't emptied as if it were unfinished.
+  const sameStage = `EXISTS (SELECT 1 FROM pages WHERE id = ? AND stage = ?)`;
+  const stmts: D1PreparedStatement[] = [];
+  if (page.stage !== 'graduated') {
+    stmts.push(
+      db
+        .prepare(`UPDATE words SET status = 'inbox', updated_at = ? WHERE id IN (SELECT word_id FROM page_words WHERE page_id = ?) AND status = 'on_page' AND ${sameStage}`)
+        .bind(iso(now), id, id, page.stage),
+    );
+  }
+  stmts.push(
+    db.prepare(`DELETE FROM page_words WHERE page_id = ? AND ${sameStage}`).bind(id, id, page.stage),
+    db.prepare(`DELETE FROM pages WHERE id = ? AND stage = ?`).bind(id, page.stage),
+  );
+  const results = await db.batch(stmts);
+  if (!results.at(-1)?.meta.changes) throw new AppError(409, 'this page just changed elsewhere; reload and try again');
 }
 
 interface PageRow {

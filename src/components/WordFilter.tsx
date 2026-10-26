@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { countStates, filterWords, WORD_STATES, type Searchable, type WordState } from '../../shared/wordSearch';
 
 // The search box and state filters for a list's words. The list screen uses
-// it now; building a page from picked words will use it too.
+// it, and so does picking words for a page (WordPicker).
 
 export function useWordFilter<T extends Searchable>(words: readonly T[], initial: WordState[] = []) {
   const [text, setText] = useState('');

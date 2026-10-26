@@ -1,8 +1,8 @@
 import { normalizeKana } from './kana';
 
 // Finding words in a list: one search box for kana, romaji, kanji or meaning,
-// and filters by state. Pure, so the list screen and the page builder (v0.2
-// step 3) share it, and it's unit tested.
+// and filters by state. Pure, so the list screen and the page picker share
+// it, and it's unit tested.
 
 export type WordState = 'unverified' | 'inbox' | 'on_page' | 'graduated' | 'ignored';
 
