@@ -1,9 +1,9 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { beforeEach, describe, expect, it } from 'vitest';
-import { BACKUP_SCHEMA, BACKUP_TABLES, backupToSql, dateOfBackupFile, KEEP_DAYS, nightlyIsStale, parseBackup, schemaCheck, type Backup } from '../shared/backup';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { BACKUP_SCHEMA, BACKUP_TABLES, backupToSql, dateOfBackupFile, KEEP_DAYS, nightlyIsStale, parseBackup, schemaCheck, TABLE_SINCE, type Backup } from '../shared/backup';
 import { parseRenshuuExport } from '../shared/renshuu';
 import { Rating } from '../shared/scheduler';
 import { nightlyStatus, saveNightly } from '../worker/backup';
@@ -19,9 +19,18 @@ const dayEnd = new Date('2026-10-26T03:00:00Z');
 const days = (d: Date, n: number) => new Date(d.getTime() + n * 86_400_000);
 
 let db: D1Database;
+const tempDirs: string[] = [];
 beforeEach(() => {
   db = createTestDb();
 });
+afterEach(() => {
+  for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+});
+const tempDir = () => {
+  const dir = mkdtempSync(join(tmpdir(), 'shiori-backup-'));
+  tempDirs.push(dir);
+  return dir;
+};
 
 /** Some of everything: checked words, a graduated page, a review, furigana settings and a peek. */
 async function studySomething() {
@@ -88,6 +97,28 @@ describe('backup file', () => {
     expect((await repo.exportAll(other, now)).tables).toEqual(backup.tables);
   });
 
+  it('loads a backup from before a table existed, with that table empty', async () => {
+    await studySomething();
+    const backup = await repo.exportAll(db, now);
+    const old = structuredClone(backup) as unknown as Record<string, unknown> & Backup;
+    old.schema = '0001_init';
+    for (const t of BACKUP_TABLES) if (TABLE_SINCE[t] > '0001_init') delete (old.tables as Partial<Backup['tables']>)[t];
+    const parsed = parseBackup(JSON.stringify(old));
+    expect(parsed.tables.settings).toEqual([]);
+    expect(parsed.tables.kanji_hints).toEqual([]);
+    const restored = createTestDb();
+    await restored.exec(backupToSql(parsed));
+    expect((await repo.exportAll(restored, now)).tables.words).toEqual(backup.tables.words);
+    // A current backup without a table is broken, not old.
+    delete (backup.tables as Partial<Backup['tables']>).settings;
+    expect(() => parseBackup(JSON.stringify(backup))).toThrow('missing table settings');
+  });
+
+  it('knows which migration added each table', () => {
+    const migrations = readdirSync(join(root, 'migrations')).map((f) => f.replace(/\.sql$/, ''));
+    for (const t of BACKUP_TABLES) expect(migrations, t).toContain(TABLE_SINCE[t]);
+  });
+
   it('refuses files that are not a Shiori backup', async () => {
     const good = await repo.exportAll(db, now);
     const bad = (change: (b: Backup) => unknown) => {
@@ -121,7 +152,7 @@ describe('backup helpers', () => {
   it('checks the backup schema against the migrations', () => {
     const files = ['0002_furigana.sql', '0001_init.sql', 'README.md'];
     expect(schemaCheck('0002_furigana', files)).toEqual({});
-    expect(schemaCheck('0001_init', files).note).toContain('columns added since then take their defaults');
+    expect(schemaCheck('0001_init', files).note).toContain('tables and columns added since then start empty or with their defaults');
     expect(schemaCheck('0003_later', files).error).toContain("which this code doesn't have");
   });
 });
@@ -133,7 +164,7 @@ describe('restore script', () => {
   it('prints the same SQL as the app builds', async () => {
     await studySomething();
     const backup = await repo.exportAll(db, now);
-    const dir = mkdtempSync(join(tmpdir(), 'shiori-backup-'));
+    const dir = tempDir();
     writeFileSync(join(dir, 'b.json'), JSON.stringify(backup));
     const r = script(join(dir, 'b.json'));
     expect(r.stderr).toBe('');
@@ -142,7 +173,7 @@ describe('restore script', () => {
   });
 
   it('refuses a backup from newer code, and notes an older one', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'shiori-backup-'));
+    const dir = tempDir();
     const backup = await repo.exportAll(db, now);
     writeFileSync(join(dir, 'new.json'), JSON.stringify({ ...backup, schema: '9999_future' }));
     expect(script(join(dir, 'new.json'))).toMatchObject({ status: 1, stdout: '' });
@@ -153,7 +184,7 @@ describe('restore script', () => {
   });
 
   it('says what is wrong with a bad file', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'shiori-backup-'));
+    const dir = tempDir();
     writeFileSync(join(dir, 'b.json'), '{"app":"anki"}');
     const r = script(join(dir, 'b.json'));
     expect(r.status).toBe(1);

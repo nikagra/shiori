@@ -114,7 +114,7 @@ function Backup() {
         {busy ? 'Preparing…' : 'Download backup'}
       </button>
       {error && <p className="error">{error}</p>}
-      <p className={savedAt && nightlyIsStale(savedAt, new Date()) ? 'error' : 'muted'} data-testid="nightly-status">
+      <p className={nightlyError || (savedAt && nightlyIsStale(savedAt, new Date())) ? 'error' : 'muted'} data-testid="nightly-status">
         {nightlyError
           ? 'Could not check the nightly copies.'
           : !nightly

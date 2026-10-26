@@ -196,10 +196,13 @@ why an honest Again early on is cheaper than a lucky Good.
 - **Nightly copy.** A cron trigger (03:30 UTC, `wrangler.jsonc`) saves the same
   file to the private R2 bucket `shiori-backups` as
   `nightly/shiori-backup-YYYY-MM-DD.json` and deletes copies older than
-  `KEEP_DAYS` (30 files kept). Home shows when the last one was saved, and
-  turns red when it's more than a day and a half old, because that means the
-  nightly runs are failing (see the Worker logs). The bucket must
-  exist before a deploy: `npx wrangler r2 bucket create shiori-backups`.
+  `KEEP_DAYS` (30) days, so a missed night leaves a gap. Home shows when the
+  last one was saved, and turns red when it's more than a day and a half old,
+  because that means the nightly runs are failing (see the Worker logs). Until
+  the first copy exists it can't tell a failing run from one that hasn't
+  happened yet, so check Home the morning after a deploy that touches this.
+  The bucket must exist before a deploy:
+  `npx wrangler r2 bucket create shiori-backups`.
 - **Time Travel.** D1 also keeps its own point-in-time history (7 days on the
   free plan, 30 on paid), which is the quickest undo while the database exists.
   The files are for everything else: a deleted database, a lost account, or
@@ -219,8 +222,10 @@ why an honest Again early on is cheaper than a lucky Good.
 
 The script checks the backup's schema against `migrations/`: it refuses a
 backup from code newer than the checkout, and notes an older one. An older
-backup still loads, because each INSERT names its columns; new columns take
-their defaults.
+backup still loads: each INSERT names its columns, so new columns take their
+defaults, and a table added after the backup (`TABLE_SINCE`) starts empty.
+If a `--replace` load fails partway, fix the cause and run the same file
+again (its deletes come first), or rewind with Time Travel.
 
 ## Architecture
 
@@ -255,8 +260,8 @@ their defaults.
 - `npm test` runs Vitest over `test/`: pure logic and the database layer
   against a local D1.
 - `npm run test:e2e` runs Playwright at iPhone and laptop sizes, on port 5174
-  with its own database in `.wrangler/e2e`. The test-only endpoints
-  (`/api/test/reset`, `/api/test/make-due`, `/api/test/nightly`) are on only for that server. Never
-  point the end-to-end tests at `.wrangler/state`: an early run wiped real
-  study data that way.
+  with its own database (and R2 copies) in `.wrangler/e2e`. The test-only
+  endpoints (`/api/test/reset`, `/api/test/make-due`, `/api/test/nightly`)
+  are on only for that server. Never point the end-to-end tests at
+  `.wrangler/state`: an early run wiped real study data that way.
 - Commits end their subject line with an emoji that fits the change.

@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
+import { BACKUP_FORMAT, BACKUP_SCHEMA } from '../shared/backup';
 import { expectNoHorizontalScroll, graduatePage, resetDb, seedWords, shot } from './helpers';
 
 test.beforeEach(async ({ request }) => {
@@ -19,7 +20,7 @@ test('download a backup of everything, and see the nightly copy', async ({ page,
   const [download] = await Promise.all([page.waitForEvent('download'), section.getByRole('button', { name: 'Download backup' }).click()]);
   const backup = JSON.parse(readFileSync((await download.path())!, 'utf8'));
   expect(download.suggestedFilename()).toBe(`shiori-backup-${backup.exportedAt.slice(0, 10)}.json`);
-  expect(backup).toMatchObject({ app: 'shiori', format: 1, schema: '0002_furigana' });
+  expect(backup).toMatchObject({ app: 'shiori', format: BACKUP_FORMAT, schema: BACKUP_SCHEMA });
   expect(backup.tables.words).toHaveLength(48);
   expect(backup.tables.pages).toHaveLength(1);
   expect(backup.tables.page_words).toHaveLength(4);

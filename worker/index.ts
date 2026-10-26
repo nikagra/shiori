@@ -9,7 +9,7 @@ export interface Env {
   DB: D1Database;
   /** Private bucket for the nightly copies (worker/backup.ts). */
   BACKUPS: R2Bucket;
-  /** Set to "1" only by the end-to-end test server (vite.config.ts); enables reset and time-travel endpoints. */
+  /** Set to "1" only by the end-to-end test server (vite.config.ts); enables the /test endpoints (reset, time travel, a nightly backup run). */
   ALLOW_TEST_ENDPOINTS?: string;
 }
 

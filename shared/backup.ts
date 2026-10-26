@@ -6,6 +6,17 @@
 export const BACKUP_TABLES = ['words', 'pages', 'page_words', 'cards', 'review_log', 'settings', 'kanji_hints'] as const;
 export type BackupTable = (typeof BACKUP_TABLES)[number];
 
+/** The migration that added each table: a backup from before it has no rows for it. */
+export const TABLE_SINCE: Record<BackupTable, string> = {
+  words: '0001_init',
+  pages: '0001_init',
+  page_words: '0001_init',
+  cards: '0001_init',
+  review_log: '0001_init',
+  settings: '0002_furigana',
+  kanji_hints: '0002_furigana',
+};
+
 /** The latest migration the backup's rows fit. A test keeps it in step with migrations/. */
 export const BACKUP_SCHEMA = '0002_furigana';
 export const BACKUP_FORMAT = 1;
@@ -47,7 +58,7 @@ export const nightlyIsStale = (savedAt: string, now: Date) => now.getTime() - ne
 export function schemaCheck(schema: string, migrationFiles: string[]): { error?: string; note?: string } {
   const names = migrationFiles.filter((f) => f.endsWith('.sql')).map((f) => f.slice(0, -4)).sort();
   if (!names.includes(schema)) return { error: `the backup is from migration ${schema}, which this code doesn't have; update the code first` };
-  if (schema !== names.at(-1)) return { note: `the backup is from migration ${schema}; columns added since then take their defaults` };
+  if (schema !== names.at(-1)) return { note: `the backup is from migration ${schema}; tables and columns added since then start empty or with their defaults` };
   return {};
 }
 
@@ -72,6 +83,8 @@ export function parseBackup(text: string): Backup {
     if (!(BACKUP_TABLES as readonly string[]).includes(name)) throw new BackupError(`unknown table ${name}`);
   }
   for (const table of BACKUP_TABLES) {
+    // Migration names sort in order, so an older backup simply lacks the newer tables.
+    if (b.tables[table] === undefined && b.schema < TABLE_SINCE[table]) b.tables[table] = [];
     const rows = b.tables[table];
     if (!Array.isArray(rows)) throw new BackupError(`missing table ${table}`);
     for (const row of rows) {
