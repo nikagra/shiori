@@ -158,6 +158,13 @@ test('check words from one list, and the choice is remembered', async ({ page, r
   await expect(page.getByTestId('triage-remaining')).toHaveText('5 left');
   await expectNoHorizontalScroll(page);
   await shot(page, testInfo, '44-check-from-list');
+  // The Lists tab links straight to one list's check.
+  await page.goto('/#/lists');
+  await page.getByRole('link', { name: 'Check School’s 5 words' }).click();
+  await expect(page.getByTestId('triage-remaining')).toHaveText('5 left');
+  await page.getByLabel('From list').selectOption({ label: 'All lists, by priority' });
+  await page.goto('/#/lists');
+  await page.getByRole('link', { name: 'Check School’s 5 words' }).click();
   await page.reload();
   await expect(page.getByTestId('triage-remaining')).toHaveText('5 left');
   // Finishing the list moves on to all the others.

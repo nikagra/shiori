@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, studyDay, type ListChanges, type ListSummary } from '../api';
 import { Notice } from '../components/ui';
+import { useSettings } from '../settings';
 import { FOCUS_BOOST, MAX_NAME, MAX_PAGES_PER_WEEK, NEW_PER_DAY, WEIGHTS } from '../../shared/lists';
 
 const WEIGHT_LABELS: [keyof typeof WEIGHTS, string][] = [
@@ -116,6 +117,7 @@ function ListCard({
   show: (changes: Pick<ListSummary, 'weight' | 'pagesPerWeek' | 'paused'>) => void;
 }) {
   const update = (changes: ListChanges) => run(() => api.updateList(l.id, changes));
+  const [, updateSettings] = useSettings();
   const setPace = (changes: Partial<Pick<ListSummary, 'weight' | 'pagesPerWeek' | 'paused'>>) => {
     show({ weight: l.weight, pagesPerWeek: l.pagesPerWeek, paused: l.paused, ...changes });
     return update(changes);
@@ -152,6 +154,11 @@ function ListCard({
         Today: {plural(l.newToday, 'new card')} · {plural(l.pagesThisWeek, 'page')} in the last 7 days
         {l.pagesPerWeek ? ` (target ${l.pagesPerWeek})` : ''}
       </p>
+      {l.counts.toCheck > 0 && !l.archived && (
+        <a href="#/check" className="small" onClick={() => updateSettings({ checkList: l.id })}>
+          Check {l.name}’s {plural(l.counts.toCheck, 'word')}
+        </a>
+      )}
 
       <div className="row row--between">
         <span>Weight</span>
