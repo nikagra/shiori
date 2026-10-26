@@ -173,5 +173,5 @@ test('check words from one list, and the choice is remembered', async ({ page, r
     await page.getByRole('button', { name: 'I didn’t know' }).click();
   }
   await expect(page.getByTestId('triage-remaining')).toHaveText('48 left');
-  await expect(page.getByLabel('From list')).toHaveCount(0);
+  await expect(page.getByLabel('From list')).toHaveValue('');
 });

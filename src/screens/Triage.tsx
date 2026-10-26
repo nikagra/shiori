@@ -81,7 +81,7 @@ export function Triage() {
   if (!batch || !lists) return <p className="muted">Loading…</p>;
 
   const toCheck = lists.filter((l) => !l.archived && l.counts.toCheck > 0);
-  const picker = toCheck.length > 1 && (
+  const picker = toCheck.length > 0 && (
     <label className="field">
       <span>From list</span>
       <select value={from ?? ''} onChange={(e) => update({ checkList: e.target.value === '' ? null : Number(e.target.value) })}>
