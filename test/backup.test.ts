@@ -1,0 +1,222 @@
+import { execFileSync, spawnSync } from 'node:child_process';
+import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { BACKUP_SCHEMA, BACKUP_TABLES, backupToSql, dateOfBackupFile, KEEP_DAYS, nightlyIsStale, parseBackup, schemaCheck, type Backup } from '../shared/backup';
+import { parseRenshuuExport } from '../shared/renshuu';
+import { Rating } from '../shared/scheduler';
+import { nightlyStatus, saveNightly } from '../worker/backup';
+import * as repo from '../worker/db';
+import { createTestDb } from './d1';
+
+const root = join(import.meta.dirname, '..');
+const words = parseRenshuuExport(readFileSync(join(root, 'test', 'fixtures', 'renshuu_custom_sample.txt'), 'utf8')).words;
+
+const now = new Date('2026-10-25T20:00:00Z');
+const dayStart = new Date('2026-10-25T03:00:00Z');
+const dayEnd = new Date('2026-10-26T03:00:00Z');
+const days = (d: Date, n: number) => new Date(d.getTime() + n * 86_400_000);
+
+let db: D1Database;
+beforeEach(() => {
+  db = createTestDb();
+});
+
+/** Some of everything: checked words, a graduated page, a review, furigana settings and a peek. */
+async function studySomething() {
+  await repo.importWords(db, words, 'manga', now);
+  const { words: batch } = await repo.triageNext(db, 14);
+  for (const w of batch.slice(0, 2)) await repo.triageAnswer(db, w.id, 'known', now);
+  for (const w of batch.slice(2, 14)) await repo.triageAnswer(db, w.id, 'unknown', now);
+  await repo.triageAnswer(db, (await repo.triageNext(db, 1)).words[0].id, 'ignore', now);
+  const page = await repo.createPage(db, 10, now);
+  await repo.completeStage(db, page.id, 'ordered', dayEnd, now);
+  await repo.completeStage(db, page.id, 'shuffled', dayEnd, now);
+  await repo.createPage(db, 10, now).catch(() => undefined);
+  const later = days(now, 2);
+  const q = await repo.reviewQueue(db, days(dayStart, 2), days(dayEnd, 2), 50);
+  await repo.submitReview(db, { cardId: q.items[0].cardId, rating: Rating.Hard, hintUsed: true, answer: 'たすける', correct: true, durationMs: 4200 }, later);
+  await repo.setFurigana(db, { kanjiLevel: 'n5', knownKanji: '誰', learningKanji: '' }, now);
+  const withKanji = page.words.find((w) => w.kanji)!;
+  await repo.recordFuriganaHint(db, withKanji.id, withKanji.kanji!.replace(/[^\p{Script=Han}]/gu, ''), later);
+  // Quotes, semicolons and line breaks must survive the trip through SQL.
+  await repo.updateCoreMeaning(db, batch[0].id, "it's; a test\n-- not a comment", now);
+  return batch[0].id;
+}
+
+async function tableNames(d: D1Database) {
+  const r = await d.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'").all<{ name: string }>();
+  return r.results.map((t) => t.name).sort();
+}
+
+describe('backup file', () => {
+  it('covers every table in the schema', async () => {
+    expect([...BACKUP_TABLES].sort()).toEqual(await tableNames(db));
+  });
+
+  it('names the latest migration as its schema', () => {
+    const latest = readdirSync(join(root, 'migrations')).filter((f) => f.endsWith('.sql')).sort().at(-1);
+    expect(`${BACKUP_SCHEMA}.sql`).toBe(latest);
+  });
+
+  it('holds every row, and loads back into an empty database unchanged', async () => {
+    const edited = await studySomething();
+    const backup = await repo.exportAll(db, now);
+    expect(backup).toMatchObject({ app: 'shiori', format: 1, schema: BACKUP_SCHEMA, exportedAt: now.toISOString() });
+    for (const t of BACKUP_TABLES) {
+      expect(backup.tables[t].length, t).toBeGreaterThan(0);
+      const { n } = (await db.prepare(`SELECT COUNT(*) AS n FROM ${t}`).first<{ n: number }>())!;
+      expect(backup.tables[t].length, t).toBe(n);
+    }
+
+    const restored = createTestDb();
+    await restored.exec(backupToSql(parseBackup(JSON.stringify(backup))));
+    expect((await repo.exportAll(restored, now)).tables).toEqual(backup.tables);
+    // The restored copy works as a study database, not just a pile of rows.
+    expect(await repo.stats(restored, days(dayStart, 2), days(dayEnd, 2))).toEqual(await repo.stats(db, days(dayStart, 2), days(dayEnd, 2)));
+    expect((await repo.getWord(restored, edited)).coreMeaning).toBe("it's; a test\n-- not a comment");
+  });
+
+  it('with replace, loads over a database that already has rows', async () => {
+    await studySomething();
+    const backup = await repo.exportAll(db, now);
+    const other = createTestDb();
+    await repo.importWords(other, words.slice(0, 5), 'school', now);
+    await expect(other.exec(backupToSql(backup))).rejects.toThrow();
+    await other.exec(backupToSql(backup, { replace: true }));
+    expect((await repo.exportAll(other, now)).tables).toEqual(backup.tables);
+  });
+
+  it('refuses files that are not a Shiori backup', async () => {
+    const good = await repo.exportAll(db, now);
+    const bad = (change: (b: Backup) => unknown) => {
+      const b = structuredClone(good) as unknown as Backup;
+      change(b);
+      return () => parseBackup(JSON.stringify(b));
+    };
+    expect(() => parseBackup('{oops')).toThrow('not a JSON file');
+    expect(bad((b) => ((b as { app: string }).app = 'anki'))).toThrow('not a Shiori backup');
+    expect(bad((b) => ((b as { format: number }).format = 2))).toThrow('unsupported backup format 2');
+    expect(bad((b) => delete (b.tables as Partial<Backup['tables']>).cards)).toThrow('missing table cards');
+    expect(bad((b) => ((b.tables as Record<string, unknown>).users = []))).toThrow('unknown table users');
+    expect(bad((b) => b.tables.words.push({ 'id); DROP TABLE words; --': 1 }))).toThrow('bad column name');
+    expect(bad((b) => b.tables.words.push({ senses: ['a'] as unknown as string }))).toThrow('bad value in words.senses');
+  });
+});
+
+describe('backup helpers', () => {
+  it('reads the date back from a backup file name only', () => {
+    expect(dateOfBackupFile('shiori-backup-2026-10-25.json')).toBe('2026-10-25');
+    expect(dateOfBackupFile('notes.txt')).toBeNull();
+    expect(dateOfBackupFile('old-shiori-backup-2026-10-25.json')).toBeNull();
+  });
+
+  it('calls a nightly copy stale after a day and a half', () => {
+    const saved = '2026-10-25T03:30:00Z';
+    expect(nightlyIsStale(saved, new Date('2026-10-26T15:00:00Z'))).toBe(false);
+    expect(nightlyIsStale(saved, new Date('2026-10-26T16:00:00Z'))).toBe(true);
+  });
+
+  it('checks the backup schema against the migrations', () => {
+    const files = ['0002_furigana.sql', '0001_init.sql', 'README.md'];
+    expect(schemaCheck('0002_furigana', files)).toEqual({});
+    expect(schemaCheck('0001_init', files).note).toContain('columns added since then take their defaults');
+    expect(schemaCheck('0003_later', files).error).toContain("which this code doesn't have");
+  });
+});
+
+describe('restore script', () => {
+  const script = (...args: string[]) =>
+    spawnSync(process.execPath, ['--experimental-strip-types', '--no-warnings', join(root, 'scripts', 'backup-to-sql.ts'), ...args], { encoding: 'utf8' });
+
+  it('prints the same SQL as the app builds', async () => {
+    await studySomething();
+    const backup = await repo.exportAll(db, now);
+    const dir = mkdtempSync(join(tmpdir(), 'shiori-backup-'));
+    writeFileSync(join(dir, 'b.json'), JSON.stringify(backup));
+    const r = script(join(dir, 'b.json'));
+    expect(r.stderr).toBe('');
+    expect(r.stdout).toBe(backupToSql(backup));
+    expect(script(join(dir, 'b.json'), '--replace').stdout).toBe(backupToSql(backup, { replace: true }));
+  });
+
+  it('refuses a backup from newer code, and notes an older one', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'shiori-backup-'));
+    const backup = await repo.exportAll(db, now);
+    writeFileSync(join(dir, 'new.json'), JSON.stringify({ ...backup, schema: '9999_future' }));
+    expect(script(join(dir, 'new.json'))).toMatchObject({ status: 1, stdout: '' });
+    writeFileSync(join(dir, 'old.json'), JSON.stringify({ ...backup, schema: '0001_init' }));
+    const old = script(join(dir, 'old.json'));
+    expect(old.status).toBe(0);
+    expect(old.stderr).toContain('note: the backup is from migration 0001_init');
+  });
+
+  it('says what is wrong with a bad file', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'shiori-backup-'));
+    writeFileSync(join(dir, 'b.json'), '{"app":"anki"}');
+    const r = script(join(dir, 'b.json'));
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain('not a Shiori backup');
+    expect(() => execFileSync(process.execPath, ['--experimental-strip-types', join(root, 'scripts', 'backup-to-sql.ts')], { stdio: 'pipe' })).toThrow();
+  });
+});
+
+/** Just enough of R2 for the nightly backup: put, paged list, delete. */
+class FakeBucket {
+  objects = new Map<string, { body: string; uploaded: Date }>();
+  clock = now;
+
+  async put(key: string, body: string) {
+    this.objects.set(key, { body, uploaded: this.clock });
+  }
+  async list({ prefix = '', cursor }: { prefix?: string; cursor?: string }) {
+    const keys = [...this.objects.keys()].filter((k) => k.startsWith(prefix)).sort();
+    const start = cursor ? Number(cursor) : 0;
+    const page = keys.slice(start, start + 2);
+    const truncated = start + 2 < keys.length;
+    const objects = page.map((key) => ({ key, uploaded: this.objects.get(key)!.uploaded, size: this.objects.get(key)!.body.length }));
+    return { objects, truncated, cursor: truncated ? String(start + 2) : undefined };
+  }
+  async delete(keys: string | string[]) {
+    for (const k of [keys].flat()) this.objects.delete(k);
+  }
+}
+
+describe('nightly backup', () => {
+  it('saves one file a day and keeps the last 30 days', async () => {
+    await studySomething();
+    const bucket = new FakeBucket();
+    const r2 = bucket as unknown as R2Bucket;
+    expect(await nightlyStatus(r2)).toEqual({ latest: null, count: 0 });
+
+    for (let i = 0; i <= KEEP_DAYS + 4; i++) {
+      bucket.clock = days(now, i);
+      await saveNightly(db, r2, days(now, i));
+    }
+    const last = days(now, KEEP_DAYS + 4);
+    // A second run on the same day replaces that day's file.
+    await saveNightly(db, r2, last);
+
+    const keys = [...bucket.objects.keys()].sort();
+    expect(keys).toHaveLength(KEEP_DAYS);
+    expect(keys[0]).toBe(`nightly/shiori-backup-${days(last, 1 - KEEP_DAYS).toISOString().slice(0, 10)}.json`);
+    expect(keys.at(-1)).toBe('nightly/shiori-backup-2026-11-28.json');
+
+    const saved = parseBackup(bucket.objects.get(keys.at(-1)!)!.body);
+    expect(saved.tables).toEqual((await repo.exportAll(db, last)).tables);
+
+    const status = await nightlyStatus(r2);
+    expect(status.count).toBe(KEEP_DAYS);
+    expect(status.latest).toMatchObject({ date: '2026-11-28', savedAt: last.toISOString() });
+    expect(status.latest!.size).toBeGreaterThan(1000);
+  });
+
+  it('leaves other files in the bucket alone', async () => {
+    const bucket = new FakeBucket();
+    await bucket.put('nightly/notes.txt', 'keep me');
+    await bucket.put('manual/shiori-backup-2020-01-01.json', '{}');
+    await saveNightly(db, bucket as unknown as R2Bucket, now);
+    expect([...bucket.objects.keys()].sort()).toEqual(['manual/shiori-backup-2020-01-01.json', 'nightly/notes.txt', 'nightly/shiori-backup-2026-10-25.json']);
+  });
+});

@@ -1,10 +1,14 @@
 import { Hono } from 'hono';
+import { backupFileName } from '../shared/backup';
 import { parseRenshuuExport } from '../shared/renshuu';
 import { Rating, type Grade } from '../shared/scheduler';
+import { clearNightly, nightlyStatus, saveNightly } from './backup';
 import * as db from './db';
 
 export interface Env {
   DB: D1Database;
+  /** Private bucket for the nightly copies (worker/backup.ts). */
+  BACKUPS: R2Bucket;
   /** Set to "1" only by the end-to-end test server (vite.config.ts); enables reset and time-travel endpoints. */
   ALLOW_TEST_ENDPOINTS?: string;
 }
@@ -110,6 +114,15 @@ app.post('/furigana/hint', async (c) => {
   return c.json(await db.recordFuriganaHint(c.env.DB, intParam(body.wordId, 'wordId'), String(body.kanji ?? ''), new Date()));
 });
 
+app.get('/backup', async (c) => {
+  const backup = await db.exportAll(c.env.DB, new Date());
+  c.header('Content-Disposition', `attachment; filename="${backupFileName(backup.exportedAt)}"`);
+  c.header('Cache-Control', 'no-store');
+  return c.json(backup);
+});
+
+app.get('/backup/nightly', async (c) => c.json(await nightlyStatus(c.env.BACKUPS)));
+
 // Test-only endpoints, never enabled in production.
 app.use('/test/*', async (c, next) => {
   if (c.env.ALLOW_TEST_ENDPOINTS !== '1') return c.json({ error: 'not found' }, 404);
@@ -117,8 +130,10 @@ app.use('/test/*', async (c, next) => {
 });
 app.post('/test/reset', async (c) => {
   await db.resetAll(c.env.DB);
+  await clearNightly(c.env.BACKUPS);
   return c.json({ ok: true });
 });
+app.post('/test/nightly', async (c) => c.json({ key: await saveNightly(c.env.DB, c.env.BACKUPS, new Date()) }));
 app.post('/test/make-due', async (c) => {
   const direction = c.req.query('direction');
   if (direction !== undefined && direction !== 'jp_en' && direction !== 'en_jp') throw new db.AppError(400, 'direction must be jp_en or en_jp');
@@ -128,4 +143,10 @@ app.post('/test/make-due', async (c) => {
 
 app.all('*', (c) => c.json({ error: 'not found' }, 404));
 
-export default app;
+export default {
+  fetch: app.fetch,
+  // The cron in wrangler.jsonc: one copy of the database a night.
+  async scheduled(controller, env) {
+    await saveNightly(env.DB, env.BACKUPS, new Date(controller.scheduledTime));
+  },
+} satisfies ExportedHandler<Env>;

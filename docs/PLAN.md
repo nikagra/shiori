@@ -26,8 +26,13 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   in `.wrangler/state`, separate from the cloud one. An old database holding
   only test data is kept in `.wrangler/state-test-backup-20261025` and can be
   deleted.
-- Tests on `main`: 56 unit tests, 34 end-to-end runs (17 tests at iPhone and laptop sizes), and `tsc -b` all
+- Tests: 69 unit tests, 38 end-to-end runs (19 tests at iPhone and laptop sizes), and `tsc -b` all
   pass.
+- **Backup and export** (26 Oct): Home › Backup downloads all study data as
+  one JSON file, a nightly cron saves the same file to the private R2 bucket
+  `shiori-backups` (30 days kept), and `npm run backup:sql` turns a file back
+  into SQL. A restore through local D1 was checked by hand. See "Backup and
+  restore" in DESIGN.md. Mikita enabled R2 and created the bucket on 26 Oct.
 - First iPhone feedback (25 Oct) is in: "Don't know" on review and drill
   cards, next words hidden in the in-order drill, "Study the page again",
   whole words on the grid, safer iOS speech. Sound on the iPhone still needs
@@ -35,8 +40,8 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
 
 ## Next steps, in order
 
-1. **Backup and export**: a way to download all study data, plus a scheduled
-   D1 export once deployed.
+1. ~~**Backup and export**~~: done (26 Oct). Check that the first nightly copy
+   shows on Home the morning after the deploy.
 2. **v0.2: capture while reading.** Matches the original plan
    ([plan doc](https://claude.ai/artifact/1J233eFb8H61zr7WbEZXas)):
    - Photo of a manga panel → Claude (called only from the Worker, with its own

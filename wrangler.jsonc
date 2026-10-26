@@ -18,6 +18,18 @@
       "migrations_dir": "migrations",
     }
   ],
+  // Private bucket for the nightly backups. Create it once with
+  // `npx wrangler r2 bucket create shiori-backups` before deploying.
+  "r2_buckets": [
+    {
+      "binding": "BACKUPS",
+      "bucket_name": "shiori-backups"
+    }
+  ],
+  // Nightly backup at 03:30 UTC (worker/backup.ts).
+  "triggers": {
+    "crons": ["30 3 * * *"]
+  },
   "observability": {
     "enabled": true
   }

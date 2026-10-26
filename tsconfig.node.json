@@ -4,7 +4,9 @@
     "composite": true,
     "tsBuildInfoFile": "./node_modules/.tmp/node.tsbuildinfo",
     "lib": ["ES2023", "DOM"],
-    "types": ["node", "@cloudflare/workers-types"]
+    "types": ["node", "@cloudflare/workers-types"],
+    // scripts/ runs in Node directly, which needs the .ts extension on imports.
+    "allowImportingTsExtensions": true
   },
-  "include": ["vite.config.ts", "vitest.config.ts", "playwright.config.ts", "test", "e2e", "worker", "shared"]
+  "include": ["vite.config.ts", "vitest.config.ts", "playwright.config.ts", "test", "e2e", "worker", "shared", "scripts"]
 }

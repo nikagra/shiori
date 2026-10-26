@@ -30,7 +30,10 @@ class Statement {
   }
 
   runSync() {
-    const r = this.db.prepare(this.sql).run(...this.params);
+    // D1 returns rows in a batch too, from any statement that has them.
+    const stmt = this.db.prepare(this.sql);
+    if (stmt.columns().length > 0) return { success: true, results: stmt.all(...this.params), meta: { changes: 0, last_row_id: 0 } };
+    const r = stmt.run(...this.params);
     return { success: true, results: [], meta: { changes: Number(r.changes), last_row_id: Number(r.lastInsertRowid) } };
   }
 }
