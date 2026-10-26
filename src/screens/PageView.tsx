@@ -59,7 +59,10 @@ export function PageView({ id }: { id: number }) {
   return (
     <div className="stack">
       <div className="row row--between">
-        <h1>Page {page.number}</h1>
+        <h1>
+          Page {page.number}
+          {page.listName && <span className="muted h1__sub"> · {page.listName}</span>}
+        </h1>
         <a href="#/pages" className="link-button">
           All pages
         </a>

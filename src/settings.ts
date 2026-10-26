@@ -7,12 +7,15 @@ export interface Settings {
   autoPlay: boolean;
   listenFirst: boolean;
   pageSize: number;
+  /** The list the check pass takes words from; null for all lists. */
+  checkList: number | null;
 }
 
 const DEFAULTS: Settings = {
   autoPlay: true,
   listenFirst: false,
   pageSize: 12,
+  checkList: null,
 };
 const KEY = 'shiori.settings';
 

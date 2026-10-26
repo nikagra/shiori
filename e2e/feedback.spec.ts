@@ -139,7 +139,7 @@ test('long words stay whole in the grid', async ({ page, request }, testInfo) =>
     '誰か/だれか - someone',
     '日本/にほん - Japan',
   ].join('\n');
-  await request.post('/api/import', { data: { text, list: 'long' } });
+  await request.post('/api/import', { data: { text, list: 'other' } });
   const triage = await (await request.get('/api/triage')).json();
   for (const w of triage.words as { id: number }[]) await request.post(`/api/triage/${w.id}`, { data: { result: 'unknown' } });
   const created = await newPage(request, 6);

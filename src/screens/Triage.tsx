@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api, type Word } from '../api';
+import { api, type ListSummary, type Word } from '../api';
 import { JapaneseWord, Meaning, Notice, SpeakButton, useKeys } from '../components/ui';
 import { useSettings } from '../settings';
 import { speak } from '../speech';
@@ -16,11 +16,24 @@ export function Triage() {
   const sending = useRef(false);
   const [counts, setCounts] = useState({ known: 0, unknown: 0, ignore: 0 });
   const [error, setError] = useState<string | null>(null);
-  const [settings] = useSettings();
+  const [settings, update] = useSettings();
+  const [lists, setLists] = useState<ListSummary[] | null>(null);
+  // A remembered list that's gone (merged, archived, done) falls back to all lists.
+  const from = lists?.some((l) => l.id === settings.checkList && !l.archived && l.counts.toCheck > 0) ? settings.checkList : null;
+
+  useEffect(() => {
+    api.lists().then(setLists, (e: Error) => setError(e.message));
+  }, []);
 
   const load = useCallback(() => {
-    api.triage().then(
+    if (!lists) return;
+    api.triage(from).then(
       (r) => {
+        // This list is done: fresh counts move on to all lists.
+        if (r.words.length === 0 && from !== null) {
+          api.lists().then(setLists, (e: Error) => setError(e.message));
+          return;
+        }
         setBatch(r.words);
         setRemaining(r.remaining);
         setIndex(0);
@@ -29,7 +42,7 @@ export function Triage() {
       },
       (e: Error) => setError(e.message),
     );
-  }, []);
+  }, [lists, from]);
   useEffect(load, [load]);
 
   const word = batch?.[index];
@@ -65,7 +78,22 @@ export function Triage() {
   useKeys({ Space: reveal, Enter: reveal, '1': () => answer('unknown'), '2': () => answer('known') }, Boolean(word));
 
   if (error) return <Notice kind="error">{error}</Notice>;
-  if (!batch) return <p className="muted">Loading…</p>;
+  if (!batch || !lists) return <p className="muted">Loading…</p>;
+
+  const toCheck = lists.filter((l) => !l.archived && l.counts.toCheck > 0);
+  const picker = toCheck.length > 0 && (
+    <label className="field">
+      <span>From list</span>
+      <select value={from ?? ''} onChange={(e) => update({ checkList: e.target.value === '' ? null : Number(e.target.value) })}>
+        <option value="">All lists, by priority</option>
+        {toCheck.map((l) => (
+          <option key={l.id} value={l.id}>
+            {l.name}: {l.counts.toCheck} to check
+          </option>
+        ))}
+      </select>
+    </label>
+  );
 
   if (!word) {
     return (
@@ -94,6 +122,7 @@ export function Triage() {
           {remaining} left
         </span>
       </div>
+      {picker}
       <p className="muted">Say the meaning to yourself first, then reveal. Be strict: only “I knew it” if it came without guessing.</p>
 
       <article className="card flash" data-testid="triage-card">

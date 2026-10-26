@@ -54,15 +54,48 @@ unknown. Every imported word starts as `unverified`.
 
 ### Check pass (Triage screen)
 
-Each imported word gets one recall attempt. Words with the lowest Renshuu
-mastery come first; words with unknown mastery sit in the middle
-(`triageOrder`). "I knew it" sends the word to review. Otherwise the word goes
-to the inbox, where it waits for a page.
+Each imported word gets one recall attempt. "From list" picks one list to
+check (remembered on the device), or all lists by priority: a focused list
+first, then by weight, paused lists last (`triageNext`). Within a list, words
+with the lowest Renshuu mastery come first; words with unknown mastery sit in
+the middle. "I knew it" sends the word to review. Otherwise the word goes to
+the inbox, where it waits for a page. When the chosen list is done, the check
+moves on to all lists.
+
+### Lists (`shared/lists.ts`, Lists screen)
+
+Every word belongs to one list, picked at import. The app starts with Manga,
+Books, School and Other; Lists adds, renames, merges, archives and deletes
+them (only a list with no words at all, set-aside ones included, can be
+deleted). Names are unique, ignoring the case of Latin letters.
+`words.source_list` keeps the name the word was imported under, as history.
+
+Each list has its own pace:
+
+| Setting | What it does |
+|---|---|
+| Weight (Low 1, Normal 2, High 4) | The list's share of new pages and of today's new review cards |
+| Weekly target (optional, pages a week) | Until it's met (pages started in the last 7 days), "Pick for me" takes this list first |
+| Pause | No new pages from "Pick for me" and no new review cards. You can still start a page from it by hand |
+| Focus until a date | Before a test: "Pick for me" takes this list first, and its weight counts `FOCUS_BOOST` (3) times for new cards. One list at a time; it ends by itself after the date |
+| Archive | No new pages (not even by hand) and no new review cards. Hidden from import and the check pass, and its words to check or waiting leave the counts on Home. Its learned words still come up for review |
+
+- **One list per page**, so the word group stays a clean memory anchor. "New
+  page" asks which list. "Pick for me" (`pickList`) takes a focused list
+  first, then the list furthest behind its weekly target, then the list with
+  the fewest pages in the last 28 days for its weight.
+- **New review cards** (`shareNewCards`): today's `NEW_PER_DAY` (20) are
+  handed out one at a time to the list furthest below its share (cards so far
+  today ÷ weight). A list that runs out of new cards passes its share on, so
+  the budget isn't wasted.
+- **Due reviews always come**, from every list, paused and archived ones too.
+  FSRS stays per card: memory doesn't care which list a word came from.
 
 ### Pages (`shared/pageSession.ts`, PageView, PageGrid)
 
-- Each page has a fixed size of 10, 12 or 15 words (`PAGE_SIZES`). The size is
-  a per-device setting and defaults to 12.
+- Each page has a fixed size of 10, 12 or 15 words (`PAGE_SIZES`), all from
+  one list (fewer if that list has fewer waiting). The size is a per-device
+  setting and defaults to 12.
 - The grid always has 3 columns and looks the same on phone and laptop.
 - Stage `ordered`: every word in grid order, Japanese→meaning, then
   meaning→Japanese.
@@ -80,7 +113,7 @@ to the inbox, where it waits for a page.
   by typing kana; on a laptop, romaji is turned into kana with WanaKana).
 - Only one card per word per day, so answering one direction never gives away
   the other. Due cards come first, most overdue first, then up to
-  `NEW_PER_DAY` (20) new cards.
+  `NEW_PER_DAY` (20) new cards, shared between lists by weight (see Lists).
 - A peek at the word's page caps the grade at Hard.
 - The core meaning can be edited from the answer. `senses` keeps the full
   dictionary list.
@@ -184,8 +217,9 @@ why an honest Again early on is cheaper than a lucky Good.
 
 ## Backup and restore (`shared/backup.ts`, `worker/backup.ts`)
 
-- **The file.** One JSON file holds every row of every table (`words`, `pages`,
-  `page_words`, `cards`, `review_log`, `settings`, `kanji_hints`), read in one
+- **The file.** One JSON file holds every row of every table (`lists`,
+  `words`, `pages`, `page_words`, `cards`, `review_log`, `settings`,
+  `kanji_hints`), read in one
   D1 batch so it's consistent. It records the format version and the latest
   migration it fits (`BACKUP_SCHEMA`); a unit test fails when a new migration
   or table isn't reflected there.
@@ -224,6 +258,10 @@ The script checks the backup's schema against `migrations/`: it refuses a
 backup from code newer than the checkout, and notes an older one. An older
 backup still loads: each INSERT names its columns, so new columns take their
 defaults, and a table added after the backup (`TABLE_SINCE`) starts empty.
+A backup from before lists gets them the way the lists migration made them
+(`LISTS_FROM_LABELS`): the starting lists plus one per import label, each word
+on its label's list and each page on its words' list. A current backup
+replaces the starting lists with its own.
 If a `--replace` load fails partway, fix the cause and run the same file
 again (its deletes come first), or rewind with Time Travel.
 
@@ -231,20 +269,23 @@ again (its deletes come first), or rewind with Time Travel.
 
 | Part | Where | Notes |
 |---|---|---|
-| UI | `src/` (React 19, Vite) | Screens: Home, Import, Triage (Check), Pages, PageView, Review |
+| UI | `src/` (React 19, Vite) | Screens: Home, Import, Triage (Check), Pages, PageView, Lists, Review |
 | Shared logic | `shared/` | Pure TypeScript used by both UI and worker; unit tested |
 | API | `worker/index.ts` (Hono on Cloudflare Workers) | Under `/api/*`; the rest is the single-page app. Also the nightly cron (`scheduled`) |
 | Data access | `worker/db.ts` | Multi-row changes run as one D1 batch, so a failed or repeated request can't leave half-done state |
-| Database | D1 (SQLite), `migrations/` | `0001_init.sql`, `0002_furigana.sql` |
+| Database | D1 (SQLite), `migrations/` | `0001_init.sql`, `0002_furigana.sql`, `0003_lists.sql` |
 | Backups | R2 bucket `shiori-backups` | Nightly JSON copies, 30 days (`worker/backup.ts`) |
 
 ### Data model
 
+- `lists`: name, `weight`, `pages_per_week`, `paused`, `focus_until`,
+  `archived_at`.
 - `words`: kana, kanji, `senses` (JSON), `core_meaning`, pos, source,
-  `source_list`, `source_order`, `renshuu_mastery`, `status` (`unverified` →
-  `inbox` → `on_page` → `graduated`, or `ignored`).
-- `pages` and `page_words`: page number, stage, and each word's fixed
-  position.
+  `source_list` (the import label), `list_id`, `source_order`,
+  `renshuu_mastery`, `status` (`unverified` → `inbox` → `on_page` →
+  `graduated`, or `ignored`).
+- `pages` and `page_words`: page number, stage, `list_id`, and each word's
+  fixed position.
 - `cards`: one per word and direction, with the full FSRS state as JSON plus
   `due` / `state` / `lapses` for queries.
 - `review_log`: every review, triage and graduation, with the hint flag, typed

@@ -1,21 +1,34 @@
-import { useState } from 'react';
-import { api, type ImportResult } from '../api';
+import { useEffect, useState } from 'react';
+import { api, type ImportResult, type ListSummary } from '../api';
 import { Notice } from '../components/ui';
 
 export function Import() {
   const [text, setText] = useState('');
   const [fileName, setFileName] = useState<string | null>(null);
-  const [list, setList] = useState('manga');
+  const [lists, setLists] = useState<ListSummary[] | null>(null);
+  const [listId, setListId] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    api.lists().then(
+      (all) => {
+        const open = all.filter((l) => !l.archived);
+        setLists(open);
+        setListId(open[0]?.id ?? null);
+      },
+      (e: Error) => setError(e.message),
+    );
+  }, []);
+
   async function submit() {
+    if (listId === null) return;
     setBusy(true);
     setError(null);
     setResult(null);
     try {
-      setResult(await api.importText(text, list));
+      setResult(await api.importText(text, listId));
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -52,15 +65,19 @@ export function Import() {
 
       <label className="field">
         <span>Which list is it?</span>
-        <select value={list} onChange={(e) => setList(e.target.value)}>
-          <option value="manga">Manga</option>
-          <option value="books">Books</option>
-          <option value="school">School</option>
-          <option value="other">Other</option>
+        <select value={listId ?? ''} onChange={(e) => setListId(Number(e.target.value))} disabled={!lists}>
+          {lists?.map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.name}
+            </option>
+          ))}
         </select>
       </label>
+      <p className="muted small">
+        Need another list? Add it in <a href="#/lists">Lists</a>.
+      </p>
 
-      <button className="button button--primary" disabled={busy || !text.trim()} onClick={submit}>
+      <button className="button button--primary" disabled={busy || !text.trim() || listId === null} onClick={submit}>
         {busy ? 'Importing…' : fileName ? `Import ${fileName}` : 'Import'}
       </button>
 
