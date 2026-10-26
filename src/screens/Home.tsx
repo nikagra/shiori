@@ -58,7 +58,7 @@ export function Home() {
       {backupStale && (
         <Notice kind="error">
           <p data-testid="home-backup-warning">
-            The nightly backup hasn’t run since {backupStale}. Check the Worker logs in Cloudflare, and <a href="#/settings">download a backup</a> meanwhile.
+            The nightly backup hasn’t run since {backupStale}. Check the Worker logs in Cloudflare, and <a href="#/settings/backup">download a backup</a> meanwhile.
           </p>
         </Notice>
       )}

@@ -9,7 +9,7 @@ import { Lists } from './screens/Lists';
 import { Settings } from './screens/Settings';
 
 // Hash routes: #/, #/review, #/pages, #/pages/3, #/lists, #/check, #/settings,
-// #/settings/import (#/import still opens it, for old bookmarks)
+// #/settings/backup (scrolled to that section), #/settings/import
 
 function useHashRoute(): string[] {
   const read = () => window.location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
@@ -36,8 +36,8 @@ const NAV = [
 
 export function App() {
   const route = useHashRoute();
-  const [section, id] = route;
-  const tab = section === 'import' ? 'settings' : (section ?? '');
+  // Old #/import links open Settings › Import.
+  const [section, id] = route[0] === 'import' ? ['settings', 'import'] : route;
 
   let screen;
   switch (section) {
@@ -54,10 +54,7 @@ export function App() {
       screen = <Triage />;
       break;
     case 'settings':
-      screen = id === 'import' ? <Import /> : <Settings />;
-      break;
-    case 'import':
-      screen = <Import />;
+      screen = id === 'import' ? <Import /> : <Settings key={id} scrollTo={id} />;
       break;
     default:
       screen = <Home />;
@@ -76,7 +73,7 @@ export function App() {
       <main className="main">{screen}</main>
       <nav className="tabbar" aria-label="Main">
         {NAV.map((n) => (
-          <a key={n.href} href={n.href} className={`tabbar__item${tab === n.match ? ' tabbar__item--active' : ''}`}>
+          <a key={n.href} href={n.href} className={`tabbar__item${(section ?? '') === n.match ? ' tabbar__item--active' : ''}`}>
             {n.label}
           </a>
         ))}

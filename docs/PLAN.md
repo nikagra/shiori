@@ -44,9 +44,10 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   and get their lists. See "Lists" in DESIGN.md. After pulling on the laptop,
   run `npm run db:migrate:local`; the deploy applies it to D1.
 - **Settings** (26 Oct): a Settings tab replaces the Import tab and holds
-  words per page, audio, furigana, Import (`#/settings/import`; old
-  `#/import` links still work) and Backup. Home is the tiles only, plus a red
-  warning when the nightly backup has stopped. Pages shows the page size and
+  words per page, audio, furigana, links to Import (`#/settings/import`; old
+  `#/import` links still work) and Lists, and Backup. Home keeps the tiles
+  and the welcome note, plus a red warning when the nightly backup has
+  stopped (it links to `#/settings/backup`). Pages shows the page size and
   links to Settings. No data or API changes.
 - First iPhone feedback (25 Oct) is in: "Don't know" on review and drill
   cards, next words hidden in the in-order drill, "Study the page again",
@@ -117,9 +118,20 @@ Manga), Settings (26 Oct).
      run of kanji (冬眠, 日本) don't line up with each kanji today. Also show
      "usually written in kana" forms.
 5. **Finish review.**
-   - Leeches: `LEECH_LAPSES` (6) is defined in `shared/scheduler.ts` but
-     unused. A leech gets flagged and shown in its list (step 2), where you
-     can edit it, put it on a fresh page or set it aside.
+   - Drill misses that mean something (Mikita, 26 Oct: Renshuu repeats a
+     missed question until you get it right, so you answer from short-term
+     memory without learning the word). Today `answerStep` in
+     `shared/pageSession.ts` does the same, and the drill's `misses` are
+     dropped when the page graduates. Instead: a miss sends you back to the
+     word in its spot on the page, and the retry comes after a real gap; a
+     retry right after a miss doesn't count as knowing it; and a word missed
+     a lot starts with a harder first review (or must be right first time
+     in step 2).
+   - Leeches: the same problem in review, a word that isn't being learned,
+     so the fix is more effort, not another look. `LEECH_LAPSES` (6) is
+     defined in `shared/scheduler.ts` but unused. A leech gets flagged and
+     shown in its list (step 2), where you can edit it, put it on a fresh
+     page or set it aside.
    - What each grade does, shown in the app (open question below).
    - New cards a day as a setting (open question below).
 6. **Use it for real.** Study only in Shiori for about two weeks, add words

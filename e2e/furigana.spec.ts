@@ -37,7 +37,7 @@ test('peek at furigana on a question; a second peek moves the kanji to still lea
   await card.getByRole('button', { name: 'Show furigana' }).click();
   await expect(card.locator('rt').first()).toBeVisible();
   await expect(card.getByRole('button', { name: 'Show furigana' })).toHaveCount(0);
-  await expect(page.getByTestId('moved-to-learning')).toContainText('moved to Still learning');
+  await expect(page.getByTestId('moved-to-learning')).toContainText('until you take it off that list in Settings');
   await expectNoHorizontalScroll(page);
   await shot(page, testInfo, '30-review-furigana-peek');
 
@@ -46,7 +46,7 @@ test('peek at furigana on a question; a second peek moves the kanji to still lea
   await expect(page.getByRole('button', { name: 'Good' })).toBeEnabled();
   await expect(page.getByRole('button', { name: 'Easy' })).toBeEnabled();
 
-  // Settings shows the kanji under Still learning, on any device.
+  // The kanji is saved under Still learning on the server, so every device shows it in Settings.
   const prefs = await (await request.get('/api/furigana')).json();
   for (const k of kanjiOf(word)) expect(prefs.prefs.learningKanji).toContain(k);
 });

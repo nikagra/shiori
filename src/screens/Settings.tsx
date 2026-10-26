@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import { backupFileName, KEEP_DAYS, nightlyIsStale, type NightlyStatus } from '../../shared/backup';
 import { HINTS_TO_LEARNING, type FuriganaPrefs, type KanjiLevel } from '../../shared/furigana';
@@ -7,9 +7,15 @@ import { useFurigana } from '../furigana';
 import { useSettings } from '../settings';
 import { canSpeak, hasJapaneseVoice } from '../speech';
 
-export function Settings() {
+/** `scrollTo` names a section to bring into view, e.g. "backup" from Home's warning. */
+export function Settings({ scrollTo }: { scrollTo?: string }) {
+  const root = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (scrollTo) root.current?.querySelector(`[data-section="${scrollTo}"]`)?.scrollIntoView({ block: 'start' });
+  }, [scrollTo]);
+
   return (
-    <div className="stack">
+    <div className="stack" ref={root}>
       <h1>Settings</h1>
       <StudySettings />
       <FuriganaSettings />
@@ -103,7 +109,7 @@ function Backup() {
 
   const savedAt = nightly?.latest?.savedAt;
   return (
-    <section className="card stack" aria-label="Backup">
+    <section className="card stack" aria-label="Backup" data-section="backup">
       <h2>Backup</h2>
       <p className="muted">One file with all your words, pages, cards, review history and settings.</p>
       <button type="button" className="button" onClick={download} disabled={busy}>

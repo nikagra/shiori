@@ -5,8 +5,8 @@ test.beforeEach(async ({ request }) => {
   await resetDb(request);
 });
 
-test('settings live in one place, and Home is only about studying', async ({ page }, testInfo) => {
-  await seedWords(page.request, { unknown: 14 });
+test('settings live in one place, and Home is only about studying', async ({ page, request }, testInfo) => {
+  await seedWords(request, { unknown: 14 });
   await page.goto('/');
   await expect(page.getByTestId('tile-review')).toBeVisible();
   for (const name of ['Audio', 'Furigana', 'Backup']) await expect(page.getByRole('region', { name })).toHaveCount(0);
@@ -66,11 +66,16 @@ test('Home warns when the nightly backup has stopped', async ({ page }, testInfo
   await expectNoHorizontalScroll(page);
   await shot(page, testInfo, '53-home-backup-warning');
   await page.getByRole('link', { name: 'download a backup' }).click();
-  await expect(page.getByRole('region', { name: 'Backup' }).getByTestId('nightly-status')).toContainText('Newer runs have failed');
+  await expect(page).toHaveURL(/#\/settings\/backup$/);
+  const backup = page.getByRole('region', { name: 'Backup' });
+  await expect(backup.getByTestId('nightly-status')).toContainText('Newer runs have failed');
+  await expect(backup.getByRole('button', { name: 'Download backup' })).toBeInViewport();
 
   // A fresh copy: no warning.
   await page.route('/api/backup/nightly', (route) => route.fulfill({ json: { latest: { date: 'x', savedAt: new Date().toISOString(), size: 1000 }, count: 5 } }));
+  const nightly = page.waitForResponse('**/api/backup/nightly');
   await page.goto('/');
+  await nightly;
   await expect(page.getByTestId('tile-review')).toBeVisible();
   await expect(page.getByTestId('home-backup-warning')).toHaveCount(0);
 });

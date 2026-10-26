@@ -193,7 +193,7 @@ function ReviewCard({
             )}
             {moved && (
               <p className="muted small" data-testid="moved-to-learning">
-                <span lang="ja">{moved}</span> moved to Still learning: furigana will show over it until you take it off that list on Home.
+                <span lang="ja">{moved}</span> moved to Still learning: furigana will show over it until you take it off that list in Settings.
               </p>
             )}
             {revealed && (
