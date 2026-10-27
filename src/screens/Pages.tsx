@@ -57,9 +57,16 @@ export function Pages() {
       <section className="card stack">
         <h2>New page</h2>
         {stats.inbox === 0 ? (
-          <p className="muted">
-            No words waiting. {stats.toCheck > 0 ? <a href="#/check">Check imported words</a> : <a href="#/settings/import">Import words</a>} first.
-          </p>
+          <>
+            <p className="muted">
+              No words waiting. {stats.toCheck > 0 ? <a href="#/check">Check imported words</a> : <a href="#/settings/import">Import words</a>} first.
+            </p>
+            {stats.toCheck > 0 && (
+              <a href="#/pages/new" className="link-button">
+                Or pick words to check for a page yourself
+              </a>
+            )}
+          </>
         ) : (
           <>
             <p>
@@ -88,6 +95,9 @@ export function Pages() {
             <button className="button button--primary" disabled={busy || !chosen} onClick={create}>
               Start a new page
             </button>
+            <a href={chosen ? `#/pages/new/${chosen.id}` : '#/pages/new'} className="button">
+              Pick the words yourself
+            </a>
             <a href="#/lists" className="link-button">
               Lists, weights and weekly targets
             </a>

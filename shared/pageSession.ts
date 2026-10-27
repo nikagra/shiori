@@ -1,4 +1,5 @@
 import type { Direction } from './scheduler';
+import type { WordState } from './wordSearch';
 
 // Same-day drill over one page: the paper method, then the page cue fades.
 //
@@ -74,3 +75,7 @@ export function nextStage(stage: PageStage): PageStage {
 
 export const PAGE_SIZES = [10, 12, 15] as const;
 export const GRID_COLUMNS = 3;
+/** Most words a page can hold, whatever the page size setting (pages you shape can add words). */
+export const MAX_PAGE_WORDS = 20;
+/** Words that can go on a page: waiting, or still to check (picking one says you don't know it yet). */
+export const PAGE_READY: readonly WordState[] = ['inbox', 'unverified'];

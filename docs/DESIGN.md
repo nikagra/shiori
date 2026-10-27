@@ -120,9 +120,11 @@ Each list opens to its words (`#/lists/<id>`), in the order they came in.
 
 ### Pages (`shared/pageSession.ts`, PageView, PageGrid)
 
-- Each page has a fixed size of 10, 12 or 15 words (`PAGE_SIZES`), all from
-  one list (fewer if that list has fewer waiting). The size is a per-device
-  setting and defaults to 12.
+- A new page takes 10, 12 or 15 words (`PAGE_SIZES`), all from one list
+  (fewer if that list has fewer waiting). The size is a per-device setting
+  and defaults to 12. A page you shape can hold fewer, and adding words
+  stops at the page size on this device (`MAX_PAGE_WORDS`, 20, on the
+  server; a page doesn't store its size).
 - The grid always has 3 columns and looks the same on phone and laptop.
 - Stage `ordered`: every word in grid order, Japanese→meaning, then
   meaning→Japanese.
@@ -131,6 +133,32 @@ Each list opens to its words (`#/lists/<id>`), in the order they came in.
 - A missed step goes to the back of the queue until it's answered correctly.
 - Graduating a page counts as one Good review per card. The first real review
   is scheduled for the next day at the latest (`graduate`).
+
+### Pages you shape (PagePicker, PageView, `shared/similar.ts`)
+
+- **Pick the words** (`#/pages/new`, or `#/pages/new/<list>`): the list's
+  search box and filters, over its waiting words and then its words still to
+  check (picking one says you don't know it yet, the same as "I didn't know").
+  Up to the page size, from one list, in the order you pick them.
+- **Change words** on a page still in step 1: swap a word for the list's next
+  waiting word or one you pick (it takes the same spot), take it off without
+  a replacement (the others close up), or add one at the end. The word taken
+  off goes back to waiting, or is set aside. Step 2 has drilled the page, so
+  its words stay.
+- **Close in meaning**: words whose core meanings share a meaning word
+  (fillers like "to", "be", "something" don't count) are pointed out while
+  you pick and on a page in step 1, since they compete for the same spot in
+  memory.
+- **Delete a page**: an unfinished page's words go back to waiting. A learned
+  page's words keep their cards and review history; only the page goes, so
+  review can't show it any more. Page numbers aren't reused, except that the
+  newest page's number comes back if it's deleted.
+- Every change is one D1 batch guarded on what was checked. A word put on
+  the page that changed meanwhile (set aside or put on another page on the
+  other device) fails the batch. A swap puts the new word in the old one's
+  spot wherever it is now, an add goes at the end of the page as it is now,
+  and a word already taken off (or moved) on the other device changes
+  nothing ("reload and try again").
 
 ### Review (`shared/scheduler.ts`, `shared/queue.ts`)
 
@@ -298,7 +326,7 @@ again (its deletes come first), or rewind with Time Travel.
 
 | Part | Where | Notes |
 |---|---|---|
-| UI | `src/` (React 19, Vite) | Screens: Home, Triage (Check), Pages, PageView, Lists (with ListWords under it), Review, Settings (with Import under it) |
+| UI | `src/` (React 19, Vite) | Screens: Home, Triage (Check), Pages, PagePicker, PageView, Lists (with ListWords under it), Review, Settings (with Import under it) |
 | Shared logic | `shared/` | Pure TypeScript used by both UI and worker; unit tested |
 | API | `worker/index.ts` (Hono on Cloudflare Workers) | Under `/api/*`; the rest is the single-page app. Also the nightly cron (`scheduled`) |
 | Data access | `worker/db.ts` | Multi-row changes run as one D1 batch, so a failed or repeated request can't leave half-done state |

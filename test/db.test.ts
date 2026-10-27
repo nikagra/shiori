@@ -230,3 +230,217 @@ describe('repeated and concurrent requests', () => {
     expect((await repo.listPages(db)).map((p) => p.number)).toEqual([7]);
   });
 });
+
+describe('pages you shape', () => {
+  const inboxIds = async () => (await db.prepare(`SELECT id FROM words WHERE status = 'inbox' ORDER BY source_order`).all<{ id: number }>()).results.map((r) => r.id);
+  const status = async (id: number) => (await repo.getWord(db, id)).status;
+  /**
+   * The database, with `meanwhile` run just before the batch that makes the
+   * change (after `reads` read-only batches): the other device changing
+   * something after the checks.
+   */
+  const racing = (meanwhile: () => Promise<unknown>, reads = 0) => {
+    let batches = 0;
+    return new Proxy(db, {
+      get: (target, key) =>
+        key === 'batch'
+          ? async (stmts: D1PreparedStatement[]) => {
+              if (batches++ === reads) await meanwhile();
+              return target.batch(stmts);
+            }
+          : (target as unknown as Record<string | symbol, unknown>)[key],
+    });
+  };
+  const setAsideNow = (id: number) => () => db.prepare(`UPDATE words SET status = 'ignored' WHERE id = ?`).bind(id).run();
+
+  it('builds a page from picked words, in the order picked, waiting or still to check', async () => {
+    await importAndSort(0, 6);
+    const waiting = await inboxIds();
+    const toCheck = (await repo.triageNext(db, 1)).words[0].id;
+    const picked = [waiting[4], toCheck, waiting[1]];
+    const page = await repo.createPage(db, 12, null, now, picked);
+    expect(page.words.map((w) => [w.id, w.position])).toEqual(picked.map((id, i) => [id, i]));
+    expect(page.listId).toBe(MANGA);
+    expect(page.words.every((w) => w.status === 'on_page')).toBe(true);
+    expect((await repo.stats(db, dayStart, dayEnd)).inbox).toBe(4);
+  });
+
+  it('refuses picks that break a page', async () => {
+    await importAndSort(1, 4);
+    const waiting = await inboxIds();
+    const learned = (await db.prepare(`SELECT id FROM words WHERE status = 'graduated'`).first<{ id: number }>())!.id;
+    await expect(repo.createPage(db, 2, null, now, waiting.slice(0, 3))).rejects.toMatchObject({ status: 400 });
+    await expect(repo.createPage(db, 12, null, now, [])).rejects.toMatchObject({ status: 400 });
+    await expect(repo.createPage(db, 12, null, now, [waiting[0], waiting[0]])).rejects.toMatchObject({ status: 400 });
+    await expect(repo.createPage(db, 12, null, now, [waiting[0], learned])).rejects.toMatchObject({ status: 409 });
+    await expect(repo.createPage(db, 12, 3, now, [waiting[0]])).rejects.toThrow('another list');
+    // A word from another list.
+    await repo.updateWord(db, waiting[1], { listId: 3 }, now);
+    await expect(repo.createPage(db, 12, null, now, [waiting[0], waiting[1]])).rejects.toThrow('one list');
+    expect(await repo.listPages(db)).toEqual([]);
+  });
+
+  it('a picked word set aside in between leaves no page behind', async () => {
+    await importAndSort(0, 3);
+    const waiting = await inboxIds();
+    await expect(repo.createPage(racing(setAsideNow(waiting[1]), 1), 12, null, now, waiting)).rejects.toThrow('try again');
+    expect(await repo.listPages(db)).toEqual([]);
+    expect(await status(waiting[0])).toBe('inbox');
+  });
+
+  it('swaps a word for the next waiting one, which takes its spot', async () => {
+    await importAndSort(0, 5);
+    const page = await repo.createPage(db, 3, null, now);
+    const [, middle] = page.words;
+    const next = (await inboxIds())[0];
+    const swapped = await repo.changePageWord(db, page.id, { wordId: middle.id, replacement: 'next' }, now);
+    expect(swapped.words.map((w) => w.id)).toEqual([page.words[0].id, next, page.words[2].id]);
+    expect(swapped.words.map((w) => w.position)).toEqual([0, 1, 2]);
+    expect(await status(middle.id)).toBe('inbox');
+    expect(await status(next)).toBe('on_page');
+    // The word taken off waits again, so it can be checked again too.
+    expect((await repo.listWords(db, MANGA)).find((w) => w.id === middle.id)?.canCheckAgain).toBe(true);
+  });
+
+  it('swaps for a picked word and can set the old one aside', async () => {
+    await importAndSort(0, 3);
+    const page = await repo.createPage(db, 2, null, now);
+    const toCheck = (await repo.triageNext(db, 1)).words[0].id;
+    const swapped = await repo.changePageWord(db, page.id, { wordId: page.words[0].id, replacement: toCheck, setAside: true }, now);
+    expect(swapped.words.map((w) => w.id)).toEqual([toCheck, page.words[1].id]);
+    expect(await status(page.words[0].id)).toBe('ignored');
+  });
+
+  it('takes a word off and closes the gap, and adds one at the end', async () => {
+    await importAndSort(0, 5);
+    const page = await repo.createPage(db, 4, null, now);
+    const fewer = await repo.changePageWord(db, page.id, { wordId: page.words[1].id, replacement: null }, now);
+    expect(fewer.words.map((w) => w.id)).toEqual([page.words[0].id, page.words[2].id, page.words[3].id]);
+    expect(fewer.words.map((w) => w.position)).toEqual([0, 1, 2]);
+    const added = await repo.changePageWord(db, page.id, { wordId: null, replacement: page.words[1].id }, now);
+    expect(added.words.map((w) => [w.id, w.position]).at(-1)).toEqual([page.words[1].id, 3]);
+  });
+
+  it('only changes words on a page in step 1, from its own list', async () => {
+    await importAndSort(0, 4);
+    const page = await repo.createPage(db, 1, null, now);
+    const [other] = await inboxIds();
+    await expect(repo.changePageWord(db, page.id, { wordId: page.words[0].id, replacement: null }, now)).rejects.toThrow('delete the page');
+    await expect(repo.changePageWord(db, page.id, { wordId: other, replacement: 'next' }, now)).rejects.toMatchObject({ status: 404 });
+    await expect(repo.changePageWord(db, page.id, { wordId: null, replacement: null }, now)).rejects.toMatchObject({ status: 400 });
+    await repo.updateWord(db, other, { listId: 3 }, now);
+    await expect(repo.changePageWord(db, page.id, { wordId: page.words[0].id, replacement: other }, now)).rejects.toThrow('one list');
+    await repo.completeStage(db, page.id, 'ordered', dayEnd, now);
+    await expect(repo.changePageWord(db, page.id, { wordId: page.words[0].id, replacement: 'next' }, now)).rejects.toThrow('step 1');
+  });
+
+  it('refuses "next" when nothing else is waiting', async () => {
+    await importAndSort(0, 2);
+    const page = await repo.createPage(db, 2, null, now);
+    await expect(repo.changePageWord(db, page.id, { wordId: page.words[0].id, replacement: 'next' }, now)).rejects.toThrow('no other words');
+    expect((await repo.getPage(db, page.id)).words).toHaveLength(2);
+  });
+
+  it('a replacement taken in between changes nothing', async () => {
+    await importAndSort(0, 3);
+    const page = await repo.createPage(db, 2, null, now);
+    const [next] = await inboxIds();
+    await expect(repo.changePageWord(racing(setAsideNow(next)), page.id, { wordId: page.words[0].id, replacement: next }, now)).rejects.toThrow('try again');
+    expect((await repo.getPage(db, page.id)).words.map((w) => w.id)).toEqual(page.words.map((w) => w.id));
+    expect(await status(page.words[0].id)).toBe('on_page');
+  });
+
+  it('a word taken off on the other device in between: a swap of a later word still lands in its spot', async () => {
+    await importAndSort(0, 6);
+    const page = await repo.createPage(db, 4, null, now);
+    const [first, , , last] = page.words;
+    const [next] = await inboxIds();
+    const takeOffFirst = () => repo.changePageWord(db, page.id, { wordId: first.id, replacement: null }, now);
+    const swapped = await repo.changePageWord(racing(takeOffFirst), page.id, { wordId: last.id, replacement: next, setAside: true }, now);
+    expect(swapped.words.map((w) => [w.id, w.position])).toEqual([
+      [page.words[1].id, 0],
+      [page.words[2].id, 1],
+      [next, 2],
+    ]);
+    expect(await status(last.id)).toBe('ignored');
+  });
+
+  it('a swap of a word already taken off on the other device changes nothing', async () => {
+    await importAndSort(0, 6);
+    const page = await repo.createPage(db, 3, null, now);
+    const [next] = await inboxIds();
+    const takeOff = () => repo.changePageWord(db, page.id, { wordId: page.words[2].id, replacement: null }, now);
+    await expect(repo.changePageWord(racing(takeOff), page.id, { wordId: page.words[2].id, replacement: next }, now)).rejects.toThrow('reload');
+    expect((await repo.getPage(db, page.id)).words.map((w) => w.id)).toEqual(page.words.slice(0, 2).map((w) => w.id));
+    expect(await status(next)).toBe('inbox');
+  });
+
+  it('adding after a word was taken off on the other device leaves no gap', async () => {
+    await importAndSort(0, 6);
+    const page = await repo.createPage(db, 3, null, now);
+    const [next] = await inboxIds();
+    const takeOff = () => repo.changePageWord(db, page.id, { wordId: page.words[0].id, replacement: null }, now);
+    const added = await repo.changePageWord(racing(takeOff), page.id, { wordId: null, replacement: next }, now);
+    expect(added.words.map((w) => w.position)).toEqual([0, 1, 2]);
+    expect(added.words.at(-1)?.id).toBe(next);
+  });
+
+  it('removing a word whose spot moved on the other device changes nothing', async () => {
+    await importAndSort(0, 6);
+    const page = await repo.createPage(db, 4, null, now);
+    const takeOffFirst = () => repo.changePageWord(db, page.id, { wordId: page.words[0].id, replacement: null }, now);
+    await expect(repo.changePageWord(racing(takeOffFirst), page.id, { wordId: page.words[3].id, replacement: null }, now)).rejects.toThrow('reload');
+    const after = await repo.getPage(db, page.id);
+    expect(after.words.map((w) => [w.id, w.position])).toEqual(page.words.slice(1).map((w, i) => [w.id, i]));
+    expect(await status(page.words[3].id)).toBe('on_page');
+  });
+
+  it('a page that moved on to step 2 in between keeps its words', async () => {
+    await importAndSort(0, 3);
+    const page = await repo.createPage(db, 2, null, now);
+    const step2 = () => repo.completeStage(db, page.id, 'ordered', dayEnd, now);
+    await expect(repo.changePageWord(racing(step2), page.id, { wordId: page.words[0].id, replacement: null }, now)).rejects.toMatchObject({ status: 409 });
+    const after = await repo.getPage(db, page.id);
+    expect(after.words.map((w) => [w.id, w.position])).toEqual(page.words.map((w) => [w.id, w.position]));
+    expect(await status(page.words[0].id)).toBe('on_page');
+  });
+
+  it('a page graduated in between is not deleted as unfinished', async () => {
+    await importAndSort(0, 2);
+    const page = await repo.createPage(db, 2, null, now);
+    await repo.completeStage(db, page.id, 'ordered', dayEnd, now);
+    const graduate = () => repo.completeStage(db, page.id, 'shuffled', dayEnd, now);
+    await expect(repo.deletePage(racing(graduate), page.id, now)).rejects.toMatchObject({ status: 409 });
+    const after = await repo.getPage(db, page.id);
+    expect(after.stage).toBe('graduated');
+    expect(after.words).toHaveLength(2);
+  });
+
+  it('deleting an unfinished page sends its words back to waiting', async () => {
+    await importAndSort(0, 3);
+    const page = await repo.createPage(db, 3, null, now);
+    await repo.completeStage(db, page.id, 'ordered', dayEnd, now);
+    await repo.deletePage(db, page.id, now);
+    expect(await repo.listPages(db)).toEqual([]);
+    expect(await inboxIds()).toHaveLength(3);
+    await expect(repo.getPage(db, page.id)).rejects.toMatchObject({ status: 404 });
+    // The words can go on a new page again.
+    expect((await repo.createPage(db, 3, null, now)).words).toHaveLength(3);
+  });
+
+  it('deleting a learned page keeps its words in review with their history', async () => {
+    await importAndSort(0, 2);
+    const page = await repo.createPage(db, 2, null, now);
+    await repo.completeStage(db, page.id, 'ordered', dayEnd, now);
+    await repo.completeStage(db, page.id, 'shuffled', dayEnd, now);
+    await repo.deletePage(db, page.id, now);
+    expect(await repo.listPages(db)).toEqual([]);
+    for (const w of page.words) expect(await status(w.id)).toBe('graduated');
+    const cards = await db.prepare('SELECT COUNT(*) AS n FROM cards').first<{ n: number }>();
+    const logs = await db.prepare(`SELECT COUNT(*) AS n FROM review_log WHERE kind = 'graduation'`).first<{ n: number }>();
+    expect([cards?.n, logs?.n]).toEqual([4, 4]);
+    const tomorrow = await repo.reviewQueue(db, dayEnd, nextDay(dayEnd, 1), 50);
+    expect(tomorrow.total).toBe(2);
+    expect(tomorrow.items[0].page).toBeNull();
+  });
+});

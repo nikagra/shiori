@@ -4,12 +4,13 @@ import { Import } from './screens/Import';
 import { Triage } from './screens/Triage';
 import { Pages } from './screens/Pages';
 import { PageView } from './screens/PageView';
+import { PagePicker } from './screens/PagePicker';
 import { Review } from './screens/Review';
 import { Lists } from './screens/Lists';
 import { ListWords } from './screens/ListWords';
 import { Settings } from './screens/Settings';
 
-// Hash routes: #/, #/review, #/pages, #/pages/3, #/lists, #/lists/2 (its words), #/check, #/settings,
+// Hash routes: #/, #/review, #/pages, #/pages/3, #/pages/new (pick the words; #/pages/new/2 from list 2), #/lists, #/lists/2 (its words), #/check, #/settings,
 // #/settings/backup (scrolled to that section), #/settings/import
 
 function useHashRoute(): string[] {
@@ -38,7 +39,7 @@ const NAV = [
 export function App() {
   const route = useHashRoute();
   // Old #/import links open Settings › Import.
-  const [section, id] = route[0] === 'import' ? ['settings', 'import'] : route;
+  const [section, id, sub] = route[0] === 'import' ? ['settings', 'import'] : route;
 
   let screen;
   switch (section) {
@@ -46,7 +47,8 @@ export function App() {
       screen = <Review />;
       break;
     case 'pages':
-      screen = id ? <PageView key={id} id={Number(id)} /> : <Pages />;
+      screen =
+        id === 'new' ? <PagePicker key={sub} listId={sub ? Number(sub) : null} /> : id ? <PageView key={id} id={Number(id)} /> : <Pages />;
       break;
     case 'lists':
       screen = id ? <ListWords key={id} id={Number(id)} /> : <Lists />;

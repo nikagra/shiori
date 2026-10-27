@@ -26,7 +26,7 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   in `.wrangler/state`, separate from the cloud one. An old database holding
   only test data is kept in `.wrangler/state-test-backup-20261025` and can be
   deleted.
-- Tests: 114 unit tests, 58 end-to-end runs (29 tests at iPhone and laptop
+- Tests: 133 unit tests, 62 end-to-end runs (31 tests at iPhone and laptop
   sizes), and `tsc -b` all pass.
 - **Backup and export** (26 Oct): Settings › Backup downloads all study data as
   one JSON file, a nightly cron saves the same file to the private R2 bucket
@@ -58,6 +58,13 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   again, or delete it. A word on an unfinished page can only be edited. The
   search and filters (`shared/wordSearch.ts`, `WordFilter`) are ready for
   picking words into a page (step 3). No migration.
+- **Pages you shape** (26 Oct): Pages › "Pick the words yourself" builds a
+  page from words you pick in one list (waiting, or still to check), with the
+  list's search box. On a page still in step 1, "Change words" swaps a word
+  for the next waiting one or one you pick, takes it off or adds one; the
+  word taken off goes back to waiting or is set aside. Words close in meaning
+  are pointed out. Any page can be deleted: an unfinished page's words wait
+  again, a learned page's words keep their reviews. No migration.
 - First iPhone feedback (25 Oct) is in: "Don't know" on review and drill
   cards, next words hidden in the in-order drill, "Study the page again",
   whole words on the grid, safer iOS speech. Sound on the iPhone still needs
@@ -75,8 +82,8 @@ What the word loop can't do yet:
 
 - ~~See what's in a list, or find, edit or move a word.~~ Done in step 2.
 - Add one word. Import only takes a pasted or uploaded Renshuu export.
-- Shape a page: drop a word with a similar meaning, pick the words yourself,
-  or delete a page.
+- ~~Shape a page: drop a word with a similar meaning, pick the words yourself,
+  or delete a page.~~ Done in step 3.
 - Handle leeches, show what each grade button does, or change the 20 new
   cards a day.
 
@@ -86,7 +93,8 @@ Done: v0.1 core loop (import, check pass, pages, FSRS review, audio,
 furigana), deploy on merge, backup and export (26 Oct; check the first
 nightly copy shows in Settings), lists you manage with their own pace (26 Oct;
 try it on the iPhone: the Lists tab, then a page from School and one from
-Manga), Settings (26 Oct), words you can see and change (26 Oct).
+Manga), Settings (26 Oct), words you can see and change (26 Oct), pages you shape
+(26 Oct).
 
 ### v0.2: a complete word tool
 
@@ -101,12 +109,12 @@ Manga), Settings (26 Oct), words you can see and change (26 Oct).
    check" feedback (26 Oct). "Check again" undoes a check pass answer while
    the word has no page and no real reviews; after that, Again in review is
    the way back.
-3. **Pages you shape** (Mikita, 26 Oct).
-   - Build a page by picking words from a list, with the same search box.
-   - On a new page, swap out a word (for example one too close in meaning
-     to another); the next waiting word takes its place.
-   - Delete a page. Decide what happens to its words: back to waiting if it
-     isn't graduated, and keep review history if it is.
+3. ~~**Pages you shape**~~ Done (26 Oct; Mikita's feedback). Pick a
+   page's words from a list with the same search box (words still to check
+   too), swap or take off a word on a page in step 1 (the next waiting word
+   or one you pick takes its place), and delete a page (unfinished: its words
+   wait again; learned: they keep their reviews). Words close in meaning are
+   pointed out while picking and on a new page.
 4. **Dictionary** (Mikita, 26 Oct: simpler import and word search).
    - Data: English JMdict from jmdict-simplified (about 210k entries, updated
      weekly) and JmdictFurigana, both CC BY-SA 4.0, so the app needs a

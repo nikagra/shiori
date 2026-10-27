@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { api, shortPos, type PageDetail } from '../api';
+import { api, shortPos, writtenForm, type ListWord, type PageDetail } from '../api';
 import { PageGrid } from '../components/PageGrid';
-import { JapaneseWord, KanaInput, Meaning, Notice, Progress, SpeakButton, useKeys } from '../components/ui';
-import { answerStep, currentStep, isDrillDone, startDrill, type DrillState } from '../../shared/pageSession';
+import { SimilarNotice } from '../components/SimilarNotice';
+import { JapaneseWord, KanaInput, Meaning, Notice, plural, Progress, SpeakButton, useKeys } from '../components/ui';
+import { pickable, WordPicker } from '../components/WordPicker';
+import { navigate } from '../nav';
+import { answerStep, currentStep, isDrillDone, MAX_PAGE_WORDS, startDrill, type DrillState } from '../../shared/pageSession';
 import { checkReading } from '../../shared/kana';
 import { useSettings } from '../settings';
 import { speak } from '../speech';
@@ -23,7 +26,9 @@ const STEP_TEXT = {
 export function PageView({ id }: { id: number }) {
   const [page, setPage] = useState<PageDetail | null>(null);
   const [drill, setDrill] = useState<DrillState | null>(null);
+  const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     api.page(id).then(setPage, (e: Error) => setError(e.message));
@@ -79,14 +84,180 @@ export function PageView({ id }: { id: number }) {
         </section>
       )}
 
+      {page.stage === 'ordered' && !editing && <SimilarNotice words={page.words} action="Change words below to swap one for another word." />}
+
       <PageGrid page={page} mode="full" />
 
-      {page.stage !== 'graduated' && (
-        <button className="button button--primary button--wide" onClick={() => page.stage !== 'graduated' && setDrill(startDrill(ids, page.stage))}>
-          {STEP_TEXT[page.stage].start}
-        </button>
+      {editing && page.stage === 'ordered' ? (
+        <PageEditor page={page} onChange={setPage} onDone={() => setEditing(false)} />
+      ) : (
+        page.stage !== 'graduated' && (
+          <>
+            <button className="button button--primary button--wide" onClick={() => page.stage !== 'graduated' && setDrill(startDrill(ids, page.stage))}>
+              {STEP_TEXT[page.stage].start}
+            </button>
+            {page.stage === 'ordered' && (
+              <button className="button button--wide" onClick={() => setEditing(true)}>
+                Change words
+              </button>
+            )}
+          </>
+        )
       )}
+
+      <div className="danger-zone stack stack--tight">
+        {deleteError && <Notice kind="error">{deleteError}</Notice>}
+        <button
+          className="link-button"
+          onClick={async () => {
+            const what =
+              page.stage === 'graduated'
+                ? 'Its words stay in review with their history, but review can no longer show you this page.'
+                : `Its ${plural(page.words.length, 'word')} go back to waiting for a page.`;
+            if (!window.confirm(`Delete page ${page.number}? ${what}`)) return;
+            try {
+              await api.deletePage(page.id);
+              navigate('/pages');
+            } catch (e) {
+              setDeleteError((e as Error).message);
+            }
+          }}
+        >
+          Delete this page
+        </button>
+      </div>
     </div>
+  );
+}
+
+/**
+ * Changing a new page's words before you drill it: swap one that's too close
+ * in meaning to another, take one off, or add one, all from the page's list.
+ */
+function PageEditor({ page, onChange, onDone }: { page: PageDetail; onChange: (page: PageDetail) => void; onDone: () => void }) {
+  const [words, setWords] = useState<ListWord[] | null>(null);
+  /** The word being changed, or 'add' for a new word at the end. */
+  const [selected, setSelected] = useState<number | 'add' | null>(null);
+  const [picking, setPicking] = useState(false);
+  const [setAside, setSetAside] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState<string | null>(null);
+  const [settings] = useSettings();
+
+  const load = () => {
+    if (page.listId !== null) api.listWords(page.listId).then((w) => setWords(pickable(w)), (e: Error) => setError(e.message));
+  };
+  useEffect(load, [page.listId]);
+
+  const select = (id: number | 'add' | null) => {
+    setSelected(id);
+    setPicking(id === 'add');
+    setSetAside(false);
+  };
+  const next = words?.find((w) => w.status === 'inbox');
+  const out = typeof selected === 'number' ? page.words.find((w) => w.id === selected) : undefined;
+
+  const change = async (incoming: ListWord | null) => {
+    if (selected === null) return;
+    setBusy(true);
+    try {
+      // The word the button names, not "next": the label and the swap agree.
+      const updated = await api.changePageWord(page.id, { wordId: out ? out.id : null, replacement: incoming?.id ?? null, setAside });
+      const name = out && writtenForm(out);
+      const where = setAside ? 'set aside' : 'back to waiting';
+      setError(null);
+      setDone(
+        !out
+          ? `Added ${incoming ? writtenForm(incoming) : 'a word'}.`
+          : incoming
+            ? `Swapped ${name} for ${writtenForm(incoming)}; ${name} is ${where}.`
+            : `Took ${name} off the page; it is ${where}.`,
+      );
+      onChange(updated);
+      select(null);
+      load();
+    } catch (e) {
+      setDone(null);
+      setError((e as Error).message);
+    }
+    setBusy(false);
+  };
+
+  const room = page.words.length < Math.min(settings.pageSize, MAX_PAGE_WORDS);
+
+  return (
+    <section className="card stack" aria-label="Change words">
+      <div className="row row--between">
+        <h2>Change words</h2>
+        <button className="button button--primary button--small" onClick={onDone}>
+          Done
+        </button>
+      </div>
+      <p className="muted small">
+        Tap a word to swap it for another from {page.listName ?? 'its list'}, for example one too close in meaning to another. The word you take off goes back to waiting, or you can set it aside.
+      </p>
+      {error && <Notice kind="error">{error}</Notice>}
+      {done && <Notice kind="success">{done}</Notice>}
+      <SimilarNotice words={page.words} action="Swap one of them for another word." />
+      <ul className="word-list">
+        {page.words.map((w) => (
+          <li key={w.id} className={`word-row${selected === w.id ? ' word-row--open' : ''}`} data-testid="page-word">
+            <button type="button" className="word-row__head word-row__head--pick" aria-expanded={selected === w.id} onClick={() => select(selected === w.id ? null : w.id)}>
+              <span className="pick-mark" aria-hidden="true">
+                {w.position + 1}
+              </span>
+              <span className="word-row__jp" lang="ja">
+                <span className="word-row__written">{writtenForm(w)}</span>
+                {w.kanji && <span className="word-row__kana">{w.kana}</span>}
+              </span>
+              <span className="word-row__meaning">{w.coreMeaning}</span>
+            </button>
+            {selected === w.id && (
+              <div className="word-editor stack stack--tight" role="group" aria-label={`Change ${writtenForm(w)}`}>
+                <label className="toggle">
+                  <input type="checkbox" checked={setAside} onChange={(e) => setSetAside(e.target.checked)} /> Set {writtenForm(w)} aside (don’t learn it)
+                </label>
+                <button type="button" className="button" disabled={busy || !next} onClick={() => next && change(next)}>
+                  {next ? (
+                    <>
+                      Swap for the next waiting word: <span lang="ja">{writtenForm(next)}</span>
+                    </>
+                  ) : (
+                    'No other words waiting'
+                  )}
+                </button>
+                <button type="button" className="button" disabled={busy} aria-expanded={picking} onClick={() => setPicking(!picking)}>
+                  Pick a word instead…
+                </button>
+                {page.words.length > 1 && (
+                  <button type="button" className="button" disabled={busy} onClick={() => change(null)}>
+                    Take it off without a replacement
+                  </button>
+                )}
+                {picking && words && <WordPicker words={words} picked={[]} onPick={(p) => !busy && change(p)} label={`Search ${page.listName ?? 'words'}`} />}
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+      {room &&
+        (selected === 'add' ? (
+          <div className="stack stack--tight">
+            <div className="row row--between">
+              <h3>Add a word</h3>
+              <button type="button" className="link-button" onClick={() => select(null)}>
+                Cancel
+              </button>
+            </div>
+            {words && <WordPicker words={words} picked={[]} onPick={(p) => !busy && change(p)} label={`Search ${page.listName ?? 'words'}`} />}
+          </div>
+        ) : (
+          <button type="button" className="button" onClick={() => select('add')}>
+            Add a word ({page.words.length} of {settings.pageSize})
+          </button>
+        ))}
+    </section>
   );
 }
 

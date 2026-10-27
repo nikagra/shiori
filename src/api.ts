@@ -145,6 +145,12 @@ export const api = {
   page: (id: number) => call<PageDetail>('GET', `/pages/${id}`),
   /** listId null lets the server pick the list furthest behind its pace. */
   createPage: (size: number, listId: number | null) => call<PageDetail>('POST', '/pages', { size, listId }),
+  /** A page of the words you picked, in that order. */
+  createPickedPage: (size: number, listId: number, wordIds: number[]) => call<PageDetail>('POST', '/pages', { size, listId, wordIds }),
+  /** Swaps, takes off (replacement null) or adds (wordId null) one word of a page in step 1. */
+  changePageWord: (id: number, change: { wordId: number | null; replacement: number | 'next' | null; setAside?: boolean }) =>
+    call<PageDetail>('POST', `/pages/${id}/words`, change),
+  deletePage: (id: number) => call<{ ok: true }>('DELETE', `/pages/${id}`),
   lists: () => call<ListSummary[]>('GET', `/lists?${dayQuery()}`),
   createList: (name: string) => call<{ id: number; name: string }>('POST', '/lists', { name }),
   updateList: (id: number, changes: ListChanges) => call<{ ok: true }>('PATCH', `/lists/${id}`, changes),
