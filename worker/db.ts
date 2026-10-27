@@ -2,11 +2,12 @@ import type { ImportedWord } from '../shared/renshuu';
 import { normalizeKana } from '../shared/kana';
 import { coreMeaning } from '../shared/meaning';
 import { buildQueue, type QueueCandidate } from '../shared/queue';
-import { DEFAULT_WEIGHT, effectiveWeight, MAX_NAME, NEW_PER_DAY, MAX_PAGES_PER_WEEK, pickList, RECENT_DAYS, WEIGHT_RANGE } from '../shared/lists';
+import { DEFAULT_WEIGHT, effectiveWeight, MAX_NAME, TYPING_CARDS_PER_DAY, MAX_PAGES_PER_WEEK, pickList, RECENT_DAYS, WEIGHT_RANGE } from '../shared/lists';
 import {
   capForHint,
   DIRECTIONS,
   graduate,
+  intervals,
   newCard,
   Rating,
   review,
@@ -19,6 +20,7 @@ import { MAX_PAGE_WORDS, PAGE_READY, type PageStage } from '../shared/pageSessio
 import { BACKUP_FORMAT, BACKUP_SCHEMA, BACKUP_TABLES, LISTS_FROM_LABELS, type Backup, type BackupRow, type BackupTable } from '../shared/backup';
 import type { WordState as WordStatus } from '../shared/wordSearch';
 import { DEFAULT_PREFS, HINTS_TO_LEARNING, isKanji, knownKanjiSet, markLearning, uniqueKanji, type FuriganaPrefs, type Ruby } from '../shared/furigana';
+import { DEFAULT_STUDY, NEW_WORDS_RANGE, type GradeIntervals, type StudyPrefs } from '../shared/study';
 import { dictInfo, entryCoreMeaning, pairs, posLabel, senseStrings, sensesFor, type DictEntry, type WordDictInfo } from '../shared/dictionary';
 
 export type { WordState as WordStatus } from '../shared/wordSearch';
@@ -917,6 +919,8 @@ export interface QueueItem {
   due: string;
   word: Word;
   page: { id: number; number: number; position: number } | null;
+  /** When the card comes back after each grade, in days, without the jitter. */
+  intervals: GradeIntervals;
 }
 
 /**
@@ -950,18 +954,29 @@ async function todaysQueue(db: D1Database, dayStart: Date, dayEnd: Date): Promis
   const queue = buildQueue(candidates.results, {
     reviewedToday: new Set(reviewed.results.map((r) => r.word_id)),
     newIntroducedToday: introduced,
-    newPerDay: NEW_PER_DAY,
+    newPerDay: TYPING_CARDS_PER_DAY,
     weights: new Map(lists.results.map((l) => [l.id, effectiveWeight(toPace(l, dayStart))])),
   });
   return { queue, introduced };
 }
 
-export async function reviewQueue(db: D1Database, dayStart: Date, dayEnd: Date, limit: number): Promise<{ items: QueueItem[]; total: number }> {
+export async function reviewQueue(
+  db: D1Database,
+  dayStart: Date,
+  dayEnd: Date,
+  limit: number,
+  now: Date = new Date(),
+): Promise<{ items: QueueItem[]; total: number }> {
   const { queue } = await todaysQueue(db, dayStart, dayEnd);
 
   const picked = queue.slice(0, limit);
   if (picked.length === 0) return { items: [], total: queue.length };
   const wordIds = [...new Set(picked.map((c) => c.wordId))];
+  const cards = await db
+    .prepare(`SELECT id, fsrs FROM cards WHERE id IN (${picked.map(() => '?').join(', ')})`)
+    .bind(...picked.map((c) => c.cardId))
+    .all<{ id: number; fsrs: string }>();
+  const fsrsById = new Map(cards.results.map((c) => [c.id, JSON.parse(c.fsrs) as StoredCard]));
   const rows = await db
     .prepare(
       `SELECT w.*, pw.page_id, pw.position, p.number AS page_number
@@ -975,7 +990,8 @@ export async function reviewQueue(db: D1Database, dayStart: Date, dayEnd: Date, 
   const byId = new Map(rows.results.map((r) => [r.id, r]));
   const items: QueueItem[] = picked.flatMap((c) => {
     const row = byId.get(c.wordId);
-    if (!row) return [];
+    const card = fsrsById.get(c.cardId);
+    if (!row || !card) return [];
     return [
       {
         cardId: c.cardId,
@@ -984,6 +1000,7 @@ export async function reviewQueue(db: D1Database, dayStart: Date, dayEnd: Date, 
         due: c.due,
         word: toWord(row),
         page: row.page_id === null ? null : { id: row.page_id, number: row.page_number!, position: row.position! },
+        intervals: intervals(card, now),
       },
     ];
   });
@@ -1039,6 +1056,9 @@ export interface Stats {
   inbox: number;
   pagesInProgress: number;
   learned: number;
+  /** Words on pages started today, against the new-words setting. */
+  newWordsToday: number;
+  newWordsPerDay: number;
 }
 
 export async function stats(db: D1Database, dayStart: Date, dayEnd: Date): Promise<Stats> {
@@ -1049,13 +1069,25 @@ export async function stats(db: D1Database, dayStart: Date, dayEnd: Date): Promi
   const by = Object.fromEntries(counts.results.map((r) => [r.status, r.n])) as Partial<Record<WordStatus, number>>;
   const pages = await db.prepare(`SELECT COUNT(*) AS n FROM pages WHERE stage != 'graduated'`).first<{ n: number }>();
   const queue = await reviewQueue(db, dayStart, dayEnd, 0);
+  const study = await getStudy(db);
   return {
     reviewsDue: queue.total,
     toCheck: by.unverified ?? 0,
     inbox: by.inbox ?? 0,
     pagesInProgress: pages?.n ?? 0,
     learned: by.graduated ?? 0,
+    newWordsToday: await newWordsToday(db, dayStart),
+    newWordsPerDay: study.newWordsPerDay,
   };
+}
+
+/** Words on pages started since the study day began (pages you shape count what they hold now). */
+export async function newWordsToday(db: D1Database, dayStart: Date): Promise<number> {
+  const row = await db
+    .prepare('SELECT COUNT(*) AS n FROM page_words pw JOIN pages p ON p.id = pw.page_id WHERE p.created_at >= ?')
+    .bind(iso(dayStart))
+    .first<{ n: number }>();
+  return row?.n ?? 0;
 }
 
 // ---------------------------------------------------------------- lists
@@ -1336,6 +1368,25 @@ export async function recordFuriganaHint(
     .bind(JSON.stringify(prefs), iso(now))
     .run();
   return { prefs, stored: true, movedToLearning: moved };
+}
+
+// ---------------------------------------------------------------- study settings
+
+export async function getStudy(db: D1Database): Promise<StudyPrefs> {
+  const row = await db.prepare("SELECT value FROM settings WHERE key = 'study'").first<{ value: string }>();
+  return row ? { ...DEFAULT_STUDY, ...(JSON.parse(row.value) as Partial<StudyPrefs>) } : DEFAULT_STUDY;
+}
+
+export async function setStudy(db: D1Database, input: Partial<StudyPrefs>, now: Date): Promise<StudyPrefs> {
+  const n = Number(input.newWordsPerDay);
+  const [min, max] = NEW_WORDS_RANGE;
+  if (!Number.isInteger(n) || n < min || n > max) throw new AppError(400, `newWordsPerDay must be ${min}–${max}`);
+  const prefs: StudyPrefs = { newWordsPerDay: n };
+  await db
+    .prepare("INSERT INTO settings (key, value, updated_at) VALUES ('study', ?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at")
+    .bind(JSON.stringify(prefs), iso(now))
+    .run();
+  return prefs;
 }
 
 // ---------------------------------------------------------------- backup

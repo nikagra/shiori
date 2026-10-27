@@ -135,11 +135,49 @@ describe('review', () => {
     expect(r.rating).toBe(Rating.Hard);
   });
 
-  it('caps new production cards at 20 a day', async () => {
+  it('sends the interval each grade would give, without jitter', async () => {
+    await importAndSort(0, 1);
+    const page = await repo.createPage(db, 10, null, now);
+    await repo.completeStage(db, page.id, 'ordered', dayEnd, now);
+    await repo.completeStage(db, page.id, 'shuffled', dayEnd, now);
+    const t = new Date('2026-10-26T19:00:00Z');
+    const q = await repo.reviewQueue(db, dayEnd, nextDay(dayEnd, 1), 50, t);
+    const { again, hard, good, easy } = q.items[0].intervals;
+    expect(again).toBeGreaterThan(0);
+    expect(again).toBeLessThan(hard);
+    expect(hard).toBeLessThan(good);
+    expect(good).toBeLessThan(easy);
+    // Grading Good lands within the jitter of what the button showed.
+    const result = await repo.submitReview(db, { cardId: q.items[0].cardId, rating: Rating.Good, hintUsed: false, answer: null, correct: null, durationMs: null }, t);
+    const days = (new Date(result.due).getTime() - t.getTime()) / 86_400_000;
+    expect(Math.abs(days - good)).toBeLessThanOrEqual(Math.max(1, good * 0.25));
+  });
+
+  it('caps new production cards at 10 a day', async () => {
     await importAndSort(25, 0);
     const q = await repo.reviewQueue(db, dayStart, dayEnd, 50);
-    expect(q.total).toBe(20);
+    expect(q.total).toBe(10);
     expect(q.items.every((i) => i.direction === 'en_jp')).toBe(true);
+  });
+});
+
+describe('new words a day', () => {
+  it('defaults to 12, is shared by devices and refuses odd values', async () => {
+    expect(await repo.getStudy(db)).toEqual({ newWordsPerDay: 12 });
+    expect(await repo.setStudy(db, { newWordsPerDay: 20 }, now)).toEqual({ newWordsPerDay: 20 });
+    expect((await repo.stats(db, dayStart, dayEnd)).newWordsPerDay).toBe(20);
+    for (const bad of [0, 51, 2.5, 'ten'] as unknown[]) {
+      await expect(repo.setStudy(db, { newWordsPerDay: bad as number }, now)).rejects.toMatchObject({ status: 400 });
+    }
+    expect(await repo.getStudy(db)).toEqual({ newWordsPerDay: 20 });
+  });
+
+  it('counts the words on pages started today', async () => {
+    await importAndSort(0, 15);
+    await repo.createPage(db, 10, null, nextDay(now, -1));
+    expect((await repo.stats(db, dayStart, dayEnd)).newWordsToday).toBe(0);
+    await repo.createPage(db, 4, null, now);
+    expect((await repo.stats(db, dayStart, dayEnd)).newWordsToday).toBe(4);
   });
 });
 

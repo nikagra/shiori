@@ -16,6 +16,8 @@ export function Pages() {
   const [from, setFrom] = useState<number | 'auto'>('auto');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /** Past today's new words, "anyway" was pressed. */
+  const [moreToday, setMoreToday] = useState(false);
   const [settings] = useSettings();
 
   useEffect(() => {
@@ -90,14 +92,29 @@ export function Pages() {
               <Notice>You have {stats.reviewsDue} reviews today. New words stick better when reviews are under control; consider reviewing first.</Notice>
             )}
             <p className="muted small" data-testid="page-size">
-              {settings.pageSize} words per page. Change it in <a href="#/settings">Settings</a>.
+              {settings.pageSize} words per page, {stats.newWordsPerDay} new words a day ({stats.newWordsToday} today). Change them in{' '}
+              <a href="#/settings">Settings</a>.
             </p>
-            <button className="button button--primary" disabled={busy || !chosen} onClick={create}>
-              Start a new page
-            </button>
-            <a href={chosen ? `#/pages/new/${chosen.id}` : '#/pages/new'} className="button">
-              Pick the words yourself
-            </a>
+            {stats.newWordsToday >= stats.newWordsPerDay && !moreToday ? (
+              <>
+                <Notice>
+                  You've started {stats.newWordsToday} new words today, your daily {stats.newWordsPerDay}. More pages today mean more reviews tomorrow,
+                  and new words stick better with room to review them.
+                </Notice>
+                <button className="button" onClick={() => setMoreToday(true)}>
+                  Start another page anyway
+                </button>
+              </>
+            ) : (
+              <>
+                <button className="button button--primary" disabled={busy || !chosen} onClick={create}>
+                  Start a new page
+                </button>
+                <a href={chosen ? `#/pages/new/${chosen.id}` : '#/pages/new'} className="button">
+                  Pick the words yourself
+                </a>
+              </>
+            )}
             <a href="#/lists" className="link-button">
               Lists, weights and weekly targets
             </a>

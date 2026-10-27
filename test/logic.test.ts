@@ -5,6 +5,7 @@ import { capForHint, graduate, newCard, Rating, review, State } from '../shared/
 import { answerStep, currentStep, isDrillDone, startDrill } from '../shared/pageSession';
 import { buildQueue, triageOrder, type QueueCandidate } from '../shared/queue';
 import { meaningWords, similarPairs } from '../shared/similar';
+import { formatInterval } from '../shared/study';
 
 describe('core meaning', () => {
   it('takes the first sense, at most three glosses', () => {
@@ -155,5 +156,18 @@ describe('words close in meaning', () => {
   it('ignores case, brackets and very short words', () => {
     expect([...meaningWords('Cat (animal); a CAT, an ox')]).toEqual(['cat']);
     expect(similarPairs([word(1, 'big (in size)'), word(2, 'size')])).toEqual([]);
+  });
+});
+
+describe('grade intervals', () => {
+  it('rounds to a short label', () => {
+    expect(formatInterval(10 / 1440)).toBe('10m');
+    expect(formatInterval(0.25)).toBe('6h');
+    expect(formatInterval(1)).toBe('1d');
+    expect(formatInterval(6.6)).toBe('7d');
+    expect(formatInterval(20)).toBe('3w');
+    expect(formatInterval(120)).toBe('4mo');
+    expect(formatInterval(438)).toBe('1.2y');
+    expect(formatInterval(5000)).toBe('14y');
   });
 });

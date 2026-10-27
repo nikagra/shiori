@@ -89,8 +89,8 @@ Each list has its own pace:
   page" asks which list. "Pick for me" (`pickList`) takes a focused list
   first, then the list furthest behind its weekly target, then the list with
   the fewest pages in the last 28 days for its weight.
-- **New review cards** (`shareNewCards`): today's `NEW_PER_DAY` (20) are
-  handed out one at a time to the list furthest below its share (cards so far
+- **New review cards** (`shareNewCards`): today's `TYPING_CARDS_PER_DAY`
+  (10) are handed out one at a time to the list furthest below its share (cards so far
   today ÷ weight). A list that runs out of new cards passes its share on, so
   the budget isn't wasted.
 - **Due reviews always come**, from every list, paused and archived ones too.
@@ -235,7 +235,18 @@ Each list opens to its words (`#/lists/<id>`), in the order they came in.
   by typing kana; on a laptop, romaji is turned into kana with WanaKana).
 - Only one card per word per day, so answering one direction never gives away
   the other. Due cards come first, most overdue first, then up to
-  `NEW_PER_DAY` (20) new cards, shared between lists by weight (see Lists).
+  `TYPING_CARDS_PER_DAY` (10) new cards, shared between lists by weight (see
+  Lists). Page words graduate straight into review, so the only new cards are
+  the meaning→Japanese cards of words you knew in the check pass.
+- **New words a day** (`shared/study.ts`, Settings › New words): the words you
+  start on pages, default 12, 1–50. Stored on the server (`settings` key
+  `study`), so every device shares it. A page's words count on the study day
+  it was started. Once today's count reaches the number, Pages asks ("Start
+  another page anyway") instead of blocking, since study days are irregular.
+- **Grade intervals**: each review card comes with the interval each grade
+  would give (`intervals`, FSRS without the jitter), shown on the buttons as
+  "~7d". Grading adds the jitter, so the real date can differ by a day or so.
+  "How grading works" opens Settings › How grading works.
 - A peek at the word's page caps the grade at Hard.
 - The core meaning can be edited from the answer. `senses` keeps the full
   dictionary list.
@@ -300,7 +311,8 @@ Answer first:
 - **Japanese → meaning:** say the meaning, then tap **Show answer**.
 - **Meaning → Japanese:** type the kana. The app checks it.
 
-Then grade how the recall felt:
+Then grade how the recall felt. Each button shows roughly when the word comes
+back if you press it (for example "Good ~7d"):
 
 | Grade | Choose it when | Effect on the card |
 |---|---|---|

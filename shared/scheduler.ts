@@ -1,4 +1,5 @@
 import { createEmptyCard, fsrs, generatorParameters, Rating, State, type Card, type Grade } from 'ts-fsrs';
+import type { GradeIntervals } from './study';
 
 // FSRS scheduling for Shiori.
 //
@@ -13,9 +14,10 @@ export type { Card, Grade };
 
 export const DESIRED_RETENTION = 0.9;
 
-const scheduler = fsrs(
-  generatorParameters({ request_retention: DESIRED_RETENTION, enable_short_term: false, enable_fuzz: true }),
-);
+const params = { request_retention: DESIRED_RETENTION, enable_short_term: false };
+const scheduler = fsrs(generatorParameters({ ...params, enable_fuzz: true }));
+/** The same scheduler without jitter, for showing what each grade would do. */
+const previewer = fsrs(generatorParameters({ ...params, enable_fuzz: false }));
 
 /** Serialisable FSRS card, dates as ISO strings. */
 export interface StoredCard {
@@ -60,6 +62,15 @@ export function newCard(now: Date): StoredCard {
 
 export function review(card: StoredCard, rating: Grade, now: Date): StoredCard {
   return toStored(scheduler.next(fromStored(card), now, rating).card);
+}
+
+const DAY_MS = 86_400_000;
+
+/** Days from now until the card is due again after each grade (no jitter). */
+export function intervals(card: StoredCard, now: Date): GradeIntervals {
+  const preview = previewer.repeat(fromStored(card), now);
+  const days = (rating: Grade) => (preview[rating].card.due.getTime() - now.getTime()) / DAY_MS;
+  return { again: days(Rating.Again), hard: days(Rating.Hard), good: days(Rating.Good), easy: days(Rating.Easy) };
 }
 
 /**

@@ -2,8 +2,12 @@
 // decide where new pages and new cards come from. FSRS stays per card, so due
 // reviews come from every list whatever these say.
 
-/** New review cards a day, across all lists. */
-export const NEW_PER_DAY = 20;
+/**
+ * New review cards a day, across all lists. Page words graduate straight into
+ * review, so the only new cards are the meaning→Japanese cards of words you
+ * knew in the check pass. New words come from pages (shared/study.ts).
+ */
+export const TYPING_CARDS_PER_DAY = 10;
 
 /** Weights the app offers. The API takes any whole number in WEIGHT_RANGE. */
 export const WEIGHTS = { low: 1, normal: 2, high: 4 } as const;

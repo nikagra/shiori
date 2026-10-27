@@ -285,6 +285,18 @@ p {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.grade__interval {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 400;
+  opacity: 0.8;
+}
+
+.grade-hint {
+  text-align: center;
+  margin: 0;
+}
+
 .link-button {
   appearance: none;
   background: none;
@@ -1002,4 +1014,35 @@ rt {
 
 .dict-note {
   font-size: 0.85rem;
+}
+
+.grading {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 12px;
+  margin: 0;
+}
+
+.grading dt {
+  font-weight: 600;
+}
+
+.grading dd {
+  margin: 0;
+}
+
+.grading__again {
+  color: var(--again);
+}
+
+.grading__hard {
+  color: var(--hard);
+}
+
+.grading__good {
+  color: var(--good);
+}
+
+.grading__easy {
+  color: var(--easy);
 }

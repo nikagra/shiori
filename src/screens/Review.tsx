@@ -3,6 +3,7 @@ import { api, shortPos, type PageDetail, type QueueItem } from '../api';
 import { PageGrid } from '../components/PageGrid';
 import { JapaneseWord, KanaInput, Meaning, Notice, Progress, SpeakButton, useKeys } from '../components/ui';
 import { checkReading } from '../../shared/kana';
+import { formatInterval } from '../../shared/study';
 import { useSettings } from '../settings';
 import { speak } from '../speech';
 
@@ -262,24 +263,34 @@ function ReviewCard({
       {answered && (
         <div className="stack stack--tight">
           {passed ? (
-            <div className="grade-row">
-              <button className="button button--again" onClick={() => grade(AGAIN)} disabled={sending}>
-                Again
-              </button>
-              <button className="button button--hard" onClick={() => grade(HARD)} disabled={sending}>
-                Hard
-              </button>
-              <button className="button button--good" onClick={() => grade(GOOD)} disabled={sending || hintUsed}>
-                Good
-              </button>
-              <button className="button button--easy" onClick={() => grade(EASY)} disabled={sending || hintUsed}>
-                Easy
-              </button>
-            </div>
+            <>
+              <div className="grade-row" data-testid="grade-row">
+                <button className="button button--again" onClick={() => grade(AGAIN)} disabled={sending}>
+                  Again
+                  <Interval days={item.intervals.again} />
+                </button>
+                <button className="button button--hard" onClick={() => grade(HARD)} disabled={sending}>
+                  Hard
+                  <Interval days={item.intervals.hard} />
+                </button>
+                <button className="button button--good" onClick={() => grade(GOOD)} disabled={sending || hintUsed}>
+                  Good
+                  <Interval days={item.intervals.good} />
+                </button>
+                <button className="button button--easy" onClick={() => grade(EASY)} disabled={sending || hintUsed}>
+                  Easy
+                  <Interval days={item.intervals.easy} />
+                </button>
+              </div>
+              <p className="muted small grade-hint">
+                Good is the normal answer when you recalled it. <a href="#/settings/grading">How grading works</a>
+              </p>
+            </>
           ) : (
             <>
               <button className="button button--again button--wide" onClick={() => grade(AGAIN)} disabled={sending}>
                 Again
+                <Interval days={item.intervals.again} />
               </button>
               {!reading && !gaveUp && (
                 <button className="link-button" onClick={() => setTyped({ ...typed!, typo: true })}>
@@ -298,4 +309,9 @@ function ReviewCard({
       )}
     </div>
   );
+}
+
+/** When the card comes back after this grade. Approximate: grading adds a little jitter. */
+function Interval({ days }: { days: number }) {
+  return <span className="grade__interval">~{formatInterval(days)}</span>;
 }

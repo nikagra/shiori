@@ -35,6 +35,9 @@ test('review both directions with honest grading', async ({ page, request }, tes
       if (i === 0) await shot(page, testInfo, '20-review-reading-prompt');
       await page.getByRole('button', { name: 'Show answer' }).click();
       await expect(card.locator('.meaning__core')).toContainText(word.coreMeaning);
+      // Each grade shows when the word would come back.
+      const grades = page.getByTestId('grade-row');
+      for (const name of ['Again', 'Hard', 'Good', 'Easy']) await expect(grades.getByRole('button', { name })).toContainText(/~\d+(m|h|d|w|mo|y)/);
       if (graded.length === 0) await shot(page, testInfo, '21-review-reading-answer');
       await page.getByRole('button', { name: 'Good' }).click();
     } else {
@@ -84,6 +87,12 @@ test('peeking at the page caps the grade at Hard', async ({ page, request }, tes
   await expect(page.getByRole('button', { name: 'Good' })).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Easy' })).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Hard' })).toBeEnabled();
+
+  // The guide to the grades is one tap away.
+  await page.getByRole('link', { name: 'How grading works' }).click();
+  await expect(page).toHaveURL(/#\/settings\/grading$/);
+  await expect(page.getByRole('region', { name: 'Grading' })).toBeInViewport();
+  await shot(page, testInfo, '24-settings-grading');
 });
 
 test('a typo can be counted as correct', async ({ page, request }) => {
