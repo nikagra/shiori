@@ -9,7 +9,7 @@ import { canSpeak, hasJapaneseVoice } from '../speech';
 import { lookUpAll } from '../components/DictSearch';
 import { DICT_CREDITS } from '../../shared/dictionary';
 import type { DictStatus } from '../api';
-import { NEW_WORDS_CHOICES, NEW_WORDS_DEFAULT } from '../../shared/study';
+import { NEW_WORDS_CHOICES, NEW_WORDS_DEFAULT, type StudyPrefs } from '../../shared/study';
 import { TYPING_CARDS_PER_DAY } from '../../shared/lists';
 
 /** `scrollTo` names a section to bring into view, e.g. "backup" from Home's warning. */
@@ -111,23 +111,21 @@ function Dictionary() {
 
 /** Saved on the server, so the phone and the laptop share it. */
 function NewWords() {
-  const [value, setValue] = useState<number | null>(null);
+  const [prefs, setPrefs] = useState<StudyPrefs | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
-    api.study().then(
-      (p) => setValue(p.newWordsPerDay),
-      (e: Error) => setError(e.message),
-    );
+    api.study().then(setPrefs, (e: Error) => setError(e.message));
   }, []);
+  const value = prefs?.newWordsPerDay ?? null;
 
   const change = (n: number) => {
-    setValue(n);
+    setPrefs((p) => p && { ...p, newWordsPerDay: n });
     api.setStudy({ newWordsPerDay: n }).then(
       () => setError(null),
       (e: Error) => {
         setError(e.message);
         // Show what the server holds now, whatever order the saves landed in.
-        api.study().then((p) => setValue(p.newWordsPerDay), () => undefined);
+        api.study().then(setPrefs, () => undefined);
       },
     );
   };
@@ -157,12 +155,38 @@ function NewWords() {
   );
 }
 
-/** The short version of "Buttons and what they do" in DESIGN.md. */
+/** The short version of "Buttons and what they do" in DESIGN.md, and whether review shows the intervals. */
 function Grading() {
+  const [show, setShow] = useState<boolean | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    api.study().then(
+      (p) => setShow(p.showIntervals),
+      (e: Error) => setError(e.message),
+    );
+  }, []);
+  const change = (next: boolean) => {
+    setShow(next);
+    api.setStudy({ showIntervals: next }).then(
+      () => setError(null),
+      (e: Error) => {
+        setError(e.message);
+        api.study().then((p) => setShow(p.showIntervals), () => undefined);
+      },
+    );
+  };
+
   return (
     <section className="card stack stack--tight" aria-label="Grading" data-section="grading">
       <h2>How grading works</h2>
-      <p className="muted small">Each button shows when the word comes back if you press it. The real date varies a little: a day or two at a week, weeks at a year.</p>
+      <label className="toggle">
+        <input type="checkbox" checked={show ?? true} disabled={show === null} onChange={(e) => change(e.target.checked)} />
+        Show when each grade brings the word back
+      </label>
+      <p className="muted small">
+        A line under the grade buttons in review. The real date varies a little: a day or two at a week, weeks at a year. Shared by all your devices.
+      </p>
+      {error && <p className="error">{error}</p>}
       <dl className="grading">
         <dt className="grading__again">Again</dt>
         <dd>You didn't recall it, or recalled it wrongly. It comes back soon (the button says when) and counts as a lapse.</dd>

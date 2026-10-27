@@ -198,7 +198,8 @@ export const api = {
     call<PageDetail>('POST', `/pages/${id}/complete`, { stage, nextDayStart: studyDay().end.toISOString() }),
   reviewQueue: () => call<{ items: QueueItem[]; total: number }>('GET', `/review?${dayQuery()}`),
   study: () => call<StudyPrefs>('GET', '/study'),
-  setStudy: (prefs: StudyPrefs) => call<StudyPrefs>('PUT', '/study', prefs),
+  /** Changes only the settings sent. */
+  setStudy: (prefs: Partial<StudyPrefs>) => call<StudyPrefs>('PUT', '/study', prefs),
   furigana: () => call<{ prefs: FuriganaPrefs; stored: boolean }>('GET', '/furigana'),
   setFurigana: (prefs: FuriganaPrefs) => call<{ prefs: FuriganaPrefs; stored: boolean }>('PUT', '/furigana', prefs),
   furiganaHint: (wordId: number, kanji: string) =>

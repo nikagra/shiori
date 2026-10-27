@@ -1377,11 +1377,22 @@ export async function getStudy(db: D1Database): Promise<StudyPrefs> {
   return row ? { ...DEFAULT_STUDY, ...(JSON.parse(row.value) as Partial<StudyPrefs>) } : DEFAULT_STUDY;
 }
 
+/** Changes the study settings you send; the others stay as they were. */
 export async function setStudy(db: D1Database, input: Partial<StudyPrefs> | null, now: Date): Promise<StudyPrefs> {
-  const n = input?.newWordsPerDay;
-  const [min, max] = NEW_WORDS_RANGE;
-  if (typeof n !== 'number' || !Number.isInteger(n) || n < min || n > max) throw new AppError(400, `newWordsPerDay must be a whole number ${min}–${max}`);
-  const prefs: StudyPrefs = { newWordsPerDay: n };
+  if (input === null || typeof input !== 'object' || (input.newWordsPerDay === undefined && input.showIntervals === undefined)) {
+    throw new AppError(400, 'send newWordsPerDay or showIntervals');
+  }
+  const prefs = { ...(await getStudy(db)) };
+  if (input.newWordsPerDay !== undefined) {
+    const n = input.newWordsPerDay;
+    const [min, max] = NEW_WORDS_RANGE;
+    if (typeof n !== 'number' || !Number.isInteger(n) || n < min || n > max) throw new AppError(400, `newWordsPerDay must be a whole number ${min}–${max}`);
+    prefs.newWordsPerDay = n;
+  }
+  if (input.showIntervals !== undefined) {
+    if (typeof input.showIntervals !== 'boolean') throw new AppError(400, 'showIntervals must be true or false');
+    prefs.showIntervals = input.showIntervals;
+  }
   await db
     .prepare("INSERT INTO settings (key, value, updated_at) VALUES ('study', ?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at")
     .bind(JSON.stringify(prefs), iso(now))

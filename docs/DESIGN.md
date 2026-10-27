@@ -245,8 +245,10 @@ Each list opens to its words (`#/lists/<id>`), in the order they came in.
   a word off it, gives the room back, since those words wait again. Once today's count reaches the number, Pages asks ("Start
   another page anyway") instead of blocking, since study days are irregular.
 - **Grade intervals**: each review card comes with the interval each grade
-  would give (`intervals`, FSRS without the jitter), shown on the buttons as
-  "~7d". Grading adds the jitter, so the real date can differ: by about two
+  would give (`intervals`, FSRS without the jitter), shown as "~7d" in a
+  quiet line under each button. Settings › How grading works turns the line
+  off (`study.showIntervals`, shared by devices; Mikita, 27 Oct: once you
+  know what the grades do, it needn't show every time). Grading adds the jitter, so the real date can differ: by about two
   days at a week, a week at three months, three weeks at a year. "How
   grading works" opens Settings › How grading works, a short copy of
   "Buttons and what they do" below; change both together.
@@ -314,8 +316,9 @@ Answer first:
 - **Japanese → meaning:** say the meaning, then tap **Show answer**.
 - **Meaning → Japanese:** type the kana. The app checks it.
 
-Then grade how the recall felt. Each button shows roughly when the word comes
-back if you press it (for example "Good ~7d"):
+Then grade how the recall felt. Under each button, a line says roughly when the
+word comes back if you press it (for example "~7d" under Good), until you turn
+it off in Settings:
 
 | Grade | Choose it when | Effect on the card |
 |---|---|---|

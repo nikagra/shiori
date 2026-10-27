@@ -168,14 +168,18 @@ describe('review', () => {
 
 describe('new words a day', () => {
   it('defaults to 12, is shared by devices and refuses odd values', async () => {
-    expect(await repo.getStudy(db)).toEqual({ newWordsPerDay: 12 });
-    expect(await repo.setStudy(db, { newWordsPerDay: 20 }, now)).toEqual({ newWordsPerDay: 20 });
+    expect(await repo.getStudy(db)).toEqual({ newWordsPerDay: 12, showIntervals: true });
+    expect(await repo.setStudy(db, { newWordsPerDay: 20 }, now)).toEqual({ newWordsPerDay: 20, showIntervals: true });
+    // Each setting changes on its own.
+    expect(await repo.setStudy(db, { showIntervals: false }, now)).toEqual({ newWordsPerDay: 20, showIntervals: false });
     expect((await repo.stats(db, dayStart, dayEnd)).newWordsPerDay).toBe(20);
     for (const bad of [0, 51, 2.5, 'ten', '8', true, [8], null] as unknown[]) {
       await expect(repo.setStudy(db, { newWordsPerDay: bad as number }, now)).rejects.toMatchObject({ status: 400 });
     }
     await expect(repo.setStudy(db, null, now)).rejects.toMatchObject({ status: 400 });
-    expect(await repo.getStudy(db)).toEqual({ newWordsPerDay: 20 });
+    await expect(repo.setStudy(db, {}, now)).rejects.toMatchObject({ status: 400 });
+    await expect(repo.setStudy(db, { showIntervals: 'no' as never }, now)).rejects.toMatchObject({ status: 400 });
+    expect(await repo.getStudy(db)).toEqual({ newWordsPerDay: 20, showIntervals: false });
   });
 
   it('counts the words on pages started today', async () => {

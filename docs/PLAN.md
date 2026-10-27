@@ -79,9 +79,9 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   laptop, `npm run dict:download && npm run dict:build && npm run
   dict:load` loads all of it in a few minutes. See "Dictionary" in
   DESIGN.md.
-- **Finish review, part 1** (27 Oct): the grade buttons show roughly when
-  the word comes back ("Good ~7d"), with a "How grading works" guide in
-  Settings. The daily limit moved to where new words come from: Settings ›
+- **Finish review, part 1** (27 Oct): a line under the grade buttons shows
+  roughly when the word comes back ("~7d"), with a "How grading works" guide
+  in Settings that can also turn the line off. The daily limit moved to where new words come from: Settings ›
   New words sets **new words a day** on pages (default 12, shared by
   devices), and Pages asks before starting more. The check pass's typing
   cards keep their own fixed 10 a day (was 20). No migration. The plan for

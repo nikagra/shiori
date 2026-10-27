@@ -8,9 +8,11 @@ export const NEW_WORDS_RANGE = [1, 50] as const;
 
 export interface StudyPrefs {
   newWordsPerDay: number;
+  /** In review, a line under the grade buttons with when each grade brings the word back. */
+  showIntervals: boolean;
 }
 
-export const DEFAULT_STUDY: StudyPrefs = { newWordsPerDay: NEW_WORDS_DEFAULT };
+export const DEFAULT_STUDY: StudyPrefs = { newWordsPerDay: NEW_WORDS_DEFAULT, showIntervals: true };
 
 /** Pages asks before a new page once today's new words reach the setting. */
 export const newWordsReached = (today: number, perDay: number) => today >= perDay;
