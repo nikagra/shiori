@@ -57,7 +57,13 @@ export async function expectNoHorizontalScroll(page: Page) {
   expect(overflow).toBeLessThanOrEqual(0);
 }
 
+/**
+ * The whole page as one picture. The tab bar is fixed to the bottom of the
+ * screen, which a whole-page picture would show partway down, over the
+ * content, so here it sits at the end of the page, as it does when you scroll there.
+ */
 export async function shot(page: Page, testInfo: TestInfo, name: string) {
-  await page.screenshot({ path: testInfo.outputPath(`${name}.png`), fullPage: true });
-  await page.screenshot({ path: join('test-results', 'screens', testInfo.project.name, `${name}.png`), fullPage: true });
+  const style = '.tabbar { position: static !important; }';
+  await page.screenshot({ path: testInfo.outputPath(`${name}.png`), fullPage: true, style });
+  await page.screenshot({ path: join('test-results', 'screens', testInfo.project.name, `${name}.png`), fullPage: true, style });
 }
