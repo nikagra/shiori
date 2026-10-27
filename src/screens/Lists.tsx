@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api, studyDay, type ListChanges, type ListSummary } from '../api';
 import { Notice, plural, shortDate } from '../components/ui';
 import { useSettings } from '../settings';
@@ -26,7 +26,18 @@ export function Lists() {
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState('');
 
-  const load = () => api.lists().then(setLists, (e: Error) => setError(e.message));
+  // Lists loaded before or during a later change are out of date, so a quick
+  // second change (pause right after the weekly target) isn't undone: only
+  // the last change in flight loads, and a change since drops what it loads.
+  const changes = useRef(0);
+  const inFlight = useRef(0);
+  const load = () => {
+    const asked = changes.current;
+    return api.lists().then(
+      (l) => changes.current === asked && setLists(l),
+      (e: Error) => setError(e.message),
+    );
+  };
   useEffect(() => {
     load();
   }, []);
@@ -34,6 +45,8 @@ export function Lists() {
   /** Runs a change, then shows the lists as the server has them. True when it worked. */
   const run = async (action: () => Promise<unknown>) => {
     setError(null);
+    changes.current++;
+    inFlight.current++;
     let ok = true;
     try {
       await action();
@@ -41,7 +54,7 @@ export function Lists() {
       setError((e as Error).message);
       ok = false;
     }
-    await load();
+    if (--inFlight.current === 0) await load();
     return ok;
   };
 
