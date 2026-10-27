@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, type Stats } from '../api';
-import { Notice } from '../components/ui';
+import { Notice, plural } from '../components/ui';
 import { nightlyIsStale } from '../../shared/backup';
 import { lookUpInBackground } from '../components/DictSearch';
 
@@ -60,6 +60,28 @@ export function Home() {
       </a>
 
       <p className="muted">{stats.learned} {stats.learned === 1 ? 'word' : 'words'} in spaced review.</p>
+
+      {stats.leeches.length > 0 && (
+        <Notice>
+          <p data-testid="home-leeches">
+            {plural(
+              stats.leeches.reduce((n, l) => n + l.count, 0),
+              'word needs',
+              'words need',
+            )}{' '}
+            a new approach:{' '}
+            {stats.leeches.map((l, i) => (
+              <span key={l.listId}>
+                {i > 0 && ', '}
+                <a href={`#/lists/${l.listId}/leeches`}>
+                  {l.listName} ({l.count})
+                </a>
+              </span>
+            ))}
+            .
+          </p>
+        </Notice>
+      )}
 
       {backupStale && (
         <Notice kind="error">

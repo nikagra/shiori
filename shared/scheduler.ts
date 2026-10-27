@@ -92,4 +92,5 @@ export function capForHint(rating: Grade, hintUsed: boolean): Grade {
   return rating > Rating.Hard ? Rating.Hard : rating;
 }
 
-export const LEECH_LAPSES = 6;
+/** Lapses (since it was last let back in) that make a word a leech: it leaves review until you act on it. */
+export const LEECH_LAPSES = 4;

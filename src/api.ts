@@ -26,6 +26,10 @@ export interface Word {
   dict: 'linked' | 'none' | 'unchecked';
   furigana: Ruby[] | null;
   usuallyKana: boolean;
+  /** When it became a leech: out of review until you act on it. */
+  leechAt: string | null;
+  /** Your own memory hook, shown with the answer. */
+  hook: string | null;
 }
 
 /** A word as its list shows it (worker/db.ts ListWord). */
@@ -43,6 +47,7 @@ export interface WordChanges {
   kanji?: string | null;
   coreMeaning?: string;
   listId?: number;
+  hook?: string | null;
 }
 
 export interface Stats {
@@ -54,6 +59,8 @@ export interface Stats {
   /** Words on pages started today, and the limit set in Settings. */
   newWordsToday: number;
   newWordsPerDay: number;
+  /** Leeches waiting for a new approach, by list. */
+  leeches: { listId: number; listName: string; count: number }[];
 }
 
 export interface PageSummary {
@@ -179,6 +186,10 @@ export const api = {
   setAside: (id: number) => call<ListWord>('POST', `/words/${id}/set-aside`),
   bringBack: (id: number) => call<ListWord>('POST', `/words/${id}/bring-back`),
   checkAgain: (id: number) => call<ListWord>('POST', `/words/${id}/check-again`),
+  /** Back to waiting, first in its list, for a fresh page. */
+  relearn: (id: number) => call<ListWord>('POST', `/words/${id}/relearn`),
+  /** A leech back into review as it is. */
+  backToReview: (id: number) => call<ListWord>('POST', `/words/${id}/back-to-review`),
   deleteWord: (id: number) => call<{ ok: true }>('DELETE', `/words/${id}`),
   pages: () => call<PageSummary[]>('GET', '/pages'),
   page: (id: number) => call<PageDetail>('GET', `/pages/${id}`),
@@ -219,7 +230,7 @@ export const api = {
     return { backup: parseBackup(text), text };
   },
   submitReview: (cardId: number, body: { rating: number; hintUsed: boolean; answer?: string; correct?: boolean; durationMs: number }) =>
-    call<{ due: string; rating: number }>('POST', `/review/${cardId}`, body),
+    call<{ due: string; rating: number; leech: boolean }>('POST', `/review/${cardId}`, body),
 };
 
 export const writtenForm = (w: Pick<Word, 'kanji' | 'kana'>) => w.kanji ?? w.kana;

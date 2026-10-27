@@ -86,6 +86,8 @@ app.patch('/words/:id', async (c) => {
 
 app.post('/words/:id/set-aside', async (c) => c.json(await db.setAside(c.env.DB, intParam(c.req.param('id'), 'id'), new Date())));
 app.post('/words/:id/bring-back', async (c) => c.json(await db.bringBack(c.env.DB, intParam(c.req.param('id'), 'id'), new Date())));
+app.post('/words/:id/relearn', async (c) => c.json(await db.relearn(c.env.DB, intParam(c.req.param('id'), 'id'), new Date())));
+app.post('/words/:id/back-to-review', async (c) => c.json(await db.backToReview(c.env.DB, intParam(c.req.param('id'), 'id'), new Date())));
 app.post('/words/:id/check-again', async (c) => c.json(await db.checkAgain(c.env.DB, intParam(c.req.param('id'), 'id'), new Date())));
 
 app.delete('/words/:id', async (c) => {
@@ -248,6 +250,10 @@ app.post('/test/make-due', async (c) => {
   const direction = c.req.query('direction');
   if (direction !== undefined && direction !== 'jp_en' && direction !== 'en_jp') throw new db.AppError(400, 'direction must be jp_en or en_jp');
   await db.makeAllDue(c.env.DB, new Date(), direction);
+  return c.json({ ok: true });
+});
+app.post('/test/lapses/:wordId', async (c) => {
+  await db.setLapses(c.env.DB, intParam(c.req.param('wordId'), 'wordId'), intParam(c.req.query('n'), 'n'));
   return c.json({ ok: true });
 });
 
