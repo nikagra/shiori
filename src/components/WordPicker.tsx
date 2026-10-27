@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { writtenForm, type ListWord } from '../api';
 import { plural } from './ui';
+import { PAGE_READY } from '../../shared/pageSession';
 import { useWordFilter, WordFilter } from './WordFilter';
 
 // Picking words for a page from one list, with the list's search box and
@@ -11,7 +12,7 @@ const SHOW_AT_ONCE = 100;
 
 /** Words that can go on a page: waiting first, then still to check, each in the order they came. */
 export function pickable(words: readonly ListWord[]): ListWord[] {
-  return [...words.filter((w) => w.status === 'inbox'), ...words.filter((w) => w.status === 'unverified')];
+  return PAGE_READY.flatMap((state) => words.filter((w) => w.status === state));
 }
 
 export function WordPicker({

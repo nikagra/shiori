@@ -2,9 +2,9 @@
 // for the same spot in memory, so the page builder points them out and you can
 // swap one for another word. Pure, so it's unit tested.
 
-/** Words that say little about the meaning on their own. */
+/** Words that say little about the meaning on their own (words under 3 letters never count). */
 const FILLER = new Set(
-  'to be a an the of in on at by for with from up out off into as and or not no one some something someone somebody thing things do does make get have has is it its very more most much many lot kind sort way type usually especially also than that this which who what used use (e.g. etc'.split(
+  'the for with from out off into and not one some something someone somebody thing things does make get have has its very more most much many lot kind sort way type usually especially also than that this which who what used use etc'.split(
     ' ',
   ),
 );

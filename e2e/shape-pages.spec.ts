@@ -94,14 +94,19 @@ test('pick the words for a page, swap one close in meaning, then delete the page
   expect(after.find((w) => w.id === twin.id)!.status).toBe('inbox');
 
   // Delete it: its words wait for a page again.
+  const onPage = (await (await request.get(`/api/pages/${pageId}`)).json()).words as ApiWord[];
+  let asked = '';
   page.once('dialog', (d) => {
-    expect(d.message()).toContain('Its 3 words go back to waiting');
+    asked = d.message();
     d.accept();
   });
   await page.getByRole('button', { name: 'Delete this page' }).click();
   await expect(page.getByRole('heading', { name: 'Pages' })).toBeVisible();
+  expect(asked).toContain('Its 3 words go back to waiting');
   await expect(page.getByText('In progress')).toHaveCount(0);
   expect((await request.get(`/api/pages/${pageId}`)).status()).toBe(404);
+  const afterDelete = (await (await request.get(`/api/lists/${manga}/words`)).json()) as ApiWord[];
+  for (const w of onPage) expect(afterDelete.find((x) => x.id === w.id)!.status).toBe('inbox');
 });
 
 test('a learned page can be deleted and its words stay in review', async ({ page, request }) => {
@@ -110,12 +115,14 @@ test('a learned page can be deleted and its words stay in review', async ({ page
   await page.goto(`/#/pages/${learned.id}`);
   await expect(page.getByTestId('page-learned')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Change words' })).toHaveCount(0);
+  let asked = '';
   page.once('dialog', (d) => {
-    expect(d.message()).toContain('stay in review');
+    asked = d.message();
     d.accept();
   });
   await page.getByRole('button', { name: 'Delete this page' }).click();
   await expect(page.getByRole('heading', { name: 'Pages' })).toBeVisible();
+  expect(asked).toContain('stay in review');
   const manga = await listId(request, 'Manga');
   const words = (await (await request.get(`/api/lists/${manga}/words`)).json()) as (ApiWord & { hasCards: boolean })[];
   for (const w of learned.words) expect(words.find((x) => x.id === w.id)).toMatchObject({ status: 'graduated', hasCards: true });

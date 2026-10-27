@@ -956,7 +956,7 @@ rt {
   border-radius: var(--radius);
   background: var(--surface);
   border: 1px solid var(--line);
-  box-shadow: 0 4px 16px rgb(0 0 0 / 0.12);
+  box-shadow: var(--shadow);
 }
 
 .picker__bar p {
@@ -975,11 +975,6 @@ rt {
 .similar-list {
   margin: 4px 0;
   padding-left: 1.2em;
-}
-
-.page-edit-row {
-  display: grid;
-  grid-template-columns: 28px minmax(0, auto) minmax(0, 1fr);
 }
 
 .danger-zone {

@@ -350,6 +350,51 @@ describe('pages you shape', () => {
     expect(await status(page.words[0].id)).toBe('on_page');
   });
 
+  it('a word taken off on the other device in between: a swap of a later word still lands in its spot', async () => {
+    await importAndSort(0, 6);
+    const page = await repo.createPage(db, 4, null, now);
+    const [first, , , last] = page.words;
+    const [next] = await inboxIds();
+    const takeOffFirst = () => repo.changePageWord(db, page.id, { wordId: first.id, replacement: null }, now);
+    const swapped = await repo.changePageWord(racing(takeOffFirst), page.id, { wordId: last.id, replacement: next, setAside: true }, now);
+    expect(swapped.words.map((w) => [w.id, w.position])).toEqual([
+      [page.words[1].id, 0],
+      [page.words[2].id, 1],
+      [next, 2],
+    ]);
+    expect(await status(last.id)).toBe('ignored');
+  });
+
+  it('a swap of a word already taken off on the other device changes nothing', async () => {
+    await importAndSort(0, 6);
+    const page = await repo.createPage(db, 3, null, now);
+    const [next] = await inboxIds();
+    const takeOff = () => repo.changePageWord(db, page.id, { wordId: page.words[2].id, replacement: null }, now);
+    await expect(repo.changePageWord(racing(takeOff), page.id, { wordId: page.words[2].id, replacement: next }, now)).rejects.toThrow('reload');
+    expect((await repo.getPage(db, page.id)).words.map((w) => w.id)).toEqual(page.words.slice(0, 2).map((w) => w.id));
+    expect(await status(next)).toBe('inbox');
+  });
+
+  it('adding after a word was taken off on the other device leaves no gap', async () => {
+    await importAndSort(0, 6);
+    const page = await repo.createPage(db, 3, null, now);
+    const [next] = await inboxIds();
+    const takeOff = () => repo.changePageWord(db, page.id, { wordId: page.words[0].id, replacement: null }, now);
+    const added = await repo.changePageWord(racing(takeOff), page.id, { wordId: null, replacement: next }, now);
+    expect(added.words.map((w) => w.position)).toEqual([0, 1, 2]);
+    expect(added.words.at(-1)?.id).toBe(next);
+  });
+
+  it('removing a word whose spot moved on the other device changes nothing', async () => {
+    await importAndSort(0, 6);
+    const page = await repo.createPage(db, 4, null, now);
+    const takeOffFirst = () => repo.changePageWord(db, page.id, { wordId: page.words[0].id, replacement: null }, now);
+    await expect(repo.changePageWord(racing(takeOffFirst), page.id, { wordId: page.words[3].id, replacement: null }, now)).rejects.toThrow('reload');
+    const after = await repo.getPage(db, page.id);
+    expect(after.words.map((w) => [w.id, w.position])).toEqual(page.words.slice(1).map((w, i) => [w.id, i]));
+    expect(await status(page.words[3].id)).toBe('on_page');
+  });
+
   it('a page that moved on to step 2 in between keeps its words', async () => {
     await importAndSort(0, 3);
     const page = await repo.createPage(db, 2, null, now);

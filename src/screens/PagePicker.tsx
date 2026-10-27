@@ -26,11 +26,20 @@ export function PagePicker({ listId: initial }: { listId: number | null }) {
   const choices = (lists ?? []).filter((l) => !l.archived && l.counts.inbox + l.counts.toCheck > 0);
   // Without a list in the link: the one "Pick for me" would take, or the first with words.
   const current = listId ?? (lists ? (choices.find((l) => l.next) ?? choices[0])?.id ?? null : null);
+  const [loaded, setLoaded] = useState(0);
   useEffect(() => {
     if (current === null) return;
+    let stale = false;
     setWords(null);
-    api.listWords(current).then((w) => setWords(pickable(w)), (e: Error) => setError(e.message));
-  }, [current]);
+    // A slower answer for the list you just left must not replace this one.
+    api.listWords(current).then(
+      (w) => !stale && setWords(pickable(w)),
+      (e: Error) => !stale && setError(e.message),
+    );
+    return () => {
+      stale = true;
+    };
+  }, [current, loaded]);
 
   if (!lists) return error ? <Notice kind="error">{error}</Notice> : <p className="muted">Loading…</p>;
   const list = lists.find((l) => l.id === current);
@@ -50,7 +59,10 @@ export function PagePicker({ listId: initial }: { listId: number | null }) {
       const page = await api.createPickedPage(size, current, picked);
       navigate(`/pages/${page.id}`);
     } catch (e) {
+      // A picked word may have changed meanwhile: show the list as it is now.
       setError((e as Error).message);
+      setPicked([]);
+      setLoaded((n) => n + 1);
       setBusy(false);
     }
   }
@@ -77,6 +89,7 @@ export function PagePicker({ listId: initial }: { listId: number | null }) {
               onChange={(e) => {
                 setListId(Number(e.target.value));
                 setPicked([]);
+                setError(null);
               }}
             >
               {choices.map((l) => (

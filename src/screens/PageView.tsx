@@ -5,12 +5,9 @@ import { SimilarNotice } from '../components/SimilarNotice';
 import { JapaneseWord, KanaInput, Meaning, Notice, plural, Progress, SpeakButton, useKeys } from '../components/ui';
 import { pickable, WordPicker } from '../components/WordPicker';
 import { navigate } from '../nav';
-import { answerStep, currentStep, isDrillDone, startDrill, type DrillState } from '../../shared/pageSession';
+import { answerStep, currentStep, isDrillDone, MAX_PAGE_WORDS, startDrill, type DrillState } from '../../shared/pageSession';
 import { checkReading } from '../../shared/kana';
 import { useSettings } from '../settings';
-
-/** worker/db.ts MAX_PAGE_WORDS */
-const MAX_PAGE_WORDS = 20;
 import { speak } from '../speech';
 
 const STEP_TEXT = {
@@ -31,6 +28,7 @@ export function PageView({ id }: { id: number }) {
   const [drill, setDrill] = useState<DrillState | null>(null);
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     api.page(id).then(setPage, (e: Error) => setError(e.message));
@@ -108,6 +106,7 @@ export function PageView({ id }: { id: number }) {
       )}
 
       <div className="danger-zone stack stack--tight">
+        {deleteError && <Notice kind="error">{deleteError}</Notice>}
         <button
           className="link-button"
           onClick={async () => {
@@ -120,7 +119,7 @@ export function PageView({ id }: { id: number }) {
               await api.deletePage(page.id);
               navigate('/pages');
             } catch (e) {
-              setError((e as Error).message);
+              setDeleteError((e as Error).message);
             }
           }}
         >
@@ -159,16 +158,12 @@ function PageEditor({ page, onChange, onDone }: { page: PageDetail; onChange: (p
   const next = words?.find((w) => w.status === 'inbox');
   const out = typeof selected === 'number' ? page.words.find((w) => w.id === selected) : undefined;
 
-  const change = async (replacement: ListWord | 'next' | null) => {
+  const change = async (incoming: ListWord | null) => {
     if (selected === null) return;
-    const incoming = replacement === 'next' ? next : replacement;
     setBusy(true);
     try {
-      const updated = await api.changePageWord(page.id, {
-        wordId: out ? out.id : null,
-        replacement: replacement === 'next' ? 'next' : (replacement?.id ?? null),
-        setAside,
-      });
+      // The word the button names, not "next": the label and the swap agree.
+      const updated = await api.changePageWord(page.id, { wordId: out ? out.id : null, replacement: incoming?.id ?? null, setAside });
       const name = out && writtenForm(out);
       const where = setAside ? 'set aside' : 'back to waiting';
       setError(null);
@@ -223,7 +218,7 @@ function PageEditor({ page, onChange, onDone }: { page: PageDetail; onChange: (p
                 <label className="toggle">
                   <input type="checkbox" checked={setAside} onChange={(e) => setSetAside(e.target.checked)} /> Set {writtenForm(w)} aside (don’t learn it)
                 </label>
-                <button type="button" className="button" disabled={busy || !next} onClick={() => change('next')}>
+                <button type="button" className="button" disabled={busy || !next} onClick={() => next && change(next)}>
                   {next ? (
                     <>
                       Swap for the next waiting word: <span lang="ja">{writtenForm(next)}</span>

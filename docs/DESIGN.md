@@ -120,15 +120,19 @@ Each list opens to its words (`#/lists/<id>`), in the order they came in.
 
 ### Pages (`shared/pageSession.ts`, PageView, PageGrid)
 
-- Each page has a fixed size of 10, 12 or 15 words (`PAGE_SIZES`), all from
-  one list (fewer if that list has fewer waiting). The size is a per-device
-  setting and defaults to 12.
+- A new page takes 10, 12 or 15 words (`PAGE_SIZES`), all from one list
+  (fewer if that list has fewer waiting). The size is a per-device setting
+  and defaults to 12. A page you shape can hold fewer, and adding words
+  stops at the page size on this device (`MAX_PAGE_WORDS`, 20, on the
+  server; a page doesn't store its size).
 - The grid always has 3 columns and looks the same on phone and laptop.
 - Stage `ordered`: every word in grid order, Japanese→meaning, then
   meaning→Japanese.
 - Stage `shuffled`: the same steps mixed together, with only grid positions
   shown.
 - A missed step goes to the back of the queue until it's answered correctly.
+- Graduating a page counts as one Good review per card. The first real review
+  is scheduled for the next day at the latest (`graduate`).
 
 ### Pages you shape (PagePicker, PageView, `shared/similar.ts`)
 
@@ -149,11 +153,12 @@ Each list opens to its words (`#/lists/<id>`), in the order they came in.
   page's words keep their cards and review history; only the page goes, so
   review can't show it any more. Page numbers aren't reused, except that the
   newest page's number comes back if it's deleted.
-- Every change is one D1 batch guarded on what was checked: a word picked or
-  swapped in that changed meanwhile (set aside or put on another page on the
-  other device) fails the batch, and nothing changes.
-- Graduating a page counts as one Good review per card. The first real review
-  is scheduled for the next day at the latest (`graduate`).
+- Every change is one D1 batch guarded on what was checked. A word put on
+  the page that changed meanwhile (set aside or put on another page on the
+  other device) fails the batch. A swap puts the new word in the old one's
+  spot wherever it is now, an add goes at the end of the page as it is now,
+  and a word already taken off (or moved) on the other device changes
+  nothing ("reload and try again").
 
 ### Review (`shared/scheduler.ts`, `shared/queue.ts`)
 
