@@ -147,10 +147,15 @@ describe('review', () => {
     expect(again).toBeLessThan(hard);
     expect(hard).toBeLessThan(good);
     expect(good).toBeLessThan(easy);
-    // Grading Good lands within the jitter of what the button showed.
+    // No jitter: the jitter's seed changes with the time, the preview doesn't.
+    const later = (await repo.reviewQueue(db, dayEnd, nextDay(dayEnd, 1), 50, new Date(t.getTime() + 1))).items[0].intervals;
+    for (const k of ['again', 'hard', 'good', 'easy'] as const) expect(Math.abs(later[k] - q.items[0].intervals[k])).toBeLessThan(1e-6);
+    // Grading Good lands within the jitter of what the button showed (FSRS
+    // fuzzes a week by about two days either way).
     const result = await repo.submitReview(db, { cardId: q.items[0].cardId, rating: Rating.Good, hintUsed: false, answer: null, correct: null, durationMs: null }, t);
     const days = (new Date(result.due).getTime() - t.getTime()) / 86_400_000;
-    expect(Math.abs(days - good)).toBeLessThanOrEqual(Math.max(1, good * 0.25));
+    expect(good).toBeLessThan(10);
+    expect(Math.abs(days - good)).toBeLessThanOrEqual(2.5);
   });
 
   it('caps new production cards at 10 a day', async () => {
@@ -166,9 +171,10 @@ describe('new words a day', () => {
     expect(await repo.getStudy(db)).toEqual({ newWordsPerDay: 12 });
     expect(await repo.setStudy(db, { newWordsPerDay: 20 }, now)).toEqual({ newWordsPerDay: 20 });
     expect((await repo.stats(db, dayStart, dayEnd)).newWordsPerDay).toBe(20);
-    for (const bad of [0, 51, 2.5, 'ten'] as unknown[]) {
+    for (const bad of [0, 51, 2.5, 'ten', '8', true, [8], null] as unknown[]) {
       await expect(repo.setStudy(db, { newWordsPerDay: bad as number }, now)).rejects.toMatchObject({ status: 400 });
     }
+    await expect(repo.setStudy(db, null, now)).rejects.toMatchObject({ status: 400 });
     expect(await repo.getStudy(db)).toEqual({ newWordsPerDay: 20 });
   });
 
@@ -176,8 +182,11 @@ describe('new words a day', () => {
     await importAndSort(0, 15);
     await repo.createPage(db, 10, null, nextDay(now, -1));
     expect((await repo.stats(db, dayStart, dayEnd)).newWordsToday).toBe(0);
-    await repo.createPage(db, 4, null, now);
+    const today = await repo.createPage(db, 4, null, now);
     expect((await repo.stats(db, dayStart, dayEnd)).newWordsToday).toBe(4);
+    // Deleting it gives the room back: its words wait again.
+    await repo.deletePage(db, today.id, now);
+    expect((await repo.stats(db, dayStart, dayEnd)).newWordsToday).toBe(0);
   });
 });
 

@@ -3,6 +3,7 @@ import { api, type ListSummary, type PageSummary, type Stats } from '../api';
 import { Notice } from '../components/ui';
 import { navigate } from '../nav';
 import { useSettings } from '../settings';
+import { newWordsReached } from '../../shared/study';
 
 const STAGE_LABEL = { ordered: 'Step 1 of 2', shuffled: 'Step 2 of 2', graduated: 'Learned' } as const;
 /** Above this many reviews, a new page would pile on more than a short session can hold. */
@@ -49,6 +50,20 @@ export function Pages() {
   const next = lists.find((l) => l.next);
   const chosen = from === 'auto' ? next : waiting.find((l) => l.id === from);
 
+  // Once today's new words reach the setting, ask before another page.
+  const asking = newWordsReached(stats.newWordsToday, stats.newWordsPerDay) && !moreToday;
+  const askFirst = (
+    <>
+      <Notice>
+        You've started {stats.newWordsToday} new words today, your daily {stats.newWordsPerDay}. More pages today mean more reviews tomorrow, and new
+        words stick better with room to review them.
+      </Notice>
+      <button className="button" onClick={() => setMoreToday(true)}>
+        Start another page anyway
+      </button>
+    </>
+  );
+
   const inProgress = pages.filter((p) => p.stage !== 'graduated');
   const learned = pages.filter((p) => p.stage === 'graduated');
 
@@ -63,11 +78,14 @@ export function Pages() {
             <p className="muted">
               No words waiting. {stats.toCheck > 0 ? <a href="#/check">Check imported words</a> : <a href="#/settings/import">Import words</a>} first.
             </p>
-            {stats.toCheck > 0 && (
-              <a href="#/pages/new" className="link-button">
-                Or pick words to check for a page yourself
-              </a>
-            )}
+            {stats.toCheck > 0 &&
+              (asking ? (
+                askFirst
+              ) : (
+                <a href="#/pages/new" className="link-button">
+                  Or pick words to check for a page yourself
+                </a>
+              ))}
           </>
         ) : (
           <>
@@ -95,16 +113,8 @@ export function Pages() {
               {settings.pageSize} words per page, {stats.newWordsPerDay} new words a day ({stats.newWordsToday} today). Change them in{' '}
               <a href="#/settings">Settings</a>.
             </p>
-            {stats.newWordsToday >= stats.newWordsPerDay && !moreToday ? (
-              <>
-                <Notice>
-                  You've started {stats.newWordsToday} new words today, your daily {stats.newWordsPerDay}. More pages today mean more reviews tomorrow,
-                  and new words stick better with room to review them.
-                </Notice>
-                <button className="button" onClick={() => setMoreToday(true)}>
-                  Start another page anyway
-                </button>
-              </>
+            {asking ? (
+              askFirst
             ) : (
               <>
                 <button className="button button--primary" disabled={busy || !chosen} onClick={create}>

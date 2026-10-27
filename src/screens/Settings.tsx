@@ -23,7 +23,7 @@ export function Settings({ scrollTo }: { scrollTo?: string }) {
     <div className="stack" ref={root}>
       <h1>Settings</h1>
       <NewWords />
-      <StudySettings />
+      <DeviceSettings />
       <FuriganaSettings />
       <section className="card stack stack--tight" aria-label="Words">
         <h2>Words</h2>
@@ -121,13 +121,13 @@ function NewWords() {
   }, []);
 
   const change = (n: number) => {
-    const before = value;
     setValue(n);
     api.setStudy({ newWordsPerDay: n }).then(
       () => setError(null),
       (e: Error) => {
-        setValue(before);
         setError(e.message);
+        // Show what the server holds now, whatever order the saves landed in.
+        api.study().then((p) => setValue(p.newWordsPerDay), () => undefined);
       },
     );
   };
@@ -148,7 +148,7 @@ function NewWords() {
         </select>
       </label>
       <p className="muted small">
-        Words count when you start a page with them. Past this number, Pages asks before starting another. Words you already knew in the check pass don't
+        Words count when you start a page with them. Once you reach this number, Pages asks before starting another. Words you already knew in the check pass don't
         count: their typing cards come {TYPING_CARDS_PER_DAY} a day in review.
       </p>
       {error && <p className="error">{error}</p>}
@@ -162,10 +162,10 @@ function Grading() {
   return (
     <section className="card stack stack--tight" aria-label="Grading" data-section="grading">
       <h2>How grading works</h2>
-      <p className="muted small">Each button shows when the word comes back if you press it. The date varies by a day or so.</p>
+      <p className="muted small">Each button shows when the word comes back if you press it. The real date varies a little: a day or two at a week, weeks at a year.</p>
       <dl className="grading">
         <dt className="grading__again">Again</dt>
-        <dd>You didn't recall it, or recalled it wrongly. It comes back in about a day and counts as a lapse.</dd>
+        <dd>You didn't recall it, or recalled it wrongly. It comes back soon (the button says when) and counts as a lapse.</dd>
         <dt className="grading__hard">Hard</dt>
         <dd>You recalled it, but slowly, with effort or unsure. A pass, with a shorter interval than Good.</dd>
         <dt className="grading__good">Good</dt>
@@ -182,7 +182,7 @@ function Grading() {
 }
 
 /** Page size and audio are kept on this device: the phone and the laptop can differ. */
-function StudySettings() {
+function DeviceSettings() {
   const [settings, update] = useSettings();
   const [voice, setVoice] = useState(hasJapaneseVoice());
   useEffect(() => {

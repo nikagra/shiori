@@ -5,7 +5,7 @@ import { capForHint, graduate, newCard, Rating, review, State } from '../shared/
 import { answerStep, currentStep, isDrillDone, startDrill } from '../shared/pageSession';
 import { buildQueue, triageOrder, type QueueCandidate } from '../shared/queue';
 import { meaningWords, similarPairs } from '../shared/similar';
-import { formatInterval } from '../shared/study';
+import { formatInterval, newWordsReached } from '../shared/study';
 
 describe('core meaning', () => {
   it('takes the first sense, at most three glosses', () => {
@@ -169,5 +169,13 @@ describe('grade intervals', () => {
     expect(formatInterval(120)).toBe('4mo');
     expect(formatInterval(438)).toBe('1.2y');
     expect(formatInterval(5000)).toBe('14y');
+  });
+});
+
+describe('new words a day', () => {
+  it('asks once today reaches the setting, not before', () => {
+    expect(newWordsReached(11, 12)).toBe(false);
+    expect(newWordsReached(12, 12)).toBe(true);
+    expect(newWordsReached(13, 12)).toBe(true);
   });
 });

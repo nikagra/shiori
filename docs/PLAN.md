@@ -26,7 +26,7 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   in `.wrangler/state`, separate from the cloud one. An old database holding
   only test data is kept in `.wrangler/state-test-backup-20261025` and can be
   deleted.
-- Tests: 165 unit tests, 68 end-to-end runs (34 tests at iPhone and laptop
+- Tests: 166 unit tests, 70 end-to-end runs (35 tests at iPhone and laptop
   sizes), and `tsc -b` all pass.
 - **Backup and export** (26 Oct): Settings › Backup downloads all study data as
   one JSON file, a nightly cron saves the same file to the private R2 bucket
@@ -40,7 +40,7 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   list; "New page" asks which, or picks the one furthest behind its pace.
   Check has a list picker too (Mikita, 26 Oct: one big import blocked the
   others), and across lists it follows priority.
-  Today's 20 new review cards are shared by weight. Older backups still load
+  Today's new review cards are shared by weight. Older backups still load
   and get their lists. See "Lists" in DESIGN.md. After pulling on the laptop,
   run `npm run db:migrate:local`; the deploy applies it to D1.
 - **Settings** (26 Oct): a Settings tab replaces the Import tab and holds
@@ -158,20 +158,15 @@ once by hand or wait for the night, then try Add a word on the iPhone).
    (one miss) or Again (two or more), per direction; the drill is kept on the
    device across Stop; (3) leeches: 4 lapses take a word out of review until
    you put it on a fresh page, write a memory hook, edit it or set it aside.
-   - Drill misses that mean something (Mikita, 26 Oct: Renshuu repeats a
-     missed question until you get it right, so you answer from short-term
-     memory without learning the word). Today `answerStep` in
-     `shared/pageSession.ts` does the same, and the drill's `misses` are
-     dropped when the page graduates. Instead: a miss sends you back to the
-     word in its spot on the page, and the retry comes after a real gap; a
-     retry right after a miss doesn't count as knowing it; and a word missed
-     a lot starts with a harder first review (or must be right first time
-     in step 2).
-   - Leeches: the same problem in review, a word that isn't being learned,
-     so the fix is more effort, not another look. `LEECH_LAPSES` (6) is
-     defined in `shared/scheduler.ts` but unused. A leech gets flagged and
-     shown in its list (step 2), where you can edit it, put it on a fresh
-     page or set it aside.
+   - Why drill misses (Mikita, 26 Oct): Renshuu repeats a missed question
+     until you get it right, so you answer from short-term memory without
+     learning the word. Today `answerStep` in `shared/pageSession.ts` does
+     the same, and the drill's `misses` are dropped when the page
+     graduates.
+   - Why leeches: the same problem in review, a word that isn't being
+     learned, so the fix is more effort, not another look. A leech is
+     listed in its list's words (step 2). `LEECH_LAPSES` in
+     `shared/scheduler.ts` (6, unused) becomes 4.
    - ~~What each grade does, shown in the app.~~ Done: intervals on the
      buttons and a guide in Settings.
    - ~~New cards a day as a setting.~~ Done: new words a day, for pages.

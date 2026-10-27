@@ -37,7 +37,7 @@ test('review both directions with honest grading', async ({ page, request }, tes
       await expect(card.locator('.meaning__core')).toContainText(word.coreMeaning);
       // Each grade shows when the word would come back.
       const grades = page.getByTestId('grade-row');
-      for (const name of ['Again', 'Hard', 'Good', 'Easy']) await expect(grades.getByRole('button', { name })).toContainText(/~\d+(m|h|d|w|mo|y)/);
+      for (const name of ['Again', 'Hard', 'Good', 'Easy']) await expect(grades.getByRole('button', { name })).toContainText(/~\d+(\.\d)?(m|h|d|w|mo|y)/);
       if (graded.length === 0) await shot(page, testInfo, '21-review-reading-answer');
       await page.getByRole('button', { name: 'Good' }).click();
     } else {

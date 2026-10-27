@@ -1377,10 +1377,10 @@ export async function getStudy(db: D1Database): Promise<StudyPrefs> {
   return row ? { ...DEFAULT_STUDY, ...(JSON.parse(row.value) as Partial<StudyPrefs>) } : DEFAULT_STUDY;
 }
 
-export async function setStudy(db: D1Database, input: Partial<StudyPrefs>, now: Date): Promise<StudyPrefs> {
-  const n = Number(input.newWordsPerDay);
+export async function setStudy(db: D1Database, input: Partial<StudyPrefs> | null, now: Date): Promise<StudyPrefs> {
+  const n = input?.newWordsPerDay;
   const [min, max] = NEW_WORDS_RANGE;
-  if (!Number.isInteger(n) || n < min || n > max) throw new AppError(400, `newWordsPerDay must be ${min}–${max}`);
+  if (typeof n !== 'number' || !Number.isInteger(n) || n < min || n > max) throw new AppError(400, `newWordsPerDay must be a whole number ${min}–${max}`);
   const prefs: StudyPrefs = { newWordsPerDay: n };
   await db
     .prepare("INSERT INTO settings (key, value, updated_at) VALUES ('study', ?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at")

@@ -12,7 +12,7 @@ import { Settings } from './screens/Settings';
 import { AddWord } from './screens/AddWord';
 
 // Hash routes: #/, #/review, #/pages, #/pages/3, #/pages/new (pick the words; #/pages/new/2 from list 2), #/lists, #/lists/2 (its words), #/check, #/settings,
-// #/settings/backup (scrolled to that section), #/settings/import, #/add (a word from the dictionary; #/add/2 into list 2)
+// #/settings/backup, #/settings/grading (scrolled to that section), #/settings/import, #/add (a word from the dictionary; #/add/2 into list 2)
 
 function useHashRoute(): string[] {
   const read = () => window.location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);

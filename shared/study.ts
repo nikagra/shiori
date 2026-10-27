@@ -1,7 +1,7 @@
 // Study settings shared by every device, and how review shows the grade
 // buttons' intervals. No FSRS import here: the client bundle uses it.
 
-/** New words a day: words you start on pages. Past it, "New page" asks first. */
+/** New words a day: words you start on pages. Once today's reach it, Pages asks before another page. */
 export const NEW_WORDS_DEFAULT = 12;
 export const NEW_WORDS_CHOICES = [5, 8, 10, 12, 15, 20, 24, 30, 40, 50] as const;
 export const NEW_WORDS_RANGE = [1, 50] as const;
@@ -11,6 +11,9 @@ export interface StudyPrefs {
 }
 
 export const DEFAULT_STUDY: StudyPrefs = { newWordsPerDay: NEW_WORDS_DEFAULT };
+
+/** Pages asks before a new page once today's new words reach the setting. */
+export const newWordsReached = (today: number, perDay: number) => today >= perDay;
 
 /** When a card comes back after each grade, in days from now. */
 export interface GradeIntervals {

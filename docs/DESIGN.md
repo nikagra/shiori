@@ -90,8 +90,8 @@ Each list has its own pace:
   first, then the list furthest behind its weekly target, then the list with
   the fewest pages in the last 28 days for its weight.
 - **New review cards** (`shareNewCards`): today's `TYPING_CARDS_PER_DAY`
-  (10) are handed out one at a time to the list furthest below its share (cards so far
-  today ÷ weight). A list that runs out of new cards passes its share on, so
+  (10) are handed out one at a time to the list furthest below its share
+  (cards so far today ÷ weight). A list that runs out of new cards passes its share on, so
   the budget isn't wasted.
 - **Due reviews always come**, from every list, paused and archived ones too.
   FSRS stays per card: memory doesn't care which list a word came from.
@@ -240,13 +240,16 @@ Each list opens to its words (`#/lists/<id>`), in the order they came in.
   the meaning→Japanese cards of words you knew in the check pass.
 - **New words a day** (`shared/study.ts`, Settings › New words): the words you
   start on pages, default 12, 1–50. Stored on the server (`settings` key
-  `study`), so every device shares it. A page's words count on the study day
-  it was started. Once today's count reaches the number, Pages asks ("Start
+  `study`), so every device shares it. The count is the words on pages
+  started this study day, as they are now: deleting such a page, or taking
+  a word off it, gives the room back, since those words wait again. Once today's count reaches the number, Pages asks ("Start
   another page anyway") instead of blocking, since study days are irregular.
 - **Grade intervals**: each review card comes with the interval each grade
   would give (`intervals`, FSRS without the jitter), shown on the buttons as
-  "~7d". Grading adds the jitter, so the real date can differ by a day or so.
-  "How grading works" opens Settings › How grading works.
+  "~7d". Grading adds the jitter, so the real date can differ: by about two
+  days at a week, a week at three months, three weeks at a year. "How
+  grading works" opens Settings › How grading works, a short copy of
+  "Buttons and what they do" below; change both together.
 - A peek at the word's page caps the grade at Hard.
 - The core meaning can be edited from the answer. `senses` keeps the full
   dictionary list.
@@ -316,7 +319,7 @@ back if you press it (for example "Good ~7d"):
 
 | Grade | Choose it when | Effect on the card |
 |---|---|---|
-| **Again** (1) | You didn't recall it, or you recalled it wrongly | Counts as a lapse. Stability drops sharply, so the word comes back in about a day, and difficulty rises a lot. |
+| **Again** (1) | You didn't recall it, or you recalled it wrongly | Counts as a lapse. Stability drops sharply, so the word comes back soon (a day for a new word, a few days for a well-known one), and difficulty rises a lot. |
 | **Hard** (2) | You recalled it, but slowly, with effort, or unsure | A pass. The interval is shorter than Good, and difficulty rises a little. |
 | **Good** (3) | You recalled it normally | The normal choice for a correct answer. The interval grows, and difficulty eases slightly. |
 | **Easy** (4) | Instant and effortless, and you'd be fine seeing it much later | A pass with a much longer interval. Difficulty drops a lot. |
@@ -341,8 +344,8 @@ The app limits some choices:
   sooner.
 
 **Example intervals.** These come from the current settings (retention 0.9,
-default FSRS weights). The app adds a little random jitter, so real dates vary
-by a day or so.
+default FSRS weights). The app adds a little random jitter, so real dates vary:
+by a day or two at these early intervals, by weeks at a year.
 
 | Situation | Again | Hard | Good | Easy |
 |---|---|---|---|---|
@@ -433,7 +436,7 @@ again (its deletes come first), or rewind with Time Travel.
 - `review_log`: every review, triage and graduation, with the hint flag, typed
   answer and duration. This is enough to refit FSRS parameters later.
 - `settings`: key-value pairs for settings that describe the learner
-  (furigana).
+  (`furigana`, and `study` for new words a day).
 - `kanji_hints`: one row per furigana peek, per kanji.
 
 ## Development and testing

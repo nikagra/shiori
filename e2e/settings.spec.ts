@@ -70,6 +70,18 @@ test('new words a day: set once for every device, and Pages asks past it', async
   await expect(page.getByRole('heading', { name: /^Page 2/ })).toBeVisible();
 });
 
+test('new words a day: Pages asks too when only words to check are left', async ({ page, request }) => {
+  await seedWords(request, { unknown: 12 });
+  expect((await request.put('/api/study', { data: { newWordsPerDay: 12 } })).ok()).toBeTruthy();
+  expect((await request.post('/api/pages', { data: { size: 12 } })).ok()).toBeTruthy();
+  await page.goto('/#/pages');
+  // Exactly the 12: asks, and the link to pick words to check waits for an answer.
+  await expect(page.getByText("You've started 12 new words today, your daily 12.")).toBeVisible();
+  await expect(page.getByRole('link', { name: /pick words to check/ })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Start another page anyway' }).click();
+  await expect(page.getByRole('link', { name: /pick words to check/ })).toBeVisible();
+});
+
 test('import opens from Settings, and old links still work', async ({ page }, testInfo) => {
   await page.goto('/#/settings');
   await page.getByRole('region', { name: 'Words' }).getByRole('link', { name: 'Import from Renshuu' }).click();
