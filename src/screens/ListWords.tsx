@@ -6,6 +6,7 @@ import { useWordFilter, WordFilter } from '../components/WordFilter';
 import { DictResults, DictSearchBox, SenseList, useDictSearch, useDictStatus } from '../components/DictSearch';
 import { WORD_STATES } from '../../shared/wordSearch';
 import { entryCoreMeaning, headPair, posLabel, sensesFor, type DictEntry } from '../../shared/dictionary';
+import { MAX_HOOK } from '../../shared/study';
 
 // One list's words: find them, then edit, move, set aside or delete one.
 
@@ -105,7 +106,7 @@ export function ListWords({ id, leeches: leechesFirst = false }: { id: number; l
                     {w.kanji && <span className="word-row__kana">{w.kana}</span>}
                   </span>
                   <span className="word-row__meaning">{w.coreMeaning}</span>
-                  {w.leechAt && w.status === 'graduated' ? (
+                  {w.leechAt ? (
                     <span className="badge badge--leech">Leech</span>
                   ) : (
                     <span className={`badge badge--state-${w.status}`}>{STATE_LABEL[w.status]}</span>
@@ -195,7 +196,7 @@ function WordEditor({
         {w.status === 'ignored' && `Set aside: not in the check pass, pages or review.${w.hasCards ? ' Its review history is kept.' : ''}`}
       </p>
 
-      {w.leechAt && w.status === 'graduated' && (
+      {w.leechAt && (
         <section className="leech stack stack--tight" aria-label={`${name} is a leech`}>
           <p className="small">
             <strong>A leech.</strong> It keeps slipping in review, so it's out of review until you give it a new approach. Another look won't help;
@@ -210,10 +211,9 @@ function WordEditor({
             Put it on a fresh page
           </button>
           <p className="muted small">It goes first in line for this list's next page, and starts review afresh after it. Its history is kept.</p>
-          <button type="button" className="button" disabled={busy} onClick={() => run(() => api.backToReview(w.id), () => `${name} is back in review.`)}>
-            Back to review as it is
-          </button>
-          <p className="muted small">After you've fixed its meaning or written a hook below.</p>
+          <p className="muted small">
+            Or show it a new way below: a clearer meaning, a fixed spelling or a memory hook lets it back into review, with its lapses counted afresh.
+          </p>
         </section>
       )}
 
@@ -236,7 +236,7 @@ function WordEditor({
           if (Object.keys(changes).length === 0) return;
           run(
             () => api.updateWord(w.id, changes),
-            (word) => `Saved ${word ? writtenForm(word) : name}.`,
+            (word) => `Saved ${word ? writtenForm(word) : name}.${w.leechAt && word && !word.leechAt ? ' It is back in review.' : ''}`,
           );
         }}
       >
@@ -269,7 +269,7 @@ function WordEditor({
           <textarea
             name="hook"
             rows={2}
-            maxLength={300}
+            maxLength={MAX_HOOK}
             defaultValue={w.hook ?? ''}
             placeholder="Your own way to remember it: a picture, a scene, a word it sounds like"
           />

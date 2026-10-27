@@ -98,7 +98,7 @@ Each list has its own pace:
 
 ### A list's words (`shared/wordSearch.ts`, ListWords, WordFilter)
 
-Each list opens to its words (`#/lists/<id>`), in the order they came in.
+Each list opens to its words (`#/lists/<id>`), in the order they came in (a word put on a fresh page moves first).
 
 - **Search**: one box for kana, romaji, kanji or meaning. Katakana and
   hiragana match each other. Kana or kanji match the written form and the
@@ -265,14 +265,19 @@ Each list opens to its words (`#/lists/<id>`), in the order they came in.
   - **Put it on a fresh page** (`relearn`): the word waits again, first in
     its list, and leaves its old page. When the new page graduates its two
     cards start afresh (same card ids, so the review history stays).
-  - **Back to review as it is** (`backToReview`), after fixing its meaning
-    or writing a hook. `leech_base` keeps the lapses it had, so it takes
-    four more to be a leech again.
-  - A **memory hook** (`words.hook`, any word, up to 300 characters): your
-    own way to remember it, shown with the answer in review and the drill.
-  - Set aside, as for any word.
-  Words that already had 4 lapses became leeches with migration
-  `0006_leeches`.
+  - **Show it a new way**: saving a changed spelling or meaning, or a new
+    memory hook, lets it back into review (`updateWord`). Saving it
+    unchanged doesn't: another look the same way is what isn't working.
+  - A **memory hook** (`words.hook`, any word, up to `MAX_HOOK` (300)
+    characters): your own way to remember it, shown with the answer in
+    review and the drill.
+  - **Set it aside**, as for any word. A set-aside word is no leech;
+    bringing it back puts it in review.
+  Whenever a word is let back in, each card's `lapse_base` becomes its
+  lapse count, so each card takes `LEECH_LAPSES` more lapses of its own to
+  make the word a leech again. Words in review that already had that many
+  lapses became leeches with migration `0006_leeches` (at once, not when
+  next due); loading an older backup does the same.
 - **New words a day** (`shared/study.ts`, Settings › New words): the words you
   start on pages, default 12, 1–50. Stored on the server (`settings` key
   `study`), so every device shares it. The count is the words on pages
@@ -454,7 +459,7 @@ again (its deletes come first), or rewind with Time Travel.
 | Shared logic | `shared/` | Pure TypeScript used by both UI and worker; unit tested |
 | API | `worker/index.ts` (Hono on Cloudflare Workers) | Under `/api/*`; the rest is the single-page app. Also the nightly cron (`scheduled`) |
 | Data access | `worker/db.ts` | Multi-row changes run as one D1 batch, so a failed or repeated request can't leave half-done state |
-| Database | D1 (SQLite), `migrations/` | `0001_init.sql`, `0002_furigana.sql`, `0003_lists.sql`, `0004_dictionary.sql`, `0005_drill_misses.sql` |
+| Database | D1 (SQLite), `migrations/` | `0001_init.sql`, `0002_furigana.sql`, `0003_lists.sql`, `0004_dictionary.sql`, `0005_drill_misses.sql`, `0006_leeches.sql` |
 | Dictionary | D1 `shiori-dict`, `dict-migrations/` | JMdict with an FTS5 index; no study data (`worker/dict.ts`) |
 | Backups | R2 bucket `shiori-backups` | Nightly JSON copies, 30 days (`worker/backup.ts`) |
 
@@ -468,7 +473,7 @@ again (its deletes come first), or rewind with Time Travel.
   `graduated`, or `ignored`), and from the dictionary `dict_seq`,
   `dict_checked` (how many dictionary chunks were loaded when it was looked
   up), `furigana` and `usually_kana`. `source` is `renshuu` or `dictionary`.
-- `words` also keeps `leech_at`, `leech_base` and `hook` (Leeches above).
+- `words` also keeps `leech_at` and `hook`, and `cards` keeps `lapse_base` (Leeches above).
 - `pages` and `page_words`: page number, stage, `list_id`, each word's
   fixed position, and its drill misses per step and direction (migration
   `0005_drill_misses`).

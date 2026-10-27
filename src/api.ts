@@ -189,7 +189,6 @@ export const api = {
   /** Back to waiting, first in its list, for a fresh page. */
   relearn: (id: number) => call<ListWord>('POST', `/words/${id}/relearn`),
   /** A leech back into review as it is. */
-  backToReview: (id: number) => call<ListWord>('POST', `/words/${id}/back-to-review`),
   deleteWord: (id: number) => call<{ ok: true }>('DELETE', `/words/${id}`),
   pages: () => call<PageSummary[]>('GET', '/pages'),
   page: (id: number) => call<PageDetail>('GET', `/pages/${id}`),

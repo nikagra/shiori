@@ -15,6 +15,7 @@ const nextDay = (d: Date, days: number) => new Date(d.getTime() + days * 86_400_
 
 /** The starting lists are Manga, Books, School and Other, in that order. */
 const MANGA = 1;
+const BOOKS = 2;
 
 let db: D1Database;
 beforeEach(() => {
@@ -202,16 +203,42 @@ describe('leeches', () => {
     expect((await repo.stats(db, dayStart, dayEnd)).leeches).toEqual([{ listId: MANGA, listName: 'Manga', count: 1 }]);
   });
 
-  it('back to review lets it in again, and only four more lapses make it a leech again', async () => {
+  it('showing it a new way lets it back in, and each card then takes four more lapses of its own', async () => {
+    const { wordId, cardId } = await learnedWord();
+    const other = (await db.prepare(`SELECT id FROM cards WHERE word_id = ? AND direction = 'en_jp'`).bind(wordId).first<{ id: number }>())!.id;
+    await grade(other, Rating.Again, nextDay(now, 2));
+    for (let i = 1; i <= 4; i++) await grade(cardId, Rating.Again, nextDay(now, i * 3));
+    const leech = await word(wordId);
+    // Saving it unchanged, clearing a hook or moving it is no new approach.
+    for (const changes of [{ coreMeaning: leech.coreMeaning }, { hook: null }, { listId: BOOKS }]) {
+      expect((await repo.updateWord(db, wordId, changes, now)).leechAt).not.toBeNull();
+    }
+    await expect(repo.updateWord(db, wordId, { hook: 'nu-keru: a nut falls out' }, now)).resolves.toMatchObject({ leechAt: null });
+    expect(await inQueue(wordId, 30)).toBe(true);
+    // The other card had one lapse before: it takes four more, not four minus one or seven.
+    const again = [];
+    for (let i = 5; i <= 8; i++) again.push((await grade(other, Rating.Again, nextDay(now, i * 3))).leech);
+    expect(again).toEqual([false, false, false, true]);
+    await expect(repo.updateWord(db, wordId, { coreMeaning: 'to come out (of a socket)' }, now)).resolves.toMatchObject({ leechAt: null });
+  });
+
+  it('a set-aside leech is no leech, and comes back to review with its lapses counted afresh', async () => {
     const { wordId, cardId } = await learnedWord();
     for (let i = 1; i <= 4; i++) await grade(cardId, Rating.Again, nextDay(now, i * 3));
-    await expect(repo.backToReview(db, wordId, now)).resolves.toMatchObject({ leechAt: null });
+    expect((await repo.setAside(db, wordId, now)).leechAt).toBeNull();
+    expect((await repo.stats(db, dayStart, dayEnd)).leeches).toEqual([]);
+    expect((await repo.bringBack(db, wordId, now)).status).toBe('graduated');
     expect(await inQueue(wordId, 30)).toBe(true);
-    const again = [];
-    for (let i = 5; i <= 8; i++) again.push((await grade(cardId, Rating.Again, nextDay(now, i * 3))).leech);
-    expect(again).toEqual([false, false, false, true]);
-    await repo.backToReview(db, wordId, now);
-    await expect(repo.backToReview(db, wordId, now)).rejects.toMatchObject({ status: 409 });
+    expect((await grade(cardId, Rating.Again, nextDay(now, 30))).leech).toBe(false);
+  });
+
+  it('a word waiting for a fresh page, set aside and brought back, is no leech on its next lapse', async () => {
+    const { wordId, cardId } = await learnedWord();
+    for (let i = 1; i <= 4; i++) await grade(cardId, Rating.Again, nextDay(now, i * 3));
+    await repo.relearn(db, wordId, now);
+    await repo.setAside(db, wordId, now);
+    expect((await repo.bringBack(db, wordId, now)).status).toBe('graduated');
+    expect((await grade(cardId, Rating.Again, nextDay(now, 30))).leech).toBe(false);
   });
 
   it('a fresh page: first in line, off its old page, cards start afresh with their history', async () => {

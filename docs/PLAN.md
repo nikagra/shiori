@@ -26,7 +26,7 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   in `.wrangler/state`, separate from the cloud one. An old database holding
   only test data is kept in `.wrangler/state-test-backup-20261025` and can be
   deleted.
-- Tests: 177 unit tests, 74 end-to-end runs (37 tests at iPhone and laptop
+- Tests: 180 unit tests, 74 end-to-end runs (37 tests at iPhone and laptop
   sizes), and `tsc -b` all pass.
 - **Backup and export** (26 Oct): Settings › Backup downloads all study data as
   one JSON file, a nightly cron saves the same file to the private R2 bucket
@@ -99,8 +99,9 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
 - **Finish review, part 3** (27 Oct): leeches. A card's fourth lapse takes
   its word out of review; Home and the list ("Leeches only") show it, and
   its editor puts it on a fresh page (first in line; its cards start afresh
-  on graduation, history kept) or lets it back in as it is. Any word can
-  have a memory hook, shown with the answer. Migration `0006_leeches` also
+  on graduation, history kept), or saving a clearer meaning or a new memory
+  hook lets it back in. Any word can have a memory hook, shown with the
+  answer. Migration `0006_leeches` also
   flags words that already had 4 lapses: run `npm run db:migrate:local`.
 - First iPhone feedback (25 Oct) is in: "Don't know" on review and drill
   cards, next words hidden in the in-order drill, "Study the page again",

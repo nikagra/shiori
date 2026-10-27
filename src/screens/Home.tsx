@@ -27,6 +27,7 @@ export function Home() {
   if (!stats) return <p className="muted">Loading…</p>;
 
   const empty = stats.toCheck + stats.inbox + stats.learned + stats.pagesInProgress === 0;
+  const leeches = stats.leeches.reduce((n, l) => n + l.count, 0);
 
   return (
     <div className="stack">
@@ -59,16 +60,12 @@ export function Home() {
         Add a word from the dictionary
       </a>
 
-      <p className="muted">{stats.learned} {stats.learned === 1 ? 'word' : 'words'} in spaced review.</p>
+      <p className="muted">{plural(stats.learned - leeches, 'word')} in spaced review.</p>
 
-      {stats.leeches.length > 0 && (
+      {leeches > 0 && (
         <Notice>
           <p data-testid="home-leeches">
-            {plural(
-              stats.leeches.reduce((n, l) => n + l.count, 0),
-              'word needs',
-              'words need',
-            )}{' '}
+            {plural(leeches, 'word needs', 'words need')}{' '}
             a new approach:{' '}
             {stats.leeches.map((l, i) => (
               <span key={l.listId}>

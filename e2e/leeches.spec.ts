@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { expectNoHorizontalScroll, graduatePage, listId, resetDb, seedWords, shot, type PageWord } from './helpers';
+import { expectNoHorizontalScroll, graduatePage, listId, resetDb, seedWords, shot, studyDay, type PageWord } from './helpers';
 
 // A word that keeps slipping leaves review until you give it a new approach.
 
@@ -43,9 +43,6 @@ test('a leech leaves review, then gets a hook and a fresh page', async ({ page, 
   await rows.first().getByRole('button').first().click();
   const editor = page.getByRole('group', { name: `Edit ${leech.kanji ?? leech.kana}` });
   await expect(editor.getByRole('region', { name: /is a leech/ })).toBeVisible();
-  await editor.getByLabel('Memory hook').fill('a picture that sticks');
-  await editor.getByRole('button', { name: 'Save' }).click();
-  await expect(page.getByText(/^Saved/)).toBeVisible();
   await expectNoHorizontalScroll(page);
   await shot(page, testInfo, '91-list-leech');
 
@@ -53,6 +50,12 @@ test('a leech leaves review, then gets a hook and a fresh page', async ({ page, 
   await expect(page.getByText('waits for a fresh page, first in line')).toBeVisible();
   // No leeches left, so the filter shows nothing.
   await expect(rows).toHaveCount(0);
+  // A hook for the fresh start.
+  // Its editor stays open with the filter off.
+  await page.getByRole('button', { name: /Leeches only/ }).click();
+  await editor.getByLabel('Memory hook').fill('a picture that sticks');
+  await editor.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByText(/^Saved/)).toBeVisible();
 
   await page.getByRole('link', { name: 'Pages', exact: true }).click();
   await page.getByRole('button', { name: 'Start a new page' }).click();
@@ -63,20 +66,20 @@ test('a leech leaves review, then gets a hook and a fresh page', async ({ page, 
   await expect(page.getByTestId('hook')).toHaveText('Your hook: a picture that sticks');
 });
 
-test('back to review as it is', async ({ page, request }) => {
+test('a clearer meaning lets a leech back into review', async ({ page, request }) => {
   const w = words[1];
   expect((await request.post(`/api/test/lapses/${w.id}?n=3`)).ok()).toBeTruthy();
-  const cards = (await (await request.get(`/api/review?dayStart=${encodeURIComponent(new Date(0).toISOString())}&dayEnd=${encodeURIComponent(new Date(Date.now() + 9e8).toISOString())}`)).json()).items as {
-    cardId: number;
-    word: { id: number };
-  }[];
-  const cardId = cards.find((c) => c.word.id === w.id)!.cardId;
+  expect((await request.post('/api/test/make-due')).ok()).toBeTruthy();
+  const { start, end } = studyDay();
+  const queue = await request.get(`/api/review?dayStart=${encodeURIComponent(start.toISOString())}&dayEnd=${encodeURIComponent(end.toISOString())}`);
+  const cardId = ((await queue.json()).items as { cardId: number; word: { id: number } }[]).find((c) => c.word.id === w.id)!.cardId;
   expect((await (await request.post(`/api/review/${cardId}`, { data: { rating: 1 } })).json()).leech).toBe(true);
 
   await page.goto(`/#/lists/${await listId(request, 'Manga')}/leeches`);
   await page.getByTestId('word-row').first().getByRole('button').first().click();
-  await page.getByRole('button', { name: 'Back to review as it is' }).click();
-  await expect(page.getByText(/is back in review/)).toBeVisible();
+  await page.getByLabel('Meaning').fill('to come out (of a socket)');
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByText(/It is back in review/)).toBeVisible();
   await page.goto('/');
   await expect(page.getByTestId('home-leeches')).toHaveCount(0);
 });

@@ -87,7 +87,6 @@ app.patch('/words/:id', async (c) => {
 app.post('/words/:id/set-aside', async (c) => c.json(await db.setAside(c.env.DB, intParam(c.req.param('id'), 'id'), new Date())));
 app.post('/words/:id/bring-back', async (c) => c.json(await db.bringBack(c.env.DB, intParam(c.req.param('id'), 'id'), new Date())));
 app.post('/words/:id/relearn', async (c) => c.json(await db.relearn(c.env.DB, intParam(c.req.param('id'), 'id'), new Date())));
-app.post('/words/:id/back-to-review', async (c) => c.json(await db.backToReview(c.env.DB, intParam(c.req.param('id'), 'id'), new Date())));
 app.post('/words/:id/check-again', async (c) => c.json(await db.checkAgain(c.env.DB, intParam(c.req.param('id'), 'id'), new Date())));
 
 app.delete('/words/:id', async (c) => {
