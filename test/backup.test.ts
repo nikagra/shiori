@@ -3,7 +3,7 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'n
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { BACKUP_SCHEMA, BACKUP_TABLES, backupToSql, LISTS_FROM_LABELS, dateOfBackupFile, KEEP_DAYS, nightlyIsStale, parseBackup, schemaCheck, TABLE_SINCE, type Backup } from '../shared/backup';
+import { BACKUP_SCHEMA, BACKUP_TABLES, backupToSql, LISTS_FROM_LABELS, OLD_LEECHES, dateOfBackupFile, KEEP_DAYS, nightlyIsStale, parseBackup, schemaCheck, TABLE_SINCE, type Backup } from '../shared/backup';
 import { parseRenshuuExport } from '../shared/renshuu';
 import { Rating } from '../shared/scheduler';
 import { nightlyStatus, saveNightly } from '../worker/backup';
@@ -55,6 +55,13 @@ async function studySomething() {
   await repo.recordFuriganaHint(db, withKanji.id, withKanji.kanji!.replace(/[^\p{Script=Han}]/gu, ''), later);
   // Quotes, semicolons and line breaks must survive the trip through SQL.
   await repo.updateWord(db, batch[0].id, { coreMeaning: "it's; a test\n-- not a comment" }, now);
+  // A memory hook, and a leech whose cards were let back in once, so the leech columns aren't all at the default.
+  await repo.updateWord(db, withKanji.id, { hook: 'a picture: the nut falls out' }, now);
+  const leech = page.words.find((w) => w.id !== withKanji.id)!.id;
+  await db.batch([
+    db.prepare('UPDATE words SET leech_at = ? WHERE id = ?').bind(later.toISOString(), leech),
+    db.prepare('UPDATE cards SET lapse_base = 1 WHERE word_id = ?').bind(leech),
+  ]);
   return batch[0].id;
 }
 
@@ -92,6 +99,8 @@ describe('backup file', () => {
     const misses = backup.tables.page_words.map((r) => [r.ordered_misses_jp_en, r.shuffled_misses_en_jp]);
     expect(misses).toContainEqual([2, 0]);
     expect(misses).toContainEqual([0, 1]);
+    expect(backup.tables.words.filter((w) => w.leech_at !== null || w.hook !== null)).toHaveLength(2);
+    expect(backup.tables.cards.filter((c) => c.lapse_base === 1)).toHaveLength(2);
   });
 
   it('with replace, loads over a database that already has rows', async () => {
@@ -146,6 +155,24 @@ describe('backup file', () => {
   it('upgrades old backups with the same SQL as the lists migration', () => {
     const migration = readFileSync(join(root, 'migrations', '0003_lists.sql'), 'utf8');
     expect(migration.trimEnd().endsWith(LISTS_FROM_LABELS)).toBe(true);
+  });
+
+  it('flags the old leeches of a backup from before leeches, as the migration does', async () => {
+    const migration = readFileSync(join(root, 'migrations', '0006_leeches.sql'), 'utf8');
+    expect(migration.trimEnd().endsWith(OLD_LEECHES)).toBe(true);
+    await studySomething();
+    const backup = await repo.exportAll(db, now);
+    const old = structuredClone(backup);
+    old.schema = '0005_drill_misses';
+    for (const row of old.tables.words) delete row.leech_at, delete row.hook;
+    for (const row of old.tables.cards) delete row.lapse_base;
+    const graduated = new Set(old.tables.words.filter((w) => w.status === 'graduated').map((w) => w.id));
+    const lapsed = old.tables.cards.find((c) => graduated.has(c.word_id))!;
+    lapsed.lapses = 4;
+    const restored = createTestDb();
+    await restored.exec(backupToSql(parseBackup(JSON.stringify(old))));
+    const leeches = await restored.prepare('SELECT id FROM words WHERE leech_at IS NOT NULL').all<{ id: number }>();
+    expect(leeches.results.map((r) => r.id)).toEqual([lapsed.word_id]);
   });
 
   it('knows which migration added each table', () => {

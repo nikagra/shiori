@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, shortPos, type PageDetail, type QueueItem } from '../api';
 import { PageGrid } from '../components/PageGrid';
-import { JapaneseWord, KanaInput, Meaning, Notice, Progress, SpeakButton, useKeys } from '../components/ui';
+import { Hook, JapaneseWord, KanaInput, Meaning, Notice, Progress, SpeakButton, useKeys } from '../components/ui';
 import { checkReading } from '../../shared/kana';
 import { formatInterval } from '../../shared/study';
 import { useSettings } from '../settings';
@@ -27,6 +27,8 @@ export function Review() {
       () => undefined,
     );
   }, []);
+  /** Words that became leeches this session: they've left review. */
+  const [leeches, setLeeches] = useState<QueueItem['word'][]>([]);
 
   const load = useCallback(() => {
     setItems(null);
@@ -45,11 +47,28 @@ export function Review() {
   if (!items) return <p className="muted">Loading…</p>;
 
   const item = items[index];
+  const leechNotice = leeches.length > 0 && (
+    <Notice>
+      <p data-testid="leech-notice">
+        {leeches.map((w, i) => (
+          <span key={w.id}>
+            {i > 0 && '、'}
+            <a href={`#/lists/${w.listId}/leeches`} lang="ja">
+              {w.kanji ?? w.kana}
+            </a>
+          </span>
+        ))}{' '}
+        {leeches.length === 1 ? 'keeps slipping, so it leaves' : 'keep slipping, so they leave'} review for now. Tap to give{' '}
+        {leeches.length === 1 ? 'it' : 'them'} a new approach: a fresh page, a memory hook or a clearer meaning.
+      </p>
+    </Notice>
+  );
   if (!item) {
     const more = total - items.length > 0;
     return (
       <div className="stack">
         <h1>Review</h1>
+        {leechNotice}
         <Notice kind="success">
           <p data-testid="review-done">{done > 0 ? `Done: ${done} reviewed.` : 'Nothing to review right now.'}</p>
         </Notice>
@@ -67,18 +86,22 @@ export function Review() {
   }
 
   return (
-    <ReviewCard
-      key={item.cardId}
-      item={item}
-      position={done}
-      total={done + (items.length - index)}
-      showIntervals={showIntervals}
-      onError={setError}
-      onGraded={() => {
-        setDone((d) => d + 1);
-        setIndex((i) => i + 1);
-      }}
-    />
+    <div className="stack">
+      {leechNotice}
+      <ReviewCard
+        key={item.cardId}
+        item={item}
+        position={done}
+        total={done + (items.length - index)}
+        showIntervals={showIntervals}
+        onError={setError}
+        onGraded={(leech) => {
+          if (leech) setLeeches((all) => [...all, item.word]);
+          setDone((d) => d + 1);
+          setIndex((i) => i + 1);
+        }}
+      />
+    </div>
   );
 }
 
@@ -95,7 +118,8 @@ function ReviewCard({
   total: number;
   /** A line under the grade buttons with when each grade brings the word back. */
   showIntervals: boolean;
-  onGraded: () => void;
+  /** leech: this answer made the word a leech, so it leaves review. */
+  onGraded: (leech: boolean) => void;
   onError: (message: string) => void;
 }) {
   const [settings] = useSettings();
@@ -140,7 +164,7 @@ function ReviewCard({
     if (hintUsed && rating > HARD) return;
     setSending(true);
     try {
-      await api.submitReview(item.cardId, {
+      const result = await api.submitReview(item.cardId, {
         rating,
         hintUsed,
         // A give-up on a typing card is logged with no answer, unlike an empty one.
@@ -148,7 +172,7 @@ function ReviewCard({
         correct: typed ? typed.correct || typed.typo : undefined,
         durationMs: Date.now() - started.current,
       });
-      onGraded();
+      onGraded(result.leech);
     } catch (e) {
       onError((e as Error).message);
       setSending(false);
@@ -232,6 +256,7 @@ function ReviewCard({
                 </p>
                 <JapaneseWord word={word} showReading size="small" />
                 <SpeakButton text={word.kana} />
+                <Hook word={word} />
               </div>
             )}
           </>

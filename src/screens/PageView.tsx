@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { api, shortPos, writtenForm, type ListWord, type PageDetail } from '../api';
 import { PageGrid } from '../components/PageGrid';
 import { SimilarNotice } from '../components/SimilarNotice';
-import { JapaneseWord, KanaInput, Meaning, Notice, plural, Progress, SpeakButton, useKeys } from '../components/ui';
+import { Hook, JapaneseWord, KanaInput, Meaning, Notice, plural, Progress, SpeakButton, useKeys } from '../components/ui';
 import { pickable, WordPicker } from '../components/WordPicker';
 import { navigate } from '../nav';
 import { answerStep, currentStep, drillFits, isDrillDone, MAX_PAGE_WORDS, missesByCard, startDrill, type DrillState, type DrillStep } from '../../shared/pageSession';
@@ -483,6 +483,7 @@ function Drill({
                   {typed.correct ? 'Correct' : gaveUp ? 'Here it is: it comes back after a few cards' : `Not quite: you typed “${typed.value || '—'}”`}
                 </p>
                 <JapaneseWord word={word} showReading size="small" />
+                <Hook word={word} />
                 <SpeakButton text={word.kana} />
               </div>
             )}

@@ -26,7 +26,7 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   in `.wrangler/state`, separate from the cloud one. An old database holding
   only test data is kept in `.wrangler/state-test-backup-20261025` and can be
   deleted.
-- Tests: 173 unit tests, 70 end-to-end runs (35 tests at iPhone and laptop
+- Tests: 180 unit tests, 74 end-to-end runs (37 tests at iPhone and laptop
   sizes), and `tsc -b` all pass.
 - **Backup and export** (26 Oct): Settings › Backup downloads all study data as
   one JSON file, a nightly cron saves the same file to the private R2 bucket
@@ -96,6 +96,13 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   or Again (more). A drill survives Stop on the device. Migration
   `0005_drill_misses`: after pulling on the laptop, run
   `npm run db:migrate:local`.
+- **Finish review, part 3** (27 Oct): leeches. A card's fourth lapse takes
+  its word out of review; Home and the list ("Leeches only") show it, and
+  its editor puts it on a fresh page (first in line; its cards start afresh
+  on graduation, history kept), or saving a clearer meaning or a new memory
+  hook lets it back in. Any word can have a memory hook, shown with the
+  answer. Migration `0006_leeches` also
+  flags words that already had 4 lapses: run `npm run db:migrate:local`.
 - First iPhone feedback (25 Oct) is in: "Don't know" on review and drill
   cards, next words hidden in the in-order drill, "Study the page again",
   whole words on the grid, safer iOS speech. Sound on the iPhone still needs
@@ -115,8 +122,8 @@ What the word loop can't do yet:
 - ~~Add one word.~~ Done in step 4 (from the dictionary).
 - ~~Shape a page: drop a word with a similar meaning, pick the words yourself,
   or delete a page.~~ Done in step 3.
-- Handle leeches, ~~show what each grade button does, or change the 20 new
-  cards a day~~ (done in step 5, part 1).
+- ~~Handle leeches, show what each grade button does, or change the 20 new
+  cards a day.~~ Done in step 5.
 
 ## Next steps, in order
 
@@ -126,7 +133,8 @@ nightly copy shows in Settings), lists you manage with their own pace (26 Oct;
 try it on the iPhone: the Lists tab, then a page from School and one from
 Manga), Settings (26 Oct), words you can see and change (26 Oct), pages you shape
 (26 Oct), dictionary (27 Oct; after the merge, run the Dictionary workflow
-once by hand or wait for the night, then try Add a word on the iPhone).
+once by hand or wait for the night, then try Add a word on the iPhone),
+finish review (27 Oct; try a page with a miss, and check Home for leeches).
 
 ### v0.2: a complete word tool
 
@@ -158,26 +166,19 @@ once by hand or wait for the night, then try Add a word on the iPhone).
    check pass and their entry can be picked in the word's editor; furigana
    per kanji and "usually written in kana". Later: example sentences
    (v0.3) and kanji info (KANJIDIC) come from the same sources.
-5. **Finish review.** Plan agreed with Mikita (27 Oct,
-   [plan doc](https://claude.ai/artifact/Q2JWAKtgYbekKkHi9yjNmZ)), in three
-   PRs: (1) grade intervals and new words a day, done; (2) drill misses that
-   count, done: type the kana after a miss, the retry comes after at least
-   5 other cards (with fillers near the end), and step 2 misses start a card
-   at Hard (one miss) or Again (two or more), per direction; the drill is
-   kept on the device across Stop; (3) leeches: 4 lapses take a word out of
-   review until you put it on a fresh page, write a memory hook, edit it or
-   set it aside.
-   - Why drill misses (Mikita, 26 Oct): Renshuu repeats a missed question
-     until you get it right, so you answer from short-term memory without
-     learning the word. The page drill used to do the same and dropped its
-     misses when the page graduated; part 2 changed both.
-   - Why leeches: the same problem in review, a word that isn't being
-     learned, so the fix is more effort, not another look. A leech is
-     listed in its list's words (step 2). `LEECH_LAPSES` in
-     `shared/scheduler.ts` (6, unused) becomes 4.
-   - ~~What each grade does, shown in the app.~~ Done: intervals on the
-     buttons and a guide in Settings.
-   - ~~New cards a day as a setting.~~ Done: new words a day, for pages.
+5. ~~**Finish review.**~~ Done (27 Oct), as agreed with Mikita
+   ([plan doc](https://claude.ai/artifact/Q2JWAKtgYbekKkHi9yjNmZ)), in
+   three PRs:
+   - Grade intervals under the buttons with a guide in Settings, and new
+     words a day (for pages) as a setting.
+   - Drill misses that count (Mikita, 26 Oct: Renshuu repeats a missed
+     question until you get it right, so you answer from short-term
+     memory). Type the kana after a miss; the retry comes after at least
+     5 other cards; step 2 misses start a card at Hard (one) or Again
+     (more), per direction; a drill survives Stop.
+   - Leeches (the same problem in review: the fix is more effort, not
+     another look). 4 lapses take a word out of review until you put it
+     on a fresh page, write a memory hook, fix it or set it aside.
 6. **Use it for real.** Study only in Shiori for about two weeks, add words
    from reading with the dictionary, and fix what gets in the way. Then
    decide how much care study data needs once you rely on it (for example

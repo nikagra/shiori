@@ -11,7 +11,7 @@ import { ListWords } from './screens/ListWords';
 import { Settings } from './screens/Settings';
 import { AddWord } from './screens/AddWord';
 
-// Hash routes: #/, #/review, #/pages, #/pages/3, #/pages/new (pick the words; #/pages/new/2 from list 2), #/lists, #/lists/2 (its words), #/check, #/settings,
+// Hash routes: #/, #/review, #/pages, #/pages/3, #/pages/new (pick the words; #/pages/new/2 from list 2), #/lists, #/lists/2 (its words; #/lists/2/leeches its leeches), #/check, #/settings,
 // #/settings/backup, #/settings/grading (scrolled to that section), #/settings/import, #/add (a word from the dictionary; #/add/2 into list 2)
 
 function useHashRoute(): string[] {
@@ -52,7 +52,7 @@ export function App() {
         id === 'new' ? <PagePicker key={sub} listId={sub ? Number(sub) : null} /> : id ? <PageView key={id} id={Number(id)} /> : <Pages />;
       break;
     case 'lists':
-      screen = id ? <ListWords key={id} id={Number(id)} /> : <Lists />;
+      screen = id ? <ListWords key={`${id}/${sub ?? ''}`} id={Number(id)} leeches={sub === 'leeches'} /> : <Lists />;
       break;
     case 'add':
       screen = <AddWord key={id} listId={id ? Number(id) : null} />;

@@ -189,7 +189,7 @@ function Grading() {
       {error && <p className="error">{error}</p>}
       <dl className="grading">
         <dt className="grading__again">Again</dt>
-        <dd>You didn't recall it, or recalled it wrongly. It comes back soon (the button says when) and counts as a lapse.</dd>
+        <dd>You didn't recall it, or recalled it wrongly. It comes back soon (the button says when) and counts as a lapse: four make a leech, which leaves review until you give it a new approach.</dd>
         <dt className="grading__hard">Hard</dt>
         <dd>You recalled it, but slowly, with effort or unsure. A pass, with a shorter interval than Good.</dd>
         <dt className="grading__good">Good</dt>

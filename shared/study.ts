@@ -39,3 +39,6 @@ export function formatInterval(days: number): string {
   const years = days / 365;
   return `${years < 10 ? Math.round(years * 10) / 10 : Math.round(years)}y`;
 }
+
+/** Longest memory hook, in characters (code points). */
+export const MAX_HOOK = 300;

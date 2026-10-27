@@ -15,6 +15,7 @@ const nextDay = (d: Date, days: number) => new Date(d.getTime() + days * 86_400_
 
 /** The starting lists are Manga, Books, School and Other, in that order. */
 const MANGA = 1;
+const BOOKS = 2;
 
 let db: D1Database;
 beforeEach(() => {
@@ -173,6 +174,107 @@ describe('drill misses', () => {
     ).rejects.toMatchObject({ status: 400 });
     await expect(repo.completeStage(db, page.id, 'ordered', dayEnd, now, [{ wordId: a, direction: 'jp_en', misses: -1 }])).rejects.toMatchObject({ status: 400 });
     expect((await repo.getPage(db, page.id)).stage).toBe('ordered');
+  });
+});
+
+describe('leeches', () => {
+  /** A word learned from a page, and its reading card's id. */
+  async function learnedWord() {
+    await importAndSort(0, 1);
+    const page = await repo.createPage(db, 1, null, now);
+    await repo.completeStage(db, page.id, 'ordered', dayEnd, now);
+    await repo.completeStage(db, page.id, 'shuffled', dayEnd, now);
+    const card = await db.prepare(`SELECT id FROM cards WHERE word_id = ? AND direction = 'jp_en'`).bind(page.words[0].id).first<{ id: number }>();
+    return { wordId: page.words[0].id, cardId: card!.id, pageId: page.id };
+  }
+  const grade = (cardId: number, rating: number, at: Date) =>
+    repo.submitReview(db, { cardId, rating: rating as never, hintUsed: false, answer: null, correct: null, durationMs: null }, at);
+  const word = (id: number) => repo.getListWord(db, id);
+  const inQueue = async (wordId: number, day: number) =>
+    (await repo.reviewQueue(db, nextDay(dayStart, day), nextDay(dayEnd, day), 50)).items.some((i) => i.word.id === wordId);
+
+  it('the fourth lapse makes a leech: it leaves review and shows on Home', async () => {
+    const { wordId, cardId } = await learnedWord();
+    const results = [];
+    for (let i = 1; i <= 4; i++) results.push((await grade(cardId, Rating.Again, nextDay(now, i * 3))).leech);
+    expect(results).toEqual([false, false, false, true]);
+    expect((await word(wordId)).leechAt).not.toBeNull();
+    expect(await inQueue(wordId, 30)).toBe(false);
+    expect((await repo.stats(db, dayStart, dayEnd)).leeches).toEqual([{ listId: MANGA, listName: 'Manga', count: 1 }]);
+  });
+
+  it('showing it a new way lets it back in, and each card then takes four more lapses of its own', async () => {
+    const { wordId, cardId } = await learnedWord();
+    const other = (await db.prepare(`SELECT id FROM cards WHERE word_id = ? AND direction = 'en_jp'`).bind(wordId).first<{ id: number }>())!.id;
+    await grade(other, Rating.Again, nextDay(now, 2));
+    for (let i = 1; i <= 4; i++) await grade(cardId, Rating.Again, nextDay(now, i * 3));
+    const leech = await word(wordId);
+    // Saving it unchanged, clearing a hook or moving it is no new approach.
+    for (const changes of [{ coreMeaning: leech.coreMeaning }, { hook: null }, { listId: BOOKS }]) {
+      expect((await repo.updateWord(db, wordId, changes, now)).leechAt).not.toBeNull();
+    }
+    await expect(repo.updateWord(db, wordId, { hook: 'nu-keru: a nut falls out' }, now)).resolves.toMatchObject({ leechAt: null });
+    expect(await inQueue(wordId, 30)).toBe(true);
+    // The other card had one lapse before: it takes four more, not four minus one or seven.
+    const again = [];
+    for (let i = 5; i <= 8; i++) again.push((await grade(other, Rating.Again, nextDay(now, i * 3))).leech);
+    expect(again).toEqual([false, false, false, true]);
+    await expect(repo.updateWord(db, wordId, { coreMeaning: 'to come out (of a socket)' }, now)).resolves.toMatchObject({ leechAt: null });
+  });
+
+  it('a set-aside leech is no leech, and comes back to review with its lapses counted afresh', async () => {
+    const { wordId, cardId } = await learnedWord();
+    for (let i = 1; i <= 4; i++) await grade(cardId, Rating.Again, nextDay(now, i * 3));
+    expect((await repo.setAside(db, wordId, now)).leechAt).toBeNull();
+    expect((await repo.stats(db, dayStart, dayEnd)).leeches).toEqual([]);
+    expect((await repo.bringBack(db, wordId, now)).status).toBe('graduated');
+    expect(await inQueue(wordId, 30)).toBe(true);
+    expect((await grade(cardId, Rating.Again, nextDay(now, 30))).leech).toBe(false);
+  });
+
+  it('a word waiting for a fresh page, set aside and brought back, is no leech on its next lapse', async () => {
+    const { wordId, cardId } = await learnedWord();
+    for (let i = 1; i <= 4; i++) await grade(cardId, Rating.Again, nextDay(now, i * 3));
+    await repo.relearn(db, wordId, now);
+    await repo.setAside(db, wordId, now);
+    expect((await repo.bringBack(db, wordId, now)).status).toBe('graduated');
+    expect((await grade(cardId, Rating.Again, nextDay(now, 30))).leech).toBe(false);
+  });
+
+  it('a fresh page: first in line, off its old page, cards start afresh with their history', async () => {
+    const { wordId, cardId, pageId } = await learnedWord();
+    for (let i = 1; i <= 4; i++) await grade(cardId, Rating.Again, nextDay(now, i * 3));
+    await importAndSort(0, 3);
+    const moved = await repo.relearn(db, wordId, now);
+    expect(moved).toMatchObject({ status: 'inbox', leechAt: null, page: null });
+    expect((await repo.getPage(db, pageId)).words).toHaveLength(0);
+    await expect(repo.relearn(db, wordId, now)).rejects.toMatchObject({ status: 409 });
+
+    const page = await repo.createPage(db, 2, MANGA, now);
+    expect(page.words[0].id).toBe(wordId);
+    await repo.completeStage(db, page.id, 'ordered', dayEnd, now);
+    await repo.completeStage(db, page.id, 'shuffled', dayEnd, now);
+    const card = await db.prepare(`SELECT id, lapses FROM cards WHERE word_id = ? AND direction = 'jp_en'`).bind(wordId).first<{ id: number; lapses: number }>();
+    expect(card).toEqual({ id: cardId, lapses: 0 });
+    const logs = await db.prepare('SELECT kind, COUNT(*) AS n FROM review_log WHERE card_id = ? GROUP BY kind ORDER BY kind').bind(cardId).all<{ kind: string; n: number }>();
+    expect(logs.results).toEqual([
+      { kind: 'graduation', n: 2 },
+      { kind: 'review', n: 4 },
+    ]);
+    // Graduating again changes nothing, though its cards already existed.
+    await repo.completeStage(db, page.id, 'shuffled', dayEnd, now);
+    const after = await db.prepare(`SELECT COUNT(*) AS n FROM review_log WHERE kind = 'graduation'`).first<{ n: number }>();
+    expect(after?.n).toBe(2 + 2 * 2);
+    // Due again (the reviews above were dated up to day 12).
+    expect(await inQueue(wordId, 20)).toBe(true);
+  });
+
+  it('a memory hook is kept, trimmed and limited', async () => {
+    const { wordId } = await learnedWord();
+    expect((await repo.updateWord(db, wordId, { hook: '  nu-keru: a nut falls out  ' }, now)).hook).toBe('nu-keru: a nut falls out');
+    expect((await repo.updateWord(db, wordId, { hook: '' }, now)).hook).toBeNull();
+    await expect(repo.updateWord(db, wordId, { hook: 'x'.repeat(301) }, now)).rejects.toMatchObject({ status: 400 });
+    await expect(repo.updateWord(db, wordId, { hook: 5 }, now)).rejects.toMatchObject({ status: 400 });
   });
 });
 

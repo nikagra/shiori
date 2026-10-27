@@ -6,6 +6,7 @@ import { DEFAULT_WEIGHT, effectiveWeight, MAX_NAME, TYPING_CARDS_PER_DAY, MAX_PA
 import {
   capForHint,
   DIRECTIONS,
+  LEECH_LAPSES,
   graduate,
   intervals,
   newCard,
@@ -20,7 +21,7 @@ import { graduationGrade, MAX_PAGE_WORDS, PAGE_READY, type PageStage } from '../
 import { BACKUP_FORMAT, BACKUP_SCHEMA, BACKUP_TABLES, LISTS_FROM_LABELS, type Backup, type BackupRow, type BackupTable } from '../shared/backup';
 import type { WordState as WordStatus } from '../shared/wordSearch';
 import { DEFAULT_PREFS, HINTS_TO_LEARNING, isKanji, knownKanjiSet, markLearning, uniqueKanji, type FuriganaPrefs, type Ruby } from '../shared/furigana';
-import { DEFAULT_STUDY, NEW_WORDS_RANGE, type GradeIntervals, type StudyPrefs } from '../shared/study';
+import { DEFAULT_STUDY, MAX_HOOK, NEW_WORDS_RANGE, type GradeIntervals, type StudyPrefs } from '../shared/study';
 import { dictInfo, entryCoreMeaning, pairs, posLabel, senseStrings, sensesFor, type DictEntry, type WordDictInfo } from '../shared/dictionary';
 
 export type { WordState as WordStatus } from '../shared/wordSearch';
@@ -42,6 +43,8 @@ export interface WordRow {
   dict_checked: number | null;
   furigana: string | null;
   usually_kana: number;
+  leech_at: string | null;
+  hook: string | null;
 }
 
 export interface Word {
@@ -62,6 +65,10 @@ export interface Word {
   /** Readings per kanji from the dictionary. */
   furigana: Ruby[] | null;
   usuallyKana: boolean;
+  /** When it became a leech: out of review until you act on it. */
+  leechAt: string | null;
+  /** Your own memory hook, shown with the answer. */
+  hook: string | null;
 }
 
 export function toWord(r: WordRow): Word {
@@ -80,6 +87,8 @@ export function toWord(r: WordRow): Word {
     dict: r.dict_seq !== null ? 'linked' : r.dict_checked !== null ? 'none' : 'unchecked',
     furigana: r.furigana ? (JSON.parse(r.furigana) as Ruby[]) : null,
     usuallyKana: r.usually_kana === 1,
+    leechAt: r.leech_at,
+    hook: r.hook,
   };
 }
 
@@ -207,7 +216,7 @@ function toListWord(r: ListWordRow): ListWord {
   };
 }
 
-/** Every word of a list, in the order they were imported. */
+/** Every word of a list, in the order they were imported (a word put on a fresh page moves first). */
 export async function listWords(db: D1Database, listId: number): Promise<ListWord[]> {
   await getListRow(db, listId);
   const rows = await db.prepare(`${LIST_WORD_SQL} WHERE w.list_id = ? ORDER BY w.source_order`).bind(listId).all<ListWordRow>();
@@ -225,7 +234,9 @@ export interface WordChanges {
   kanji?: unknown;
   coreMeaning?: unknown;
   listId?: unknown;
+  hook?: unknown;
 }
+
 
 /** A word on a page you're drilling stays as it is, so the page keeps its words and its one list. */
 function notOnPage(word: ListWord, doing: string) {
@@ -241,8 +252,9 @@ function changedMeanwhile(result: D1Result | undefined) {
 const KANA = /^[\p{Script=Hiragana}\p{Script=Katakana}ー〜・ ]+$/u;
 
 /**
- * Edits a word's kanji, kana or core meaning, or moves it to another list.
- * The full senses stay as they were imported.
+ * Edits a word's kanji, kana, core meaning or memory hook, or moves it to another list.
+ * The full senses stay as they were imported. Changing how a leech is shown
+ * (spelling, meaning or a new hook) lets it back into review (letIn).
  */
 export async function updateWord(db: D1Database, id: number, changes: WordChanges, now: Date): Promise<ListWord> {
   const word = await getListWord(db, id);
@@ -276,6 +288,12 @@ export async function updateWord(db: D1Database, id: number, changes: WordChange
     if (!meaning) throw new AppError(400, 'meaning must not be empty');
     set('core_meaning', meaning);
   }
+  if (changes.hook !== undefined) {
+    const hook = changes.hook === null ? '' : typeof changes.hook === 'string' ? changes.hook.trim() : null;
+    if (hook === null) throw new AppError(400, 'hook must be text');
+    if ([...hook].length > MAX_HOOK) throw new AppError(400, `a hook is at most ${MAX_HOOK} characters`);
+    set('hook', hook || null);
+  }
   if (changes.listId !== undefined) {
     const listId = Number(changes.listId);
     if (!Number.isInteger(listId)) throw new AppError(400, 'listId must be an integer');
@@ -286,11 +304,18 @@ export async function updateWord(db: D1Database, id: number, changes: WordChange
     }
   }
   if (sets.length === 0) return word;
+  const reshown = (col: string, before: string | null) => sets.some((s, i) => s === `${col} = ?` && values[i] !== before);
+  const fixed = reshown('kana', word.kana) || reshown('kanji', word.kanji) || reshown('core_meaning', word.coreMeaning) || (reshown('hook', word.hook) && values[sets.indexOf('hook = ?')] !== null);
+  if (word.leechAt && fixed) set('leech_at', null);
   set('updated_at', iso(now));
   // A move doesn't take a word that was just put on a page.
   const guard = sets.some((s) => s.startsWith('list_id')) ? ` AND status != 'on_page'` : '';
   try {
-    changedMeanwhile(await db.prepare(`UPDATE words SET ${sets.join(', ')} WHERE id = ?${guard}`).bind(...values, id).run());
+    const results = await db.batch([
+      db.prepare(`UPDATE words SET ${sets.join(', ')} WHERE id = ?${guard}`).bind(...values, id),
+      ...(word.leechAt && fixed ? [letIn(db, id)] : []),
+    ]);
+    changedMeanwhile(results[0]);
   } catch (e) {
     if (isUniqueViolation(e)) throw new AppError(409, 'you already have a word with that kanji and kana');
     throw e;
@@ -298,25 +323,61 @@ export async function updateWord(db: D1Database, id: number, changes: WordChange
   return getListWord(db, id);
 }
 
-/** Sets a word aside: it leaves the check pass, pages and review, and keeps its history. */
+/**
+ * Counts a word's lapses afresh from here: each card takes LEECH_LAPSES more
+ * of its own to make the word a leech again.
+ */
+const letIn = (db: D1Database, wordId: number) => db.prepare('UPDATE cards SET lapse_base = lapses WHERE word_id = ?').bind(wordId);
+
+/** Sets a word aside: it leaves the check pass, pages and review, and keeps its history. A set-aside word is no leech. */
 export async function setAside(db: D1Database, id: number, now: Date): Promise<ListWord> {
   const word = await getListWord(db, id);
   if (word.status === 'ignored') return word;
   notOnPage(word, 'set it aside');
-  changedMeanwhile(await db.prepare(`UPDATE words SET status = 'ignored', updated_at = ? WHERE id = ? AND status = ?`).bind(iso(now), id, word.status).run());
+  changedMeanwhile(
+    await db.prepare(`UPDATE words SET status = 'ignored', leech_at = NULL, updated_at = ? WHERE id = ? AND status = ?`).bind(iso(now), id, word.status).run(),
+  );
   return getListWord(db, id);
 }
 
-/** Brings a set-aside word back: to review if it was learned (it has cards), otherwise to the check pass. */
+/**
+ * Brings a set-aside word back: to review if it has cards (with its lapses
+ * counted afresh), otherwise to the check pass.
+ */
 export async function bringBack(db: D1Database, id: number, now: Date): Promise<ListWord> {
   const word = await getListWord(db, id);
   if (word.status !== 'ignored') throw new AppError(409, 'this word is not set aside');
-  changedMeanwhile(
-    await db
-      .prepare(`UPDATE words SET status = ?, updated_at = ? WHERE id = ? AND status = 'ignored'`)
-      .bind(word.hasCards ? 'graduated' : 'unverified', iso(now), id)
-      .run(),
-  );
+  const results = await db.batch([
+    db.prepare(`UPDATE words SET status = ?, updated_at = ? WHERE id = ? AND status = 'ignored'`).bind(word.hasCards ? 'graduated' : 'unverified', iso(now), id),
+    letIn(db, id),
+  ]);
+  changedMeanwhile(results[0]);
+  return getListWord(db, id);
+}
+
+/**
+ * Puts a learned word (a leech, usually) back to waiting, first in its list
+ * (its place in the word list moves to the top too), so the next page from
+ * that list takes it. It leaves its old page, and graduating the new page
+ * starts its cards afresh; its review history stays.
+ */
+export async function relearn(db: D1Database, id: number, now: Date): Promise<ListWord> {
+  const word = await getListWord(db, id);
+  if (word.status !== 'graduated') throw new AppError(409, 'only a learned word can go on a fresh page');
+  const results = await db.batch([
+    db
+      .prepare(
+        `UPDATE words SET status = 'inbox', leech_at = NULL, updated_at = ?,
+           source_order = (SELECT MIN(source_order) FROM words) - 1
+         WHERE id = ? AND status = 'graduated'`,
+      )
+      .bind(iso(now), id),
+    // Only once the word really moved (not when the other device got there first).
+    db.prepare(`DELETE FROM page_words WHERE word_id = ? AND (SELECT status FROM words WHERE id = ?) = 'inbox'`).bind(id, id),
+    // Set aside and brought back before its new page, it doesn't start as a leech.
+    letIn(db, id),
+  ]);
+  changedMeanwhile(results[0]);
   return getListWord(db, id);
 }
 
@@ -368,6 +429,20 @@ const insertCard = (db: D1Database, wordId: number, direction: Direction, card: 
     .bind(wordId, direction, card.due, card.state, card.lapses, JSON.stringify(card), iso(now));
 
 /**
+ * A graduating card. A word that was on an earlier page (a leech put on a
+ * fresh one) already has this card: it starts afresh, keeping its id and so
+ * its review history. Only while page ? is still in step 2.
+ */
+const graduateCard = (db: D1Database, pageId: number, wordId: number, direction: Direction, card: StoredCard, now: Date) =>
+  db
+    .prepare(
+      `INSERT INTO cards (word_id, direction, due, state, lapses, fsrs, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT (word_id, direction) DO UPDATE SET due = excluded.due, state = excluded.state, lapses = excluded.lapses, lapse_base = 0, fsrs = excluded.fsrs
+       WHERE (SELECT stage FROM pages WHERE id = ?) = 'shuffled'`,
+    )
+    .bind(wordId, direction, card.due, card.state, card.lapses, JSON.stringify(card), iso(now), pageId);
+
+/**
  * A review_log row. `card` is the card id, or the direction of a card that is
  * inserted earlier in the same batch, so its id isn't known yet.
  */
@@ -405,6 +480,9 @@ function logReview(
       iso(now),
     );
 }
+
+/** True when a graduation batch failed on its first statement: the page had left step 2. */
+const isNotGraduating = (e: unknown) => e instanceof Error && /NOT NULL constraint failed: page_words\.word_id/i.test(e.message);
 
 /** True when a batch failed on a UNIQUE constraint, i.e. another request got there first. */
 const isUniqueViolation = (e: unknown) => e instanceof Error && /UNIQUE constraint failed/i.test(e.message);
@@ -950,15 +1028,21 @@ export async function completeStage(
     return getPage(db, id);
   }
   const missed = new Map(clean.map((m) => [`${m.wordId}:${m.direction}`, m.misses]));
-  // One batch, so a page never ends up half graduated.
+  // One batch, so a page never ends up half graduated. It starts by failing
+  // (a NULL word on the page) if the page left step 2 meanwhile: a retry, or
+  // the other device. Cards of a word on its second page are updated, not
+  // inserted, so a UNIQUE failure can't be relied on for that.
   try {
     await db.batch([
+      db
+        .prepare(`INSERT INTO page_words (page_id, word_id, position) SELECT ?, NULL, -1 WHERE (SELECT stage FROM pages WHERE id = ?) != 'shuffled'`)
+        .bind(id, id),
       ...recordMisses,
       ...page.words.flatMap((w) =>
         DIRECTIONS.flatMap((direction) => {
           const rating = GRADUATION_RATING[graduationGrade(missed.get(`${w.id}:${direction}`) ?? 0)];
           return [
-            insertCard(db, w.id, direction, graduate(now, nextDayStart, rating), now),
+            graduateCard(db, id, w.id, direction, graduate(now, nextDayStart, rating), now),
             logReview(db, { card: direction, wordId: w.id, kind: 'graduation', rating, stateBefore: State.New, correct: rating !== Rating.Again }, now),
           ];
         }),
@@ -970,7 +1054,7 @@ export async function completeStage(
     ]);
   } catch (e) {
     // Another request graduated it first (a retry, or the other device).
-    if (!isUniqueViolation(e)) throw e;
+    if (!isUniqueViolation(e) && !isNotGraduating(e)) throw e;
   }
   return getPage(db, id);
 }
@@ -997,7 +1081,7 @@ async function todaysQueue(db: D1Database, dayStart: Date, dayEnd: Date): Promis
     .prepare(
       `SELECT c.id AS cardId, c.word_id AS wordId, c.direction, c.state, c.due, w.list_id AS listId
        FROM cards c JOIN words w ON w.id = c.word_id
-       WHERE w.status = 'graduated' AND c.due < ?`,
+       WHERE w.status = 'graduated' AND w.leech_at IS NULL AND c.due < ?`,
     )
     .bind(iso(dayEnd))
     .all<QueueCandidate>();
@@ -1081,16 +1165,29 @@ export interface ReviewInput {
   durationMs: number | null;
 }
 
-export async function submitReview(db: D1Database, input: ReviewInput, now: Date): Promise<{ due: string; rating: Grade }> {
+/**
+ * Grades a card. An Again that brings the card to LEECH_LAPSES lapses since
+ * the word was last let back in (lapse_base) makes the word a leech: it
+ * leaves review until you act on it (`leech` in the answer).
+ */
+export async function submitReview(db: D1Database, input: ReviewInput, now: Date): Promise<{ due: string; rating: Grade; leech: boolean }> {
   const row = await db
-    .prepare('SELECT id, word_id, fsrs FROM cards WHERE id = ?')
+    .prepare('SELECT id, word_id, fsrs, lapse_base FROM cards WHERE id = ?')
     .bind(input.cardId)
-    .first<{ id: number; word_id: number; fsrs: string }>();
+    .first<{ id: number; word_id: number; fsrs: string; lapse_base: number }>();
   if (!row) throw new AppError(404, 'card not found');
   const before = JSON.parse(row.fsrs) as StoredCard;
   const rating = capForHint(input.rating, input.hintUsed);
   const after = review(before, rating, now);
-  await db.batch([
+  const leech = rating === Rating.Again && after.lapses - row.lapse_base >= LEECH_LAPSES;
+  const results = await db.batch([
+    ...(leech
+      ? [
+          db
+            .prepare(`UPDATE words SET leech_at = ?, updated_at = ? WHERE id = ? AND leech_at IS NULL AND status = 'graduated'`)
+            .bind(iso(now), iso(now), row.word_id),
+        ]
+      : []),
     db
       .prepare('UPDATE cards SET due = ?, state = ?, lapses = ?, fsrs = ? WHERE id = ?')
       .bind(after.due, after.state, after.lapses, JSON.stringify(after), row.id),
@@ -1110,7 +1207,7 @@ export async function submitReview(db: D1Database, input: ReviewInput, now: Date
       now,
     ),
   ]);
-  return { due: after.due, rating };
+  return { due: after.due, rating, leech: leech && Boolean(results[0].meta.changes) };
 }
 
 // ---------------------------------------------------------------- stats
@@ -1124,6 +1221,8 @@ export interface Stats {
   /** Words on pages started today, against the new-words setting. */
   newWordsToday: number;
   newWordsPerDay: number;
+  /** Leeches waiting for a new approach, by list. */
+  leeches: { listId: number; listName: string; count: number }[];
 }
 
 export async function stats(db: D1Database, dayStart: Date, dayEnd: Date): Promise<Stats> {
@@ -1143,6 +1242,14 @@ export async function stats(db: D1Database, dayStart: Date, dayEnd: Date): Promi
     learned: by.graduated ?? 0,
     newWordsToday: await newWordsToday(db, dayStart),
     newWordsPerDay: study.newWordsPerDay,
+    leeches: (
+      await db
+        .prepare(
+          `SELECT l.id AS listId, l.name AS listName, COUNT(*) AS count FROM words w JOIN lists l ON l.id = w.list_id
+           WHERE w.leech_at IS NOT NULL GROUP BY l.id ORDER BY l.id`,
+        )
+        .all<{ listId: number; listName: string; count: number }>()
+    ).results,
   };
 }
 
@@ -1482,6 +1589,15 @@ export async function resetAll(db: D1Database): Promise<void> {
   await db.batch([...BACKUP_TABLES].reverse().map((t) => db.prepare(`DELETE FROM ${t}`)));
   const seed = LISTS_FROM_LABELS.split(/;\s*$/m).filter((sql) => sql.trim());
   await db.batch(seed.map((sql) => db.prepare(sql)));
+}
+
+/** Gives every card of a word this many lapses, to reach a leech quickly in end-to-end tests. */
+export async function setLapses(db: D1Database, wordId: number, lapses: number): Promise<void> {
+  const rows = await db.prepare('SELECT id, fsrs FROM cards WHERE word_id = ?').bind(wordId).all<{ id: number; fsrs: string }>();
+  for (const r of rows.results) {
+    const card = { ...(JSON.parse(r.fsrs) as StoredCard), lapses };
+    await db.prepare('UPDATE cards SET lapses = ?, fsrs = ? WHERE id = ?').bind(lapses, JSON.stringify(card), r.id).run();
+  }
 }
 
 /** Makes cards due now (all, or one direction), to exercise reviews in end-to-end tests. */

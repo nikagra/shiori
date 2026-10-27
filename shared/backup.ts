@@ -19,7 +19,7 @@ export const TABLE_SINCE: Record<BackupTable, string> = {
 };
 
 /** The latest migration the backup's rows fit. A test keeps it in step with migrations/. */
-export const BACKUP_SCHEMA = '0005_drill_misses';
+export const BACKUP_SCHEMA = '0006_leeches';
 
 /**
  * The end of migrations/0003_lists.sql, word for word (a test checks): makes
@@ -40,6 +40,14 @@ UPDATE pages SET list_id = (
     SELECT w.list_id FROM page_words pw JOIN words w ON w.id = pw.word_id
     WHERE pw.page_id = pages.id GROUP BY w.list_id ORDER BY COUNT(*) DESC, MIN(pw.position) LIMIT 1
   ) WHERE list_id IS NULL;`;
+
+/**
+ * The end of migrations/0006_leeches.sql, word for word (a test checks):
+ * words in review that already lapsed LEECH_LAPSES times become leeches.
+ * Loading a backup from before leeches runs it too.
+ */
+export const OLD_LEECHES = `UPDATE words SET leech_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+  WHERE status = 'graduated' AND id IN (SELECT word_id FROM cards WHERE lapses >= 4);`;
 
 export const BACKUP_FORMAT = 1;
 
@@ -144,5 +152,6 @@ export function backupToSql(backup: Backup, { replace = false } = {}): string {
     }
   }
   if (backup.schema < TABLE_SINCE.lists) lines.push('-- From before lists: give every word and page its list.', LISTS_FROM_LABELS);
+  if (backup.schema < '0006_leeches') lines.push('-- From before leeches: flag the words that already are.', OLD_LEECHES);
   return lines.join('\n') + '\n';
 }

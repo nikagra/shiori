@@ -143,6 +143,7 @@ export function Meaning({ word, onEdit }: { word: Word; onEdit?: (meaning: strin
         </p>
       )}
       {word.pos && <p className="meaning__pos">{shortPos(word.pos)}</p>}
+      <Hook word={word} />
       {word.senses.length > 1 && (
         <details className="meaning__all">
           <summary>All meanings ({word.senses.length})</summary>
@@ -154,6 +155,16 @@ export function Meaning({ word, onEdit }: { word: Word; onEdit?: (meaning: strin
         </details>
       )}
     </div>
+  );
+}
+
+/** Your own memory hook for a word, shown with its answer. */
+export function Hook({ word }: { word: Pick<Word, 'hook'> }) {
+  if (!word.hook) return null;
+  return (
+    <p className="meaning__hook" data-testid="hook">
+      <span className="meaning__hook-label">Your hook:</span> {word.hook}
+    </p>
   );
 }
 

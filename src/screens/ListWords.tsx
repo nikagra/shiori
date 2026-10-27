@@ -6,6 +6,7 @@ import { useWordFilter, WordFilter } from '../components/WordFilter';
 import { DictResults, DictSearchBox, SenseList, useDictSearch, useDictStatus } from '../components/DictSearch';
 import { WORD_STATES } from '../../shared/wordSearch';
 import { entryCoreMeaning, headPair, posLabel, sensesFor, type DictEntry } from '../../shared/dictionary';
+import { MAX_HOOK } from '../../shared/study';
 
 // One list's words: find them, then edit, move, set aside or delete one.
 
@@ -14,7 +15,8 @@ const SHOW_AT_ONCE = 100;
 
 const STATE_LABEL = Object.fromEntries(WORD_STATES.map((s) => [s.state, s.label])) as Record<ListWord['status'], string>;
 
-export function ListWords({ id }: { id: number }) {
+/** `leeches` opens the list showing only its leeches. */
+export function ListWords({ id, leeches: leechesFirst = false }: { id: number; leeches?: boolean }) {
   const [lists, setLists] = useState<ListSummary[] | null>(null);
   const [words, setWords] = useState<ListWord[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -22,6 +24,7 @@ export function ListWords({ id }: { id: number }) {
   const [open, setOpen] = useState<number | null>(null);
   const [limit, setLimit] = useState(SHOW_AT_ONCE);
   const filter = useWordFilter(words ?? []);
+  const [leechesOnly, setLeechesOnly] = useState(leechesFirst);
 
   useEffect(() => {
     Promise.all([api.lists(), api.listWords(id)]).then(
@@ -32,7 +35,7 @@ export function ListWords({ id }: { id: number }) {
       (e: Error) => setError(e.message),
     );
   }, [id]);
-  useEffect(() => setLimit(SHOW_AT_ONCE), [filter.text, filter.states]);
+  useEffect(() => setLimit(SHOW_AT_ONCE), [filter.text, filter.states, leechesOnly]);
 
   if (!words || !lists) return error ? <Notice kind="error">{error}</Notice> : <p className="muted">Loading…</p>;
   const list = lists.find((l) => l.id === id);
@@ -47,7 +50,9 @@ export function ListWords({ id }: { id: number }) {
   };
 
   const counts = filter.counts;
-  const shown = filter.shown.slice(0, limit);
+  const leechCount = words.filter((w) => w.leechAt).length;
+  const matching = leechesOnly ? filter.shown.filter((w) => w.leechAt) : filter.shown;
+  const shown = matching.slice(0, limit);
 
   return (
     <div className="stack">
@@ -76,8 +81,21 @@ export function ListWords({ id }: { id: number }) {
       {words.length > 0 && (
         <>
           <WordFilter filter={filter} label={`Search ${list.name}`} />
+          {(leechCount > 0 || leechesOnly) && (
+            <div className="chips" role="group" aria-label="Leeches">
+              <button type="button" className={`chip${leechesOnly ? ' is-active' : ''}`} aria-pressed={leechesOnly} onClick={() => setLeechesOnly(!leechesOnly)}>
+                Leeches only <span className="chip__count">{leechCount}</span>
+              </button>
+            </div>
+          )}
+          {leechesOnly && (
+            <p className="muted small">
+              Leeches keep slipping in review, so they wait here for a new approach. Open one to put it on a fresh page, write a memory hook, or fix its
+              meaning and let it back in.
+            </p>
+          )}
           <p className="muted small" aria-live="polite">
-            {filter.shown.length === words.length ? plural(words.length, 'word') : `${filter.shown.length} of ${plural(words.length, 'word')}`}
+            {matching.length === words.length ? plural(words.length, 'word') : `${matching.length} of ${plural(words.length, 'word')}`}
           </p>
           <ul className="word-list">
             {shown.map((w) => (
@@ -88,11 +106,15 @@ export function ListWords({ id }: { id: number }) {
                     {w.kanji && <span className="word-row__kana">{w.kana}</span>}
                   </span>
                   <span className="word-row__meaning">{w.coreMeaning}</span>
-                  <span className={`badge badge--state-${w.status}`}>{STATE_LABEL[w.status]}</span>
+                  {w.leechAt ? (
+                    <span className="badge badge--leech">Leech</span>
+                  ) : (
+                    <span className={`badge badge--state-${w.status}`}>{STATE_LABEL[w.status]}</span>
+                  )}
                 </button>
                 {open === w.id && (
                   <WordEditor
-                    key={`${w.id}:${w.kana}:${w.kanji}:${w.coreMeaning}`}
+                    key={`${w.id}:${w.kana}:${w.kanji}:${w.coreMeaning}:${w.hook}`}
                     word={w}
                     lists={lists.filter((l) => l.id !== id)}
                     onChanged={changed}
@@ -105,10 +127,10 @@ export function ListWords({ id }: { id: number }) {
               </li>
             ))}
           </ul>
-          {filter.shown.length === 0 && <p className="muted">No words match.</p>}
-          {filter.shown.length > limit && (
+          {matching.length === 0 && <p className="muted">No words match.</p>}
+          {matching.length > limit && (
             <button type="button" className="button" onClick={() => setLimit(limit + SHOW_AT_ONCE)}>
-              Show more ({filter.shown.length - limit} left)
+              Show more ({matching.length - limit} left)
             </button>
           )}
         </>
@@ -167,12 +189,33 @@ function WordEditor({
         {w.status === 'graduated' && (
           <>
             Learned{w.page && <> since <a href={`#/pages/${w.page.id}`}>page {w.page.number}</a></>}
-            {w.nextDue && ` · next review ${shortDate(new Date(w.nextDue))}`} · {plural(w.reviews, 'review')}
+            {w.leechAt ? ' · out of review for now' : w.nextDue && ` · next review ${shortDate(new Date(w.nextDue))}`} · {plural(w.reviews, 'review')}
             {w.lapses > 0 && ` · ${plural(w.lapses, 'lapse')}`}
           </>
         )}
         {w.status === 'ignored' && `Set aside: not in the check pass, pages or review.${w.hasCards ? ' Its review history is kept.' : ''}`}
       </p>
+
+      {w.leechAt && (
+        <section className="leech stack stack--tight" aria-label={`${name} is a leech`}>
+          <p className="small">
+            <strong>A leech.</strong> It keeps slipping in review, so it's out of review until you give it a new approach. Another look won't help;
+            more effort will.
+          </p>
+          <button
+            type="button"
+            className="button button--primary"
+            disabled={busy}
+            onClick={() => run(() => api.relearn(w.id), () => `${name} waits for a fresh page, first in line.`)}
+          >
+            Put it on a fresh page
+          </button>
+          <p className="muted small">It goes first in line for this list's next page, and starts review afresh after it. Its history is kept.</p>
+          <p className="muted small">
+            Or show it a new way below: a clearer meaning, a fixed spelling or a memory hook lets it back into review, with its lapses counted afresh.
+          </p>
+        </section>
+      )}
 
       <form
         className="stack stack--tight"
@@ -183,15 +226,17 @@ function WordEditor({
           // A final n stays a letter while you type (it could become な); here it's ん.
           const kana = toKana(String(data.get('kana') ?? '').trim());
           const coreMeaning = String(data.get('meaning') ?? '').trim();
+          const hook = String(data.get('hook') ?? '').trim();
           const changes = {
             ...(kanji !== (w.kanji ?? '') && { kanji: kanji || null }),
             ...(kana !== w.kana && { kana }),
             ...(coreMeaning !== w.coreMeaning && { coreMeaning }),
+            ...(hook !== (w.hook ?? '') && { hook: hook || null }),
           };
           if (Object.keys(changes).length === 0) return;
           run(
             () => api.updateWord(w.id, changes),
-            (word) => `Saved ${word ? writtenForm(word) : name}.`,
+            (word) => `Saved ${word ? writtenForm(word) : name}.${w.leechAt && word && !word.leechAt ? ' It is back in review.' : ''}`,
           );
         }}
       >
@@ -219,6 +264,16 @@ function WordEditor({
             </ol>
           </details>
         )}
+        <label className="field">
+          <span>Memory hook</span>
+          <textarea
+            name="hook"
+            rows={2}
+            maxLength={MAX_HOOK}
+            defaultValue={w.hook ?? ''}
+            placeholder="Your own way to remember it: a picture, a scene, a word it sounds like"
+          />
+        </label>
         <button className="button button--primary" disabled={busy}>
           Save
         </button>

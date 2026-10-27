@@ -1064,3 +1064,23 @@ rt {
   display: grid;
   gap: 4px;
 }
+
+.badge--leech {
+  background: transparent;
+  border: 1px solid var(--again);
+  color: var(--again);
+}
+
+.leech {
+  border-left: 3px solid var(--again);
+  padding-left: 12px;
+}
+
+.meaning__hook {
+  font-size: 0.95rem;
+  margin: 6px 0 0;
+}
+
+.meaning__hook-label {
+  color: var(--ink-soft);
+}
