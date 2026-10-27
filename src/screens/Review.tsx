@@ -3,6 +3,7 @@ import { api, shortPos, type PageDetail, type QueueItem } from '../api';
 import { PageGrid } from '../components/PageGrid';
 import { JapaneseWord, KanaInput, Meaning, Notice, Progress, SpeakButton, useKeys } from '../components/ui';
 import { checkReading } from '../../shared/kana';
+import { formatInterval } from '../../shared/study';
 import { useSettings } from '../settings';
 import { speak } from '../speech';
 
@@ -18,6 +19,14 @@ export function Review() {
   const [index, setIndex] = useState(0);
   const [done, setDone] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  // Shown until you turn it off in Settings; a failed load keeps it shown.
+  const [showIntervals, setShowIntervals] = useState(true);
+  useEffect(() => {
+    api.study().then(
+      (p) => setShowIntervals(p.showIntervals),
+      () => undefined,
+    );
+  }, []);
 
   const load = useCallback(() => {
     setItems(null);
@@ -63,6 +72,7 @@ export function Review() {
       item={item}
       position={done}
       total={done + (items.length - index)}
+      showIntervals={showIntervals}
       onError={setError}
       onGraded={() => {
         setDone((d) => d + 1);
@@ -76,12 +86,15 @@ function ReviewCard({
   item,
   position,
   total,
+  showIntervals,
   onGraded,
   onError,
 }: {
   item: QueueItem;
   position: number;
   total: number;
+  /** A line under the grade buttons with when each grade brings the word back. */
+  showIntervals: boolean;
   onGraded: () => void;
   onError: (message: string) => void;
 }) {
@@ -262,25 +275,47 @@ function ReviewCard({
       {answered && (
         <div className="stack stack--tight">
           {passed ? (
-            <div className="grade-row">
-              <button className="button button--again" onClick={() => grade(AGAIN)} disabled={sending}>
-                Again
-              </button>
-              <button className="button button--hard" onClick={() => grade(HARD)} disabled={sending}>
-                Hard
-              </button>
-              <button className="button button--good" onClick={() => grade(GOOD)} disabled={sending || hintUsed}>
-                Good
-              </button>
-              <button className="button button--easy" onClick={() => grade(EASY)} disabled={sending || hintUsed}>
-                Easy
-              </button>
-            </div>
+            <>
+              <div className="grade-row" data-testid="grade-row">
+                <button className="button button--again" onClick={() => grade(AGAIN)} disabled={sending}>
+                  Again
+                </button>
+                <button className="button button--hard" onClick={() => grade(HARD)} disabled={sending}>
+                  Hard
+                </button>
+                <button className="button button--good" onClick={() => grade(GOOD)} disabled={sending || hintUsed}>
+                  Good
+                </button>
+                <button className="button button--easy" onClick={() => grade(EASY)} disabled={sending || hintUsed}>
+                  Easy
+                </button>
+              </div>
+              {showIntervals && (
+                <>
+                  <div className="grade-row grade-intervals" data-testid="grade-intervals" aria-label="When the word comes back">
+                    {(['again', 'hard', 'good', 'easy'] as const).map((g) => (
+                      <span key={g}>
+                        <span className="approx">~</span>
+                        {formatInterval(item.intervals[g])}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="muted small grade-hint">
+                    When the word comes back after each grade. <a href="#/settings/grading">How grading works</a>
+                  </p>
+                </>
+              )}
+            </>
           ) : (
             <>
               <button className="button button--again button--wide" onClick={() => grade(AGAIN)} disabled={sending}>
                 Again
               </button>
+              {showIntervals && (
+                <p className="muted small grade-hint" data-testid="grade-intervals">
+                  Back in ~{formatInterval(item.intervals.again)}
+                </p>
+              )}
               {!reading && !gaveUp && (
                 <button className="link-button" onClick={() => setTyped({ ...typed!, typo: true })}>
                   It was a typo — count it as correct

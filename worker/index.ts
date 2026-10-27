@@ -128,7 +128,7 @@ app.post('/pages/:id/complete', async (c) => {
 app.get('/review', async (c) => {
   const start = dateParam(c.req.query('dayStart'), 'dayStart');
   const end = dateParam(c.req.query('dayEnd'), 'dayEnd');
-  return c.json(await db.reviewQueue(c.env.DB, start, end, 50));
+  return c.json(await db.reviewQueue(c.env.DB, start, end, 50, new Date()));
 });
 
 app.post('/review/:cardId', async (c) => {
@@ -204,6 +204,10 @@ app.get('/dict/entries/:seq', async (c) => {
 
 // Looks up the next batch of words that have no entry yet; call until remaining is 0.
 app.post('/dict/look-up', async (c) => c.json(await lookUpWords(c.env.DB, c.env.DICT)));
+
+app.get('/study', async (c) => c.json(await db.getStudy(c.env.DB)));
+
+app.put('/study', async (c) => c.json(await db.setStudy(c.env.DB, await c.req.json(), new Date())));
 
 app.get('/furigana', async (c) => c.json(await db.getFurigana(c.env.DB)));
 

@@ -135,11 +135,62 @@ describe('review', () => {
     expect(r.rating).toBe(Rating.Hard);
   });
 
-  it('caps new production cards at 20 a day', async () => {
+  it('sends the interval each grade would give, without jitter', async () => {
+    await importAndSort(0, 1);
+    const page = await repo.createPage(db, 10, null, now);
+    await repo.completeStage(db, page.id, 'ordered', dayEnd, now);
+    await repo.completeStage(db, page.id, 'shuffled', dayEnd, now);
+    const t = new Date('2026-10-26T19:00:00Z');
+    const q = await repo.reviewQueue(db, dayEnd, nextDay(dayEnd, 1), 50, t);
+    const { again, hard, good, easy } = q.items[0].intervals;
+    expect(again).toBeGreaterThan(0);
+    expect(again).toBeLessThan(hard);
+    expect(hard).toBeLessThan(good);
+    expect(good).toBeLessThan(easy);
+    // No jitter: the jitter's seed changes with the time, the preview doesn't.
+    const later = (await repo.reviewQueue(db, dayEnd, nextDay(dayEnd, 1), 50, new Date(t.getTime() + 1))).items[0].intervals;
+    for (const k of ['again', 'hard', 'good', 'easy'] as const) expect(Math.abs(later[k] - q.items[0].intervals[k])).toBeLessThan(1e-6);
+    // Grading Good lands within the jitter of what the button showed (FSRS
+    // fuzzes a week by about two days either way).
+    const result = await repo.submitReview(db, { cardId: q.items[0].cardId, rating: Rating.Good, hintUsed: false, answer: null, correct: null, durationMs: null }, t);
+    const days = (new Date(result.due).getTime() - t.getTime()) / 86_400_000;
+    expect(good).toBeLessThan(10);
+    expect(Math.abs(days - good)).toBeLessThanOrEqual(2.5);
+  });
+
+  it('caps new production cards at 10 a day', async () => {
     await importAndSort(25, 0);
     const q = await repo.reviewQueue(db, dayStart, dayEnd, 50);
-    expect(q.total).toBe(20);
+    expect(q.total).toBe(10);
     expect(q.items.every((i) => i.direction === 'en_jp')).toBe(true);
+  });
+});
+
+describe('new words a day', () => {
+  it('defaults to 12, is shared by devices and refuses odd values', async () => {
+    expect(await repo.getStudy(db)).toEqual({ newWordsPerDay: 12, showIntervals: true });
+    expect(await repo.setStudy(db, { newWordsPerDay: 20 }, now)).toEqual({ newWordsPerDay: 20, showIntervals: true });
+    // Each setting changes on its own.
+    expect(await repo.setStudy(db, { showIntervals: false }, now)).toEqual({ newWordsPerDay: 20, showIntervals: false });
+    expect((await repo.stats(db, dayStart, dayEnd)).newWordsPerDay).toBe(20);
+    for (const bad of [0, 51, 2.5, 'ten', '8', true, [8], null] as unknown[]) {
+      await expect(repo.setStudy(db, { newWordsPerDay: bad as number }, now)).rejects.toMatchObject({ status: 400 });
+    }
+    await expect(repo.setStudy(db, null, now)).rejects.toMatchObject({ status: 400 });
+    await expect(repo.setStudy(db, {}, now)).rejects.toMatchObject({ status: 400 });
+    await expect(repo.setStudy(db, { showIntervals: 'no' as never }, now)).rejects.toMatchObject({ status: 400 });
+    expect(await repo.getStudy(db)).toEqual({ newWordsPerDay: 20, showIntervals: false });
+  });
+
+  it('counts the words on pages started today', async () => {
+    await importAndSort(0, 15);
+    await repo.createPage(db, 10, null, nextDay(now, -1));
+    expect((await repo.stats(db, dayStart, dayEnd)).newWordsToday).toBe(0);
+    const today = await repo.createPage(db, 4, null, now);
+    expect((await repo.stats(db, dayStart, dayEnd)).newWordsToday).toBe(4);
+    // Deleting it gives the room back: its words wait again.
+    await repo.deletePage(db, today.id, now);
+    expect((await repo.stats(db, dayStart, dayEnd)).newWordsToday).toBe(0);
   });
 });
 

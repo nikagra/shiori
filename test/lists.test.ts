@@ -209,11 +209,11 @@ describe('lists in the database', () => {
     const at = (n: number) => repo.listLists(db, days(dayStart, n), days(dayEnd, n), days(now, n));
     const split = (await at(0)).map((l) => [l.name, l.newToday]).filter(([, n]) => n);
     expect(split).toEqual([
-      ['Manga', 4],
-      ['School', 16],
+      ['Manga', 2],
+      ['School', 8],
     ]);
     await repo.updateList(db, SCHOOL, { paused: true }, now);
-    expect((await at(0)).map((l) => [l.name, l.newToday]).filter(([, n]) => n)).toEqual([['Manga', 20]]);
+    expect((await at(0)).map((l) => [l.name, l.newToday]).filter(([, n]) => n)).toEqual([['Manga', 10]]);
     const later = await repo.reviewQueue(db, days(dayStart, 30), days(dayEnd, 30), 500);
     const schoolDue = later.items.filter((i) => i.word.listId === SCHOOL);
     expect(schoolDue.length).toBe(20);
@@ -224,14 +224,14 @@ describe('lists in the database', () => {
     await addWords(MANGA, 0, 20, 'known');
     await addWords(SCHOOL, 20, 20, 'known');
     const q = await repo.reviewQueue(db, dayStart, dayEnd, 50);
-    for (const item of q.items.filter((i) => i.word.listId === MANGA).slice(0, 10)) {
+    for (const item of q.items.filter((i) => i.word.listId === MANGA).slice(0, 5)) {
       await repo.submitReview(db, { cardId: item.cardId, rating: Rating.Good, hintUsed: false, answer: null, correct: null, durationMs: null }, now);
     }
-    // Manga's 10 were met today and count as its share; School gets the rest.
+    // Manga's 5 were met today and count as its share; School gets the rest.
     const today = (await lists()).map((l) => [l.name, l.newToday]).filter(([, n]) => n);
     expect(today).toEqual([
-      ['Manga', 10],
-      ['School', 10],
+      ['Manga', 5],
+      ['School', 5],
     ]);
   });
 

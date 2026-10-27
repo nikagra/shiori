@@ -35,6 +35,20 @@ test('review both directions with honest grading', async ({ page, request }, tes
       if (i === 0) await shot(page, testInfo, '20-review-reading-prompt');
       await page.getByRole('button', { name: 'Show answer' }).click();
       await expect(card.locator('.meaning__core')).toContainText(word.coreMeaning);
+      // A line under the buttons says when the word would come back after each grade.
+      await expect(page.getByTestId('grade-intervals').locator(':scope > span')).toHaveText(Array(4).fill(/^~\d+(\.\d)?(m|h|d|w|mo|y)$/));
+      // The number, not the tilde before it, sits under the middle of its button.
+      const offsets = await page.getByTestId('grade-intervals').evaluate((row) => {
+        const buttons = [...row.previousElementSibling!.querySelectorAll('button')];
+        return [...row.children].map((cell, i) => {
+          const range = document.createRange();
+          range.selectNode(cell.lastChild!);
+          const number = range.getBoundingClientRect();
+          const button = buttons[i].getBoundingClientRect();
+          return Math.abs(number.left + number.width / 2 - (button.left + button.width / 2));
+        });
+      });
+      for (const offset of offsets) expect(offset).toBeLessThan(1);
       if (graded.length === 0) await shot(page, testInfo, '21-review-reading-answer');
       await page.getByRole('button', { name: 'Good' }).click();
     } else {
@@ -84,6 +98,26 @@ test('peeking at the page caps the grade at Hard', async ({ page, request }, tes
   await expect(page.getByRole('button', { name: 'Good' })).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Easy' })).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Hard' })).toBeEnabled();
+
+  // The guide to the grades is one tap away.
+  await page.getByRole('link', { name: 'How grading works' }).click();
+  await expect(page).toHaveURL(/#\/settings\/grading$/);
+  const grading = page.getByRole('region', { name: 'Grading' });
+  await expect(grading).toBeInViewport();
+  await shot(page, testInfo, '24-settings-grading');
+
+  // Once you know what the grades do, the line can go (on every device).
+  await grading.getByLabel('Show when each grade brings the word back').uncheck();
+  await expect.poll(async () => (await (await request.get('/api/study')).json()).showIntervals).toBe(false);
+  await page.goto('/#/review');
+  await page.getByRole('button', { name: /Show answer|Check/ }).first().waitFor();
+  if ((await card.getAttribute('data-direction')) === 'jp_en') await page.getByRole('button', { name: 'Show answer' }).click();
+  else {
+    await page.getByLabel('Answer in kana').fill(byPrompt(await card.locator('.prompt-meaning').innerText()).kana);
+    await page.getByRole('button', { name: 'Check' }).click();
+  }
+  await expect(page.getByRole('button', { name: 'Good' })).toBeVisible();
+  await expect(page.getByTestId('grade-intervals')).toHaveCount(0);
 });
 
 test('a typo can be counted as correct', async ({ page, request }) => {

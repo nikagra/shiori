@@ -3,6 +3,7 @@
 import { parseBackup, type Backup, type NightlyStatus } from '../shared/backup';
 import type { FuriganaPrefs, Ruby } from '../shared/furigana';
 import type { DictEntry } from '../shared/dictionary';
+import type { GradeIntervals, StudyPrefs } from '../shared/study';
 
 export type Direction = 'jp_en' | 'en_jp';
 export type { WordState as WordStatus } from '../shared/wordSearch';
@@ -50,6 +51,9 @@ export interface Stats {
   inbox: number;
   pagesInProgress: number;
   learned: number;
+  /** Words on pages started today, and the limit set in Settings. */
+  newWordsToday: number;
+  newWordsPerDay: number;
 }
 
 export interface PageSummary {
@@ -98,6 +102,7 @@ export interface QueueItem {
   due: string;
   word: Word;
   page: { id: number; number: number; position: number } | null;
+  intervals: GradeIntervals;
 }
 
 export interface DictStatus {
@@ -192,6 +197,9 @@ export const api = {
   completeStage: (id: number, stage: 'ordered' | 'shuffled') =>
     call<PageDetail>('POST', `/pages/${id}/complete`, { stage, nextDayStart: studyDay().end.toISOString() }),
   reviewQueue: () => call<{ items: QueueItem[]; total: number }>('GET', `/review?${dayQuery()}`),
+  study: () => call<StudyPrefs>('GET', '/study'),
+  /** Changes only the settings sent. */
+  setStudy: (prefs: Partial<StudyPrefs>) => call<StudyPrefs>('PUT', '/study', prefs),
   furigana: () => call<{ prefs: FuriganaPrefs; stored: boolean }>('GET', '/furigana'),
   setFurigana: (prefs: FuriganaPrefs) => call<{ prefs: FuriganaPrefs; stored: boolean }>('PUT', '/furigana', prefs),
   furiganaHint: (wordId: number, kanji: string) =>

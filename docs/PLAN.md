@@ -26,7 +26,7 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   in `.wrangler/state`, separate from the cloud one. An old database holding
   only test data is kept in `.wrangler/state-test-backup-20261025` and can be
   deleted.
-- Tests: 161 unit tests, 66 end-to-end runs (33 tests at iPhone and laptop
+- Tests: 166 unit tests, 70 end-to-end runs (35 tests at iPhone and laptop
   sizes), and `tsc -b` all pass.
 - **Backup and export** (26 Oct): Settings › Backup downloads all study data as
   one JSON file, a nightly cron saves the same file to the private R2 bucket
@@ -40,7 +40,7 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   list; "New page" asks which, or picks the one furthest behind its pace.
   Check has a list picker too (Mikita, 26 Oct: one big import blocked the
   others), and across lists it follows priority.
-  Today's 20 new review cards are shared by weight. Older backups still load
+  Today's new review cards are shared by weight. Older backups still load
   and get their lists. See "Lists" in DESIGN.md. After pulling on the laptop,
   run `npm run db:migrate:local`; the deploy applies it to D1.
 - **Settings** (26 Oct): a Settings tab replaces the Import tab and holds
@@ -79,6 +79,15 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   laptop, `npm run dict:download && npm run dict:build && npm run
   dict:load` loads all of it in a few minutes. See "Dictionary" in
   DESIGN.md.
+- **Finish review, part 1** (27 Oct): a line under the grade buttons shows
+  roughly when the word comes back ("~7d"), with a "How grading works" guide
+  in Settings that can also turn the line off. The daily limit moved to where new words come from: Settings ›
+  New words sets **new words a day** on pages (default 12, shared by
+  devices), and Pages asks before starting more. The check pass's typing
+  cards keep their own fixed 10 a day (was 20). No migration. The plan for
+  the rest of step 5 is in the
+  [plan doc](https://claude.ai/artifact/Q2JWAKtgYbekKkHi9yjNmZ), agreed
+  with Mikita on 27 Oct.
 - First iPhone feedback (25 Oct) is in: "Don't know" on review and drill
   cards, next words hidden in the in-order drill, "Study the page again",
   whole words on the grid, safer iOS speech. Sound on the iPhone still needs
@@ -98,8 +107,8 @@ What the word loop can't do yet:
 - ~~Add one word.~~ Done in step 4 (from the dictionary).
 - ~~Shape a page: drop a word with a similar meaning, pick the words yourself,
   or delete a page.~~ Done in step 3.
-- Handle leeches, show what each grade button does, or change the 20 new
-  cards a day.
+- Handle leeches, ~~show what each grade button does, or change the 20 new
+  cards a day~~ (done in step 5, part 1).
 
 ## Next steps, in order
 
@@ -141,23 +150,26 @@ once by hand or wait for the night, then try Add a word on the iPhone).
    check pass and their entry can be picked in the word's editor; furigana
    per kanji and "usually written in kana". Later: example sentences
    (v0.3) and kanji info (KANJIDIC) come from the same sources.
-5. **Finish review.**
-   - Drill misses that mean something (Mikita, 26 Oct: Renshuu repeats a
-     missed question until you get it right, so you answer from short-term
-     memory without learning the word). Today `answerStep` in
-     `shared/pageSession.ts` does the same, and the drill's `misses` are
-     dropped when the page graduates. Instead: a miss sends you back to the
-     word in its spot on the page, and the retry comes after a real gap; a
-     retry right after a miss doesn't count as knowing it; and a word missed
-     a lot starts with a harder first review (or must be right first time
-     in step 2).
-   - Leeches: the same problem in review, a word that isn't being learned,
-     so the fix is more effort, not another look. `LEECH_LAPSES` (6) is
-     defined in `shared/scheduler.ts` but unused. A leech gets flagged and
-     shown in its list (step 2), where you can edit it, put it on a fresh
-     page or set it aside.
-   - What each grade does, shown in the app (open question below).
-   - New cards a day as a setting (open question below).
+5. **Finish review.** Plan agreed with Mikita (27 Oct,
+   [plan doc](https://claude.ai/artifact/Q2JWAKtgYbekKkHi9yjNmZ)), in three
+   PRs: (1) grade intervals and new words a day, done; (2) drill misses that
+   count: type the kana after a miss, the retry comes after at least 5 other
+   cards (with fillers near the end), and step 2 misses start a card at Hard
+   (one miss) or Again (two or more), per direction; the drill is kept on the
+   device across Stop; (3) leeches: 4 lapses take a word out of review until
+   you put it on a fresh page, write a memory hook, edit it or set it aside.
+   - Why drill misses (Mikita, 26 Oct): Renshuu repeats a missed question
+     until you get it right, so you answer from short-term memory without
+     learning the word. Today `answerStep` in `shared/pageSession.ts` does
+     the same, and the drill's `misses` are dropped when the page
+     graduates.
+   - Why leeches: the same problem in review, a word that isn't being
+     learned, so the fix is more effort, not another look. A leech is
+     listed in its list's words (step 2). `LEECH_LAPSES` in
+     `shared/scheduler.ts` (6, unused) becomes 4.
+   - ~~What each grade does, shown in the app.~~ Done: intervals on the
+     buttons and a guide in Settings.
+   - ~~New cards a day as a setting.~~ Done: new words a day, for pages.
 6. **Use it for real.** Study only in Shiori for about two weeks, add words
    from reading with the dictionary, and fix what gets in the way. Then
    decide how much care study data needs once you rely on it (for example
@@ -196,16 +208,10 @@ once by hand or wait for the night, then try Add a word on the iPhone).
 
 ## Open questions
 
-- Grading isn't obvious from the buttons alone (Mikita, 25 Oct). DESIGN.md now
-  has a "Buttons and what they do" guide. In v0.2 step 5, should the app show
-  a one-line hint under the grade buttons, or the next interval on each button
-  the way Anki does?
 - A hint system for review cards (beyond the page hint and furigana), asked
   for on 25 Oct as a future improvement: what hints, and what they cost.
 - Should the N5/N4 kanji lists be editable in bulk, or are "Also known" and
   "Still learning" enough?
-- `NEW_PER_DAY` is fixed at 20 (now shared between lists by weight). In v0.2
-  step 5 it becomes a setting: one total, or a number per list?
 - Should a device's page size and audio defaults depend on the device, for
   example audio off on the laptop?
 - Should FSRS parameters be refit from `review_log` once there's enough

@@ -214,6 +214,12 @@ p {
   font-variant-numeric: tabular-nums;
 }
 
+/* The tilde hangs to the left, so the number itself sits under the button's centre. */
+.grade-intervals .approx {
+  position: absolute;
+  transform: translateX(-100%);
+}
+
 .tile__label {
   font-size: 0.9rem;
 }
@@ -283,6 +289,18 @@ p {
 
 .grade-row--two {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.grade-intervals {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.grade-hint {
+  text-align: center;
+  margin: 0;
 }
 
 .link-button {
@@ -1002,4 +1020,35 @@ rt {
 
 .dict-note {
   font-size: 0.85rem;
+}
+
+.grading {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 12px;
+  margin: 0;
+}
+
+.grading dt {
+  font-weight: 600;
+}
+
+.grading dd {
+  margin: 0;
+}
+
+.grading__again {
+  color: var(--again);
+}
+
+.grading__hard {
+  color: var(--hard);
+}
+
+.grading__good {
+  color: var(--good);
+}
+
+.grading__easy {
+  color: var(--easy);
 }

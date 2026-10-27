@@ -9,6 +9,8 @@ import { canSpeak, hasJapaneseVoice } from '../speech';
 import { lookUpAll } from '../components/DictSearch';
 import { DICT_CREDITS } from '../../shared/dictionary';
 import type { DictStatus } from '../api';
+import { NEW_WORDS_CHOICES, NEW_WORDS_DEFAULT, type StudyPrefs } from '../../shared/study';
+import { TYPING_CARDS_PER_DAY } from '../../shared/lists';
 
 /** `scrollTo` names a section to bring into view, e.g. "backup" from Home's warning. */
 export function Settings({ scrollTo }: { scrollTo?: string }) {
@@ -20,7 +22,8 @@ export function Settings({ scrollTo }: { scrollTo?: string }) {
   return (
     <div className="stack" ref={root}>
       <h1>Settings</h1>
-      <StudySettings />
+      <NewWords />
+      <DeviceSettings />
       <FuriganaSettings />
       <section className="card stack stack--tight" aria-label="Words">
         <h2>Words</h2>
@@ -31,6 +34,7 @@ export function Settings({ scrollTo }: { scrollTo?: string }) {
           Lists, weights and weekly targets
         </a>
       </section>
+      <Grading />
       <Backup />
       {/* Below Backup: it grows once its status loads, which mustn't push
           Backup away after Home's warning scrolled to it. */}
@@ -105,8 +109,104 @@ function Dictionary() {
   );
 }
 
+/** Saved on the server, so the phone and the laptop share it. */
+function NewWords() {
+  const [prefs, setPrefs] = useState<StudyPrefs | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    api.study().then(setPrefs, (e: Error) => setError(e.message));
+  }, []);
+  const value = prefs?.newWordsPerDay ?? null;
+
+  const change = (n: number) => {
+    setPrefs((p) => p && { ...p, newWordsPerDay: n });
+    api.setStudy({ newWordsPerDay: n }).then(
+      () => setError(null),
+      (e: Error) => {
+        setError(e.message);
+        // Show what the server holds now, whatever order the saves landed in.
+        api.study().then(setPrefs, () => undefined);
+      },
+    );
+  };
+  // An odd number saved through the API still shows.
+  const choices = value === null || (NEW_WORDS_CHOICES as readonly number[]).includes(value) ? NEW_WORDS_CHOICES : [...NEW_WORDS_CHOICES, value].sort((a, b) => a - b);
+
+  return (
+    <section className="card stack" aria-label="New words" data-section="new-words">
+      <h2>New words</h2>
+      <label className="field">
+        New words a day
+        <select value={value ?? NEW_WORDS_DEFAULT} disabled={value === null} onChange={(e) => change(Number(e.target.value))}>
+          {choices.map((n) => (
+            <option key={n} value={n}>
+              {n}
+            </option>
+          ))}
+        </select>
+      </label>
+      <p className="muted small">
+        Words count when you start a page with them. Once you reach this number, Pages asks before starting another. Words you already knew in the check pass don't
+        count: their typing cards come {TYPING_CARDS_PER_DAY} a day in review.
+      </p>
+      {error && <p className="error">{error}</p>}
+      <p className="muted small">Shared by all your devices.</p>
+    </section>
+  );
+}
+
+/** The short version of "Buttons and what they do" in DESIGN.md, and whether review shows the intervals. */
+function Grading() {
+  const [show, setShow] = useState<boolean | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    api.study().then(
+      (p) => setShow(p.showIntervals),
+      (e: Error) => setError(e.message),
+    );
+  }, []);
+  const change = (next: boolean) => {
+    setShow(next);
+    api.setStudy({ showIntervals: next }).then(
+      () => setError(null),
+      (e: Error) => {
+        setError(e.message);
+        api.study().then((p) => setShow(p.showIntervals), () => undefined);
+      },
+    );
+  };
+
+  return (
+    <section className="card stack stack--tight" aria-label="Grading" data-section="grading">
+      <h2>How grading works</h2>
+      <label className="toggle">
+        <input type="checkbox" checked={show ?? true} disabled={show === null} onChange={(e) => change(e.target.checked)} />
+        Show when each grade brings the word back
+      </label>
+      <p className="muted small">
+        A line under the grade buttons in review. The real date varies a little: a day or two at a week, weeks at a year. Shared by all your devices.
+      </p>
+      {error && <p className="error">{error}</p>}
+      <dl className="grading">
+        <dt className="grading__again">Again</dt>
+        <dd>You didn't recall it, or recalled it wrongly. It comes back soon (the button says when) and counts as a lapse.</dd>
+        <dt className="grading__hard">Hard</dt>
+        <dd>You recalled it, but slowly, with effort or unsure. A pass, with a shorter interval than Good.</dd>
+        <dt className="grading__good">Good</dt>
+        <dd>You recalled it normally. The usual answer when you got it right.</dd>
+        <dt className="grading__easy">Easy</dt>
+        <dd>Instant and effortless. Use it rarely: it pushes the word far away.</dd>
+      </dl>
+      <p className="small">
+        Be honest rather than kind. Good on a guess hides the word for weeks; Again only brings it back sooner. On a word you know well, Again drops months to
+        days, so an honest Again early on is the cheap one.
+      </p>
+    </section>
+  );
+}
+
 /** Page size and audio are kept on this device: the phone and the laptop can differ. */
-function StudySettings() {
+function DeviceSettings() {
   const [settings, update] = useSettings();
   const [voice, setVoice] = useState(hasJapaneseVoice());
   useEffect(() => {

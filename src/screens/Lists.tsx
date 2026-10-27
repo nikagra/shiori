@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api, studyDay, type ListChanges, type ListSummary } from '../api';
 import { Notice, plural, shortDate } from '../components/ui';
 import { useSettings } from '../settings';
-import { FOCUS_BOOST, MAX_NAME, MAX_PAGES_PER_WEEK, NEW_PER_DAY, WEIGHTS } from '../../shared/lists';
+import { FOCUS_BOOST, MAX_NAME, MAX_PAGES_PER_WEEK, TYPING_CARDS_PER_DAY, WEIGHTS } from '../../shared/lists';
 
 const WEIGHT_LABELS: [keyof typeof WEIGHTS, string][] = [
   ['low', 'Low'],
@@ -66,8 +66,8 @@ export function Lists() {
     <div className="stack">
       <h1>Lists</h1>
       <p className="muted">
-        Each list keeps its own pace. A page always comes from one list. New pages and today's {NEW_PER_DAY} new review cards are shared by weight; due
-        reviews from every list always come.
+        Each list keeps its own pace. A page always comes from one list. New pages are shared by weight, and so are
+        today's {TYPING_CARDS_PER_DAY} typing cards for words you knew in the check pass; due reviews from every list always come.
       </p>
       {error && <Notice kind="error">{error}</Notice>}
 
