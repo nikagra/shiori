@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { coreMeaning, splitGlosses, stripTags } from '../shared/meaning';
 import { checkReading, normalizeKana } from '../shared/kana';
 import { capForHint, graduate, newCard, Rating, review, State } from '../shared/scheduler';
-import { answerStep, currentStep, isDrillDone, startDrill } from '../shared/pageSession';
+import { answerStep, currentStep, drillFits, graduationGrade, isDrillDone, MISS_GAP, missesByCard, startDrill, stepKey } from '../shared/pageSession';
 import { buildQueue, triageOrder, type QueueCandidate } from '../shared/queue';
 import { meaningWords, similarPairs } from '../shared/similar';
 import { formatInterval, newWordsReached } from '../shared/study';
@@ -76,14 +76,57 @@ describe('page drill', () => {
     expect(d.queue.map((s) => `${s.wordId}${s.direction}`)).toEqual(['3jp_en', '1jp_en', '2jp_en', '3en_jp', '1en_jp', '2en_jp']);
   });
 
-  it('a miss goes to the back until answered correctly', () => {
-    let d = startDrill([1, 2], 'ordered');
+  it('a miss comes back after MISS_GAP other cards, and the retry keeps the miss', () => {
+    let d = startDrill([1, 2, 3, 4, 5, 6], 'ordered');
     d = answerStep(d, false); // miss 1 jp_en
     expect(currentStep(d)).toEqual({ wordId: 2, direction: 'jp_en' });
-    expect(d.queue.at(-1)).toEqual({ wordId: 1, direction: 'jp_en' });
-    expect(d.misses).toEqual({ 1: 1 });
+    expect(d.queue.findIndex((s) => s.wordId === 1 && s.direction === 'jp_en')).toBe(MISS_GAP);
+    expect(d.misses).toEqual({ '1:jp_en': 1 });
     while (!isDrillDone(d)) d = answerStep(d, true);
-    expect(d.completed).toBe(4);
+    expect(d.completed).toBe(12);
+    expect(d.misses).toEqual({ '1:jp_en': 1 });
+    expect(missesByCard(d)).toEqual([{ wordId: 1, direction: 'jp_en', misses: 1 }]);
+  });
+
+  it('near the end, steps already answered fill the gap without counting', () => {
+    let d = startDrill([1, 2, 3, 4], 'ordered');
+    for (let i = 0; i < 7; i++) d = answerStep(d, true);
+    // Last step (4 en_jp) missed: nothing left, so fillers from other words go first.
+    d = answerStep(d, false, () => 0.5);
+    expect(d.queue).toHaveLength(MISS_GAP + 1);
+    expect(d.queue.at(-1)).toEqual({ wordId: 4, direction: 'en_jp' });
+    const fillers = d.queue.slice(0, -1);
+    expect(fillers.every((s) => s.filler && s.wordId !== 4)).toBe(true);
+    expect(new Set(fillers.map(stepKey)).size).toBe(MISS_GAP);
+    // A missed filler comes back as a filler, but its card was right first
+    // time, so the miss doesn't count against it.
+    const filler = d.queue[0];
+    d = answerStep(d, false, () => 0.5);
+    expect(d.misses).toEqual({ '4:en_jp': 1 });
+    expect(d.queue.filter((s) => stepKey(s) === stepKey(filler))).toEqual([filler]);
+    while (!isDrillDone(d)) d = answerStep(d, true);
+    expect(d.completed).toBe(8);
+    expect(d.total).toBe(8);
+  });
+
+  it('a small page gives as many fillers as it has', () => {
+    let d = startDrill([1, 2], 'ordered');
+    for (let i = 0; i < 3; i++) d = answerStep(d, true);
+    d = answerStep(d, false);
+    // Only word 1's two steps can fill.
+    expect(d.queue.map((s) => `${stepKey(s)}${s.filler ? '*' : ''}`).sort()).toEqual(['1:en_jp*', '1:jp_en*', '2:en_jp']);
+    expect(d.queue.at(-1)).toEqual({ wordId: 2, direction: 'en_jp' });
+  });
+
+  it('grades a card at graduation by its step 2 misses', () => {
+    expect([0, 1, 2, 5].map(graduationGrade)).toEqual(['good', 'hard', 'again', 'again']);
+  });
+
+  it('a saved drill only fits the page it was made for', () => {
+    const d = answerStep(startDrill([1, 2, 3], 'ordered'), false);
+    expect(drillFits(JSON.parse(JSON.stringify(d)), [1, 2, 3])).toBe(true);
+    expect(drillFits(d, [1, 2, 4])).toBe(false);
+    expect(drillFits(d, [1, 2, 3, 4])).toBe(false);
   });
 
   it('shuffled stage has every step once, mixed', () => {

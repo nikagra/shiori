@@ -5,7 +5,7 @@ import { SimilarNotice } from '../components/SimilarNotice';
 import { JapaneseWord, KanaInput, Meaning, Notice, plural, Progress, SpeakButton, useKeys } from '../components/ui';
 import { pickable, WordPicker } from '../components/WordPicker';
 import { navigate } from '../nav';
-import { answerStep, currentStep, isDrillDone, MAX_PAGE_WORDS, startDrill, type DrillState } from '../../shared/pageSession';
+import { answerStep, currentStep, drillFits, isDrillDone, MAX_PAGE_WORDS, missesByCard, startDrill, type DrillState, type DrillStep } from '../../shared/pageSession';
 import { checkReading } from '../../shared/kana';
 import { useSettings } from '../settings';
 import { speak } from '../speech';
@@ -15,17 +15,49 @@ const STEP_TEXT = {
     title: 'Step 1 · In order',
     intro: 'Study the page, then go through it in order: first each word → meaning, then each meaning → word.',
     start: 'Start step 1',
+    short: 'step 1',
   },
   shuffled: {
     title: 'Step 2 · Shuffled',
     intro: 'The same words in random order, both directions mixed. Only the position on the page is shown.',
     start: 'Start step 2',
+    short: 'step 2',
   },
 } as const;
 
+// A drill in progress is kept on this device, so Stop and Start carries on
+// with the same misses instead of starting clean. The key has the page's
+// creation time too: a deleted page's id can be given to a new page.
+type DrillPage = Pick<PageDetail, 'id' | 'createdAt'>;
+const drillKey = (page: DrillPage, stage: string) => `shiori.drill.${page.id}.${page.createdAt}.${stage}`;
+
+function savedDrill(page: PageDetail): DrillState | null {
+  if (page.stage === 'graduated') return null;
+  try {
+    const saved = JSON.parse(localStorage.getItem(drillKey(page, page.stage)) ?? 'null') as DrillState | null;
+    return saved && drillFits(saved, page.words.map((w) => w.id)) ? saved : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Keeps a drill once something in it is answered; null (or nothing answered yet) forgets it. */
+function saveDrill(page: DrillPage, stage: string, drill: DrillState | null) {
+  try {
+    if (drill && (drill.done.length > 0 || Object.keys(drill.misses).length > 0)) localStorage.setItem(drillKey(page, stage), JSON.stringify(drill));
+    else localStorage.removeItem(drillKey(page, stage));
+  } catch {
+    // Private mode or full storage: the drill still works, it just isn't kept.
+  }
+}
+
 export function PageView({ id }: { id: number }) {
   const [page, setPage] = useState<PageDetail | null>(null);
-  const [drill, setDrill] = useState<DrillState | null>(null);
+  const [drill, setDrillState] = useState<DrillState | null>(null);
+  const setDrill = (next: DrillState | null) => {
+    setDrillState(next);
+    if (next && page && page.stage !== 'graduated') saveDrill(page, page.stage, next);
+  };
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -47,7 +79,8 @@ export function PageView({ id }: { id: number }) {
         onChange={setDrill}
         onDone={async () => {
           try {
-            const next = await api.completeStage(page.id, stage);
+            const next = await api.completeStage(page.id, stage, missesByCard(drill));
+            saveDrill(page, stage, null);
             setPage(next);
             setDrill(null);
           } catch (e) {
@@ -60,6 +93,7 @@ export function PageView({ id }: { id: number }) {
   }
 
   const ids = page.words.map((w) => w.id);
+  const saved = savedDrill(page);
 
   return (
     <div className="stack">
@@ -74,9 +108,12 @@ export function PageView({ id }: { id: number }) {
       </div>
 
       {page.stage === 'graduated' ? (
-        <Notice kind="success">
-          <p data-testid="page-learned">Learned. These words are now in spaced review; the first check comes tomorrow.</p>
-        </Notice>
+        <>
+          <Notice kind="success">
+            <p data-testid="page-learned">Learned. These words are now in spaced review; the first check comes tomorrow.</p>
+          </Notice>
+          <StepTwoMisses page={page} />
+        </>
       ) : (
         <section className="stack stack--tight">
           <h2>{STEP_TEXT[page.stage].title}</h2>
@@ -89,12 +126,20 @@ export function PageView({ id }: { id: number }) {
       <PageGrid page={page} mode="full" />
 
       {editing && page.stage === 'ordered' ? (
-        <PageEditor page={page} onChange={setPage} onDone={() => setEditing(false)} />
+        <PageEditor
+          page={page}
+          onChange={(next) => {
+            // Other words make a saved drill out of date: the next Start is fresh.
+            saveDrill(page, 'ordered', null);
+            setPage(next);
+          }}
+          onDone={() => setEditing(false)}
+        />
       ) : (
         page.stage !== 'graduated' && (
           <>
-            <button className="button button--primary button--wide" onClick={() => page.stage !== 'graduated' && setDrill(startDrill(ids, page.stage))}>
-              {STEP_TEXT[page.stage].start}
+            <button className="button button--primary button--wide" onClick={() => page.stage !== 'graduated' && setDrill(saved ?? startDrill(ids, page.stage))}>
+              {saved ? `Continue ${STEP_TEXT[page.stage].short} (${saved.completed} of ${saved.total} done)` : STEP_TEXT[page.stage].start}
             </button>
             {page.stage === 'ordered' && (
               <button className="button button--wide" onClick={() => setEditing(true)}>
@@ -117,6 +162,7 @@ export function PageView({ id }: { id: number }) {
             if (!window.confirm(`Delete page ${page.number}? ${what}`)) return;
             try {
               await api.deletePage(page.id);
+              for (const stage of ['ordered', 'shuffled']) saveDrill(page, stage, null);
               navigate('/pages');
             } catch (e) {
               setDeleteError((e as Error).message);
@@ -268,9 +314,22 @@ interface StepView {
   /** "Don't know yet" instead of an answer: shown the answer, counted as missed. */
   gaveUp: boolean;
   moved: string;
+  /** What was typed when copying the missed word, when it wasn't the word. */
+  copied: string | null;
 }
 
-const freshView = (of: DrillState): StepView => ({ of, revealed: false, typed: null, gaveUp: false, moved: '' });
+const freshView = (of: DrillState): StepView => ({ of, revealed: false, typed: null, gaveUp: false, moved: '', copied: null });
+
+/**
+ * A missed card while you type it once. The miss is already counted and the
+ * card queued again (so Stop keeps it); this keeps it on screen meanwhile.
+ */
+interface Copying {
+  step: DrillStep;
+  view: StepView;
+  /** Other cards before it comes back. */
+  back: number;
+}
 
 function Drill({
   page,
@@ -287,7 +346,9 @@ function Drill({
   onDone: () => void;
   onQuit: () => void;
 }) {
-  const step = currentStep(state);
+  const [copying, setCopying] = useState<Copying | null>(null);
+  const encoding = copying !== null;
+  const step = copying?.step ?? currentStep(state);
   const jpPrompt = step?.direction === 'jp_en';
   const word = useMemo(() => page.words.find((w) => w.id === step?.wordId), [page, step]);
   const [settings] = useSettings();
@@ -295,9 +356,10 @@ function Drill({
   // step starts fresh on its very first render: no flash of the old answer,
   // and no key press can grade it unseen.
   const [stepView, setStepView] = useState<StepView>(() => freshView(state));
-  const view = stepView.of === state ? stepView : freshView(state);
-  const { revealed, typed, gaveUp, moved } = view;
-  const update = (patch: Partial<Omit<StepView, 'of'>>) => setStepView({ ...view, ...patch });
+  const view = copying?.view ?? (stepView.of === state ? stepView : freshView(state));
+  const { revealed, typed, gaveUp, moved, copied } = view;
+  const update = (patch: Partial<Omit<StepView, 'of'>>) =>
+    copying ? setCopying({ ...copying, view: { ...view, ...patch } }) : setStepView({ ...view, ...patch });
   const setTyped = (value: StepView['typed']) => update({ typed: value });
   const setMoved = (value: string) => update({ moved: value });
 
@@ -323,13 +385,23 @@ function Drill({
     }
   };
   const answer = (correct: boolean) => onChange(answerStep(state, correct));
+  // A miss isn't just a red mark: type the word once, looking at it in its
+  // spot on the page. Then it comes back after a few other cards.
+  const miss = () => {
+    if (!step) return;
+    const next = answerStep(state, false);
+    const back = next.queue.findIndex((s) => s.wordId === step.wordId && s.direction === step.direction);
+    setCopying({ step, view: { ...view, revealed: true }, back });
+    onChange(next);
+    if (settings.autoPlay && word) speak(word.kana);
+  };
   useKeys(
     {
       Space: () => (jpPrompt && !revealed ? reveal() : undefined),
-      '1': () => (revealed ? answer(false) : dontKnow()),
+      '1': () => (revealed ? miss() : dontKnow()),
       '2': () => (revealed && !gaveUp ? answer(true) : undefined),
     },
-    Boolean(step) && jpPrompt && !studying,
+    Boolean(step) && jpPrompt && !studying && !encoding,
   );
 
   // In order, once meaning→Japanese has begun: words still to be asked that
@@ -350,7 +422,7 @@ function Drill({
         <div className="row row--between">
           <h1>Page {page.number} · study</h1>
         </div>
-        <p className="muted">Take your time. The word you were on counts as missed and comes back at the end of the drill.</p>
+        <p className="muted">Take your time. The word you were on counts as missed and comes back after a few other cards.</p>
         <PageGrid page={page} mode="full" />
         <button className="button button--primary button--wide" onClick={() => setStudying(false)}>
           Back to the drill
@@ -376,7 +448,14 @@ function Drill({
       </div>
       <Progress done={state.completed} total={state.total} />
 
-      <PageGrid page={page} mode={stage === 'ordered' ? 'written' : 'blank'} highlight={word.position} hideHighlighted={!jpPrompt} hiddenIds={hidden} />
+      <PageGrid
+        page={page}
+        mode={stage === 'ordered' ? 'written' : 'blank'}
+        highlight={word.position}
+        hideHighlighted={!jpPrompt}
+        hiddenIds={hidden}
+        revealHighlighted={encoding}
+      />
 
       <article className="card flash" data-testid="drill-card" data-direction={step.direction}>
         {jpPrompt ? (
@@ -401,7 +480,7 @@ function Drill({
             {typed && (
               <div className="flash__answer">
                 <p className={typed.correct ? 'result result--right' : 'result result--wrong'} data-testid="typed-result">
-                  {typed.correct ? 'Correct' : gaveUp ? 'Here it is: it comes back at the end' : `Not quite: you typed “${typed.value || '—'}”`}
+                  {typed.correct ? 'Correct' : gaveUp ? 'Here it is: it comes back after a few cards' : `Not quite: you typed “${typed.value || '—'}”`}
                 </p>
                 <JapaneseWord word={word} showReading size="small" />
                 <SpeakButton text={word.kana} />
@@ -421,14 +500,14 @@ function Drill({
           </button>
         </div>
       )}
-      {jpPrompt && revealed && gaveUp && (
-        <button className="button button--primary button--wide" autoFocus onClick={() => answer(false)}>
+      {jpPrompt && revealed && gaveUp && !encoding && (
+        <button className="button button--primary button--wide" autoFocus onClick={miss}>
           Continue
         </button>
       )}
-      {jpPrompt && revealed && !gaveUp && (
+      {jpPrompt && revealed && !gaveUp && !encoding && (
         <div className="grade-row grade-row--two">
-          <button className="button button--again" onClick={() => answer(false)}>
+          <button className="button button--again" onClick={miss}>
             Missed
           </button>
           <button className="button button--good" onClick={() => answer(true)}>
@@ -451,9 +530,9 @@ function Drill({
           </button>
         </div>
       )}
-      {!jpPrompt && typed && (
+      {!jpPrompt && typed && !encoding && (
         <div className="stack stack--tight">
-          <button className="button button--primary button--wide" autoFocus onClick={() => answer(typed.correct)}>
+          <button className="button button--primary button--wide" autoFocus onClick={() => (typed.correct ? answer(true) : miss())}>
             Continue
           </button>
           {!typed.correct && !gaveUp && (
@@ -463,9 +542,51 @@ function Drill({
           )}
         </div>
       )}
-      <button className="link-button" onClick={studyAgain}>
-        Study the page again
-      </button>
+      {copying && (
+        <section className="stack stack--tight" aria-label="Type it once">
+          <p className="small" data-testid="encode-prompt">
+            Type <span lang="ja">{word.kana}</span> once while you look at it in its spot.{' '}
+            {copying.back > 0 ? `It comes back after ${plural(copying.back, 'other card')}.` : 'Then it comes back.'}
+          </p>
+          <KanaInput
+            key={`copy-${step.wordId}-${step.direction}`}
+            label="Type the word"
+            placeholder="type it while you look (romaji works)"
+            onSubmit={(value) => (checkReading(value, word).correct ? setCopying(null) : update({ copied: value }))}
+          />
+          {copied !== null && (
+            <p className="result result--wrong" data-testid="copy-result">
+              Not quite: you typed “{copied || '—'}”. Type <span lang="ja">{word.kana}</span>.
+            </p>
+          )}
+        </section>
+      )}
+      {!encoding && (
+        <button className="link-button" onClick={studyAgain}>
+          Study the page again
+        </button>
+      )}
     </div>
+  );
+}
+
+/** On a learned page: the cards missed in step 2, which start review at a lower grade. */
+function StepTwoMisses({ page }: { page: PageDetail }) {
+  const missed = page.words.flatMap((w) =>
+    (['jp_en', 'en_jp'] as const).filter((d) => w.misses.step2[d] > 0).map((d) => ({ word: w, direction: d, misses: w.misses.step2[d] })),
+  );
+  if (missed.length === 0) return null;
+  return (
+    <section className="stack stack--tight" aria-label="Missed in step 2" data-testid="step2-misses">
+      <h2>Missed in step 2</h2>
+      <p className="muted small">These start review with a lower grade: one miss counts as Hard, more as Again, so they come back sooner after the first review.</p>
+      <ul className="plain-list">
+        {missed.map(({ word, direction, misses }) => (
+          <li key={`${word.id}-${direction}`}>
+            <span lang="ja">{writtenForm(word)}</span> · {direction === 'jp_en' ? 'word → meaning' : 'meaning → word'} · {plural(misses, 'miss', 'misses')}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

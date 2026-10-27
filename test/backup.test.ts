@@ -43,8 +43,9 @@ async function studySomething() {
   for (const w of batch.slice(2, 14)) await repo.triageAnswer(db, w.id, 'unknown', now);
   await repo.triageAnswer(db, (await repo.triageNext(db, 1)).words[0].id, 'ignore', now);
   const page = await repo.createPage(db, 10, null, now);
-  await repo.completeStage(db, page.id, 'ordered', dayEnd, now);
-  await repo.completeStage(db, page.id, 'shuffled', dayEnd, now);
+  // Drill misses in both steps, so their columns aren't all at the default.
+  await repo.completeStage(db, page.id, 'ordered', dayEnd, now, [{ wordId: page.words[0].id, direction: 'jp_en', misses: 2 }]);
+  await repo.completeStage(db, page.id, 'shuffled', dayEnd, now, [{ wordId: page.words[1].id, direction: 'en_jp', misses: 1 }]);
   await repo.createPage(db, 10, null, now).catch(() => undefined);
   const later = days(now, 2);
   const q = await repo.reviewQueue(db, days(dayStart, 2), days(dayEnd, 2), 50);
@@ -88,6 +89,9 @@ describe('backup file', () => {
     // The restored copy works as a study database, not just a pile of rows.
     expect(await repo.stats(restored, days(dayStart, 2), days(dayEnd, 2))).toEqual(await repo.stats(db, days(dayStart, 2), days(dayEnd, 2)));
     expect((await repo.getWord(restored, edited)).coreMeaning).toBe("it's; a test\n-- not a comment");
+    const misses = backup.tables.page_words.map((r) => [r.ordered_misses_jp_en, r.shuffled_misses_en_jp]);
+    expect(misses).toContainEqual([2, 0]);
+    expect(misses).toContainEqual([0, 1]);
   });
 
   it('with replace, loads over a database that already has rows', async () => {

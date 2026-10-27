@@ -197,9 +197,28 @@ Each list opens to its words (`#/lists/<id>`), in the order they came in.
   meaning→Japanese.
 - Stage `shuffled`: the same steps mixed together, with only grid positions
   shown.
-- A missed step goes to the back of the queue until it's answered correctly.
-- Graduating a page counts as one Good review per card. The first real review
-  is scheduled for the next day at the latest (`graduate`).
+- **A miss** (Missed, Don't know yet, or a wrong typed answer) shows the
+  word in its spot on the grid, even in step 2, and you type its kana once
+  while you look before going on: effort at the moment it isn't sticking.
+  The miss counts as soon as you make it, so Stop before typing keeps it.
+- **The retry comes after a real gap**: at least `MISS_GAP` (5) other cards.
+  Near the end of a drill, steps already answered fill the gap ("fillers":
+  asked again, not counted in the progress, and a missed filler doesn't
+  count against its card). Fillers come only from other words, so on a page
+  of three words or fewer the gap can be shorter; the screen says how many
+  cards it is. A retry you get right finishes the step, but the miss stays
+  recorded.
+- **Misses are kept** per word and direction for each step
+  (`page_words.ordered_misses_*`, `shuffled_misses_*`). Step 2 has no cue,
+  so its misses set how each card starts review (`graduationGrade`): right
+  first time counts as Good, one miss as Hard, more as Again. Step 1 misses
+  are only recorded. A learned page lists its step 2 misses.
+- The first real review is always the start of the next day (`graduate`),
+  whatever the grade.
+- A drill in progress is kept on the device (localStorage, once something
+  is answered), so Stop and Start carries on with the same misses
+  ("Continue step 1"). Changing the page's words or deleting the page drops
+  it, and the next Start is fresh.
 
 ### Pages you shape (PagePicker, PageView, `shared/similar.ts`)
 
@@ -279,9 +298,9 @@ Each list opens to its words (`#/lists/<id>`), in the order they came in.
 
 ## Buttons and what they do
 
-A guide for the learner. Only **Review** changes when you see a word again.
-The check pass and the page drill decide where a word goes, but your answers
-there never change review dates.
+A guide for the learner. **Review** decides when you see a word again. The
+check pass decides where a word goes, and the page drill decides how its
+cards start: misses in step 2 make a card come back sooner.
 
 ### Check pass (imported words)
 
@@ -302,12 +321,13 @@ falsely "known" word fails in review, and that does more harm.
 |---|---|
 | Show answer (Space) | Reveals the meaning or reading |
 | Don't know yet (1) | Shows the answer and counts the step as missed |
-| Missed (1) / Got it (2) | Missed puts the step at the back of the queue. Got it removes it. |
+| Missed (1) / Got it (2) | Missed shows the word in its spot; type it once to go on, and it comes back after `MISS_GAP` (5) other cards. Got it removes it. |
 | Study the page again | Counts the current step as missed and goes back to the full page; the drill continues afterwards |
 
-Misses only make the drill longer. Nothing about them reaches FSRS. When both
-steps are done, the page graduates: each card counts as one Good review, and
-the first real review comes the next day.
+When both steps are done, the page graduates. Each card counts as one review
+graded by step 2: Good if you got it right first time, Hard after one miss,
+Again after more. The first real review comes the next day either way, but a
+Hard or Again card comes back sooner after that.
 
 ### Review
 
@@ -352,7 +372,7 @@ by a day or two at these early intervals, by weeks at a year.
 
 | Situation | Again | Hard | Good | Easy |
 |---|---|---|---|---|
-| First review the day after a page | 1 day | 5 days | 7 days | 12 days |
+| First review the day after a page, for a card that graduated Good | 1 day | 5 days | 7 days | 12 days |
 | Well-known word, stability around 4 months | 4 days | ~9 months | ~12 months | ~20 months |
 
 On a well-known word, Again costs a lot: about 4 months of stability drops to
@@ -418,7 +438,7 @@ again (its deletes come first), or rewind with Time Travel.
 | Shared logic | `shared/` | Pure TypeScript used by both UI and worker; unit tested |
 | API | `worker/index.ts` (Hono on Cloudflare Workers) | Under `/api/*`; the rest is the single-page app. Also the nightly cron (`scheduled`) |
 | Data access | `worker/db.ts` | Multi-row changes run as one D1 batch, so a failed or repeated request can't leave half-done state |
-| Database | D1 (SQLite), `migrations/` | `0001_init.sql`, `0002_furigana.sql`, `0003_lists.sql`, `0004_dictionary.sql` |
+| Database | D1 (SQLite), `migrations/` | `0001_init.sql`, `0002_furigana.sql`, `0003_lists.sql`, `0004_dictionary.sql`, `0005_drill_misses.sql` |
 | Dictionary | D1 `shiori-dict`, `dict-migrations/` | JMdict with an FTS5 index; no study data (`worker/dict.ts`) |
 | Backups | R2 bucket `shiori-backups` | Nightly JSON copies, 30 days (`worker/backup.ts`) |
 
@@ -432,8 +452,9 @@ again (its deletes come first), or rewind with Time Travel.
   `graduated`, or `ignored`), and from the dictionary `dict_seq`,
   `dict_checked` (how many dictionary chunks were loaded when it was looked
   up), `furigana` and `usually_kana`. `source` is `renshuu` or `dictionary`.
-- `pages` and `page_words`: page number, stage, `list_id`, and each word's
-  fixed position.
+- `pages` and `page_words`: page number, stage, `list_id`, each word's
+  fixed position, and its drill misses per step and direction (migration
+  `0005_drill_misses`).
 - `cards`: one per word and direction, with the full FSRS state as JSON plus
   `due` / `state` / `lapses` for queries.
 - `review_log`: every review, triage and graduation, with the hint flag, typed

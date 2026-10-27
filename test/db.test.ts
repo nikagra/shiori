@@ -110,6 +110,72 @@ describe('pages', () => {
   });
 });
 
+describe('drill misses', () => {
+  const cardOf = async (wordId: number, direction: string) =>
+    JSON.parse((await db.prepare('SELECT fsrs FROM cards WHERE word_id = ? AND direction = ?').bind(wordId, direction).first<{ fsrs: string }>())!.fsrs);
+  const ratingOf = async (wordId: number, direction: string) =>
+    (await db
+      .prepare(`SELECT r.rating FROM review_log r JOIN cards c ON c.id = r.card_id WHERE r.kind = 'graduation' AND c.word_id = ? AND c.direction = ?`)
+      .bind(wordId, direction)
+      .first<{ rating: number }>())!.rating;
+
+  it('keeps each step\'s misses and starts each card by its step 2 misses', async () => {
+    await importAndSort(0, 3);
+    const page = await repo.createPage(db, 10, null, now);
+    const [a, b, c] = page.words.map((w) => w.id);
+    await repo.completeStage(db, page.id, 'ordered', dayEnd, now, [{ wordId: a, direction: 'jp_en', misses: 3 }]);
+    const done = await repo.completeStage(db, page.id, 'shuffled', dayEnd, now, [
+      { wordId: b, direction: 'en_jp', misses: 1 },
+      { wordId: c, direction: 'jp_en', misses: 2 },
+    ]);
+    expect(done.stage).toBe('graduated');
+    expect(done.words.map((w) => w.misses)).toEqual([
+      { step1: { jp_en: 3, en_jp: 0 }, step2: { jp_en: 0, en_jp: 0 } },
+      { step1: { jp_en: 0, en_jp: 0 }, step2: { jp_en: 0, en_jp: 1 } },
+      { step1: { jp_en: 0, en_jp: 0 }, step2: { jp_en: 2, en_jp: 0 } },
+    ]);
+    // Step 1 misses don't change the start; step 2 misses do.
+    expect(await ratingOf(a, 'jp_en')).toBe(Rating.Good);
+    expect(await ratingOf(b, 'jp_en')).toBe(Rating.Good);
+    expect(await ratingOf(b, 'en_jp')).toBe(Rating.Hard);
+    expect(await ratingOf(c, 'jp_en')).toBe(Rating.Again);
+    const good = await cardOf(a, 'jp_en');
+    const hard = await cardOf(b, 'en_jp');
+    const again = await cardOf(c, 'jp_en');
+    expect(again.stability).toBeLessThan(hard.stability);
+    expect(hard.stability).toBeLessThan(good.stability);
+    // Whatever the grade, the first review is the next day.
+    for (const card of [good, hard, again]) expect(card.due).toBe(dayEnd.toISOString());
+    expect((await repo.reviewQueue(db, dayStart, dayEnd, 50)).total).toBe(0);
+    expect((await repo.reviewQueue(db, dayEnd, nextDay(dayEnd, 1), 50)).total).toBe(3);
+  });
+
+  it('a repeated finish records nothing twice', async () => {
+    await importAndSort(0, 2);
+    const page = await repo.createPage(db, 10, null, now);
+    const [a] = page.words.map((w) => w.id);
+    await repo.completeStage(db, page.id, 'ordered', dayEnd, now, [{ wordId: a, direction: 'en_jp', misses: 1 }]);
+    const again = await repo.completeStage(db, page.id, 'ordered', dayEnd, now, [{ wordId: a, direction: 'en_jp', misses: 4 }]);
+    expect(again.words[0].misses.step1.en_jp).toBe(1);
+  });
+
+  it('refuses misses for words not on the page or sent twice', async () => {
+    await importAndSort(0, 3);
+    const page = await repo.createPage(db, 2, null, now);
+    const other = (await repo.createPage(db, 1, null, now)).words[0].id;
+    const [a] = page.words.map((w) => w.id);
+    await expect(repo.completeStage(db, page.id, 'ordered', dayEnd, now, [{ wordId: other, direction: 'jp_en', misses: 1 }])).rejects.toMatchObject({ status: 400 });
+    await expect(
+      repo.completeStage(db, page.id, 'ordered', dayEnd, now, [
+        { wordId: a, direction: 'jp_en', misses: 1 },
+        { wordId: a, direction: 'jp_en', misses: 2 },
+      ]),
+    ).rejects.toMatchObject({ status: 400 });
+    await expect(repo.completeStage(db, page.id, 'ordered', dayEnd, now, [{ wordId: a, direction: 'jp_en', misses: -1 }])).rejects.toMatchObject({ status: 400 });
+    expect((await repo.getPage(db, page.id)).stage).toBe('ordered');
+  });
+});
+
 describe('review', () => {
   it('records a review, reschedules the card and buries the sibling for the day', async () => {
     await importAndSort(0, 1);

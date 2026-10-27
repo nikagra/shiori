@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { expectNoHorizontalScroll, resetDb, seedWords, shot, type PageWord } from './helpers';
+import { expectNoHorizontalScroll, resetDb, seedWords, shot, typeItOnce, type PageWord } from './helpers';
 
 test.beforeEach(async ({ request }) => {
   await resetDb(request);
@@ -11,7 +11,7 @@ async function currentWord(page: Page, words: PageWord[]): Promise<PageWord> {
   return words.find((w) => w.position === position)!;
 }
 
-async function answerDrill(page: Page, words: PageWord[], opts: { missFirstTyped?: boolean } = {}) {
+async function answerDrill(page: Page, words: PageWord[], opts: { missFirstTyped?: boolean; shotMiss?: () => Promise<void> } = {}) {
   let missed = !opts.missFirstTyped;
   const seen: string[] = [];
   for (let guard = 0; guard < 100; guard++) {
@@ -32,6 +32,12 @@ async function answerDrill(page: Page, words: PageWord[], opts: { missFirstTyped
         await page.getByRole('button', { name: 'Check' }).click();
         await expect(page.getByTestId('typed-result')).toContainText('Not quite');
         await page.getByRole('button', { name: 'Continue' }).click();
+        // Type it once while you look: the word shows in its spot, even on the blank grid.
+        await expect(page.locator('.page-cell--revealed .page-cell__word')).toBeVisible();
+        await typeItOnce(page, 'ちがう');
+        await expect(page.getByTestId('copy-result')).toContainText('Not quite');
+        await opts.shotMiss?.();
+        await typeItOnce(page, word.kana);
         missed = true;
         continue;
       }
@@ -80,9 +86,9 @@ test('learn a page: study, in order, shuffled, then it graduates', async ({ page
 
   const ordered = await answerDrill(page, words, { missFirstTyped: true });
   // Reading pass in grid order (after the first word), then production in grid order,
-  // with the missed word repeated at the end.
+  // with the missed word back after 5 other cards.
   expect(ordered.slice(0, 9)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9].map((p) => `${p}:jp_en`));
-  expect(ordered.slice(9, 20)).toEqual([...[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((p) => `${p}:en_jp`), '0:en_jp']);
+  expect(ordered.slice(9, 20)).toEqual([0, 1, 2, 3, 4, 5, 0, 6, 7, 8, 9].map((p) => `${p}:en_jp`));
 
   await expect(page.getByRole('heading', { name: 'Step 2 · Shuffled' })).toBeVisible();
   await page.getByRole('button', { name: 'Start step 2' }).click();
@@ -90,12 +96,17 @@ test('learn a page: study, in order, shuffled, then it graduates', async ({ page
   await expect(page.locator('.page-grid--blank')).toBeVisible();
   await expect(page.locator('.page-grid--blank .page-cell__word:not(.page-cell__word--hidden)')).toHaveCount(0);
   await shot(page, testInfo, '14-drill-shuffled');
-  const shuffled = await answerDrill(page, words);
-  expect(shuffled).toHaveLength(20);
+  const shuffled = await answerDrill(page, words, { missFirstTyped: true, shotMiss: () => shot(page, testInfo, '15-drill-type-it-once') });
+  // 20 steps, plus the retry of the miss (and fillers if it came near the end).
+  expect(shuffled.length).toBeGreaterThanOrEqual(21);
   expect(new Set(shuffled).size).toBe(20);
 
   await expect(page.getByTestId('page-learned')).toBeVisible();
-  await shot(page, testInfo, '15-page-learned');
+  // The step 2 miss is kept: that card starts review at Hard.
+  await expect(page.getByTestId('step2-misses')).toContainText('meaning → word · 1 miss');
+  await shot(page, testInfo, '16-page-learned');
+  const learned = await (await request.get(`/api/pages/${pageId}`)).json();
+  expect(learned.words.filter((w: PageWord & { misses: { step2: { en_jp: number } } }) => w.misses.step2.en_jp === 1)).toHaveLength(1);
 
   // First reviews come tomorrow, not today.
   await page.getByRole('link', { name: 'Home' }).click();
@@ -103,11 +114,36 @@ test('learn a page: study, in order, shuffled, then it graduates', async ({ page
   await expect(page.getByTestId('tile-inbox')).toContainText('2');
 });
 
-test('stopping a drill keeps the page at its step', async ({ page }) => {
+test('stopping a drill keeps the page at its step, and Start carries on', async ({ page }) => {
   await page.goto('/#/pages');
   await page.getByRole('button', { name: 'Start a new page' }).click();
   await page.getByRole('button', { name: 'Start step 1' }).click();
+  // One miss, then stop: the miss isn't wiped by starting again.
+  await page.getByRole('button', { name: 'Show answer' }).click();
+  await page.getByRole('button', { name: 'Missed' }).click();
+  const kana = await page.getByTestId('encode-prompt').locator('span[lang="ja"]').innerText();
+  await typeItOnce(page, kana);
+  await page.getByRole('button', { name: 'Show answer' }).click();
+  await page.getByRole('button', { name: 'Got it' }).click();
   await page.getByRole('button', { name: 'Stop' }).click();
+  await expect(page.getByRole('button', { name: 'Continue step 1 (1 of 24 done)' })).toBeVisible();
+  await page.reload();
+  await page.getByRole('button', { name: 'Continue step 1 (1 of 24 done)' }).click();
+  await expect(page.locator('.page-cell--current')).toHaveAttribute('data-position', '2');
+  // A miss counts as soon as you press Missed, even if you stop before typing the word.
+  await page.getByRole('button', { name: 'Show answer' }).click();
+  await page.getByRole('button', { name: 'Missed' }).click();
+  await expect(page.getByTestId('encode-prompt')).toContainText('It comes back after 5 other cards.');
+  await page.getByRole('button', { name: 'Stop' }).click();
+  await page.getByRole('button', { name: 'Continue step 1 (1 of 24 done)' }).click();
+  await expect(page.locator('.page-cell--current')).toHaveAttribute('data-position', '3');
+  await page.getByRole('button', { name: 'Stop' }).click();
+  // Changing the words drops the saved drill: the next Start is fresh.
+  await page.getByRole('button', { name: 'Change words' }).click();
+  const first = page.getByTestId('page-word').first();
+  await first.locator('.word-row__head').click();
+  await first.getByRole('button', { name: 'Take it off without a replacement' }).click();
+  await page.getByRole('button', { name: 'Done' }).click();
   await expect(page.getByRole('button', { name: 'Start step 1' })).toBeVisible();
   await page.getByRole('link', { name: 'All pages' }).click();
   await expect(page.getByText('Step 1 of 2')).toBeVisible();

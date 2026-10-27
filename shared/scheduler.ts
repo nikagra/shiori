@@ -74,13 +74,15 @@ export function intervals(card: StoredCard, now: Date): GradeIntervals {
 }
 
 /**
- * A word that finished both page passes. It counts as one successful review
- * now, but the first real check is the next day, never later: right after a
- * page session recall feels strong for everyone.
+ * A word that finished both page passes. It counts as one review now, graded
+ * by how step 2 of the drill went (Good when right first time), and the first
+ * real check is always the start of the next day: right after a page session
+ * recall feels strong for everyone, and a missed word shouldn't come back
+ * the same evening.
  */
-export function graduate(now: Date, nextDayStart: Date): StoredCard {
-  const reviewed = review(newCard(now), Rating.Good, now);
-  if (new Date(reviewed.due) > nextDayStart) reviewed.due = nextDayStart.toISOString();
+export function graduate(now: Date, nextDayStart: Date, rating: Grade = Rating.Good): StoredCard {
+  const reviewed = review(newCard(now), rating, now);
+  reviewed.due = nextDayStart.toISOString();
   return reviewed;
 }
 

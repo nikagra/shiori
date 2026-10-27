@@ -92,7 +92,8 @@ export interface ListChanges {
 }
 
 export interface PageDetail extends PageSummary {
-  words: (Word & { position: number })[];
+  /** misses: drill misses by step and direction (worker/db.ts DrillMisses). */
+  words: (Word & { position: number; misses: { step1: Record<Direction, number>; step2: Record<Direction, number> } })[];
 }
 
 export interface QueueItem {
@@ -194,8 +195,8 @@ export const api = {
   updateList: (id: number, changes: ListChanges) => call<{ ok: true }>('PATCH', `/lists/${id}`, changes),
   mergeList: (id: number, into: number) => call<{ ok: true }>('POST', `/lists/${id}/merge`, { into }),
   deleteList: (id: number) => call<{ ok: true }>('DELETE', `/lists/${id}`),
-  completeStage: (id: number, stage: 'ordered' | 'shuffled') =>
-    call<PageDetail>('POST', `/pages/${id}/complete`, { stage, nextDayStart: studyDay().end.toISOString() }),
+  completeStage: (id: number, stage: 'ordered' | 'shuffled', misses: { wordId: number; direction: Direction; misses: number }[] = []) =>
+    call<PageDetail>('POST', `/pages/${id}/complete`, { stage, nextDayStart: studyDay().end.toISOString(), misses }),
   reviewQueue: () => call<{ items: QueueItem[]; total: number }>('GET', `/review?${dayQuery()}`),
   study: () => call<StudyPrefs>('GET', '/study'),
   /** Changes only the settings sent. */

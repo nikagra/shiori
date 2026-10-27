@@ -1052,3 +1052,15 @@ rt {
 .grading__easy {
   color: var(--easy);
 }
+
+.page-cell--revealed {
+  border-color: var(--again);
+}
+
+.plain-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 4px;
+}
