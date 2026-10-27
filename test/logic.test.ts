@@ -98,9 +98,12 @@ describe('page drill', () => {
     const fillers = d.queue.slice(0, -1);
     expect(fillers.every((s) => s.filler && s.wordId !== 4)).toBe(true);
     expect(new Set(fillers.map(stepKey)).size).toBe(MISS_GAP);
-    // A filler missed again is recorded too, and comes back as a filler.
+    // A missed filler comes back as a filler, but its card was right first
+    // time, so the miss doesn't count against it.
+    const filler = d.queue[0];
     d = answerStep(d, false, () => 0.5);
-    expect(Object.values(d.misses)).toEqual([1, 1]);
+    expect(d.misses).toEqual({ '4:en_jp': 1 });
+    expect(d.queue.filter((s) => stepKey(s) === stepKey(filler))).toEqual([filler]);
     while (!isDrillDone(d)) d = answerStep(d, true);
     expect(d.completed).toBe(8);
     expect(d.total).toBe(8);

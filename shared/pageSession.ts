@@ -77,7 +77,8 @@ export function answerStep(state: DrillState, correct: boolean, random: Random =
     return { ...state, queue: rest, completed: state.completed + 1, done: [...state.done, { wordId: step.wordId, direction: step.direction }] };
   }
   const key = stepKey(step);
-  const misses = { ...state.misses, [key]: (state.misses[key] ?? 0) + 1 };
+  // A filler was right first time already: missing it later doesn't change its grade.
+  const misses = step.filler ? state.misses : { ...state.misses, [key]: (state.misses[key] ?? 0) + 1 };
   // Back after MISS_GAP other cards; fillers make up for a short queue.
   const queued = new Set(rest.map(stepKey));
   const pool = state.done.filter((s) => s.wordId !== step.wordId && !queued.has(stepKey(s)));

@@ -96,7 +96,7 @@ test('learn a page: study, in order, shuffled, then it graduates', async ({ page
   await expect(page.locator('.page-grid--blank')).toBeVisible();
   await expect(page.locator('.page-grid--blank .page-cell__word:not(.page-cell__word--hidden)')).toHaveCount(0);
   await shot(page, testInfo, '14-drill-shuffled');
-  const shuffled = await answerDrill(page, words, { missFirstTyped: true, shotMiss: () => shot(page, testInfo, '16-drill-type-it-once') });
+  const shuffled = await answerDrill(page, words, { missFirstTyped: true, shotMiss: () => shot(page, testInfo, '15-drill-type-it-once') });
   // 20 steps, plus the retry of the miss (and fillers if it came near the end).
   expect(shuffled.length).toBeGreaterThanOrEqual(21);
   expect(new Set(shuffled).size).toBe(20);
@@ -104,7 +104,7 @@ test('learn a page: study, in order, shuffled, then it graduates', async ({ page
   await expect(page.getByTestId('page-learned')).toBeVisible();
   // The step 2 miss is kept: that card starts review at Hard.
   await expect(page.getByTestId('step2-misses')).toContainText('meaning → word · 1 miss');
-  await shot(page, testInfo, '15-page-learned');
+  await shot(page, testInfo, '16-page-learned');
   const learned = await (await request.get(`/api/pages/${pageId}`)).json();
   expect(learned.words.filter((w: PageWord & { misses: { step2: { en_jp: number } } }) => w.misses.step2.en_jp === 1)).toHaveLength(1);
 
@@ -127,12 +127,24 @@ test('stopping a drill keeps the page at its step, and Start carries on', async 
   await page.getByRole('button', { name: 'Got it' }).click();
   await page.getByRole('button', { name: 'Stop' }).click();
   await expect(page.getByRole('button', { name: 'Continue step 1 (1 of 24 done)' })).toBeVisible();
-  // Words can't change under a drill in progress.
-  await expect(page.getByRole('button', { name: 'Change words' })).toHaveCount(0);
   await page.reload();
   await page.getByRole('button', { name: 'Continue step 1 (1 of 24 done)' }).click();
   await expect(page.locator('.page-cell--current')).toHaveAttribute('data-position', '2');
+  // A miss counts as soon as you press Missed, even if you stop before typing the word.
+  await page.getByRole('button', { name: 'Show answer' }).click();
+  await page.getByRole('button', { name: 'Missed' }).click();
+  await expect(page.getByTestId('encode-prompt')).toContainText('It comes back after 5 other cards.');
   await page.getByRole('button', { name: 'Stop' }).click();
+  await page.getByRole('button', { name: 'Continue step 1 (1 of 24 done)' }).click();
+  await expect(page.locator('.page-cell--current')).toHaveAttribute('data-position', '3');
+  await page.getByRole('button', { name: 'Stop' }).click();
+  // Changing the words drops the saved drill: the next Start is fresh.
+  await page.getByRole('button', { name: 'Change words' }).click();
+  const first = page.getByTestId('page-word').first();
+  await first.locator('.word-row__head').click();
+  await first.getByRole('button', { name: 'Take it off without a replacement' }).click();
+  await page.getByRole('button', { name: 'Done' }).click();
+  await expect(page.getByRole('button', { name: 'Start step 1' })).toBeVisible();
   await page.getByRole('link', { name: 'All pages' }).click();
   await expect(page.getByText('Step 1 of 2')).toBeVisible();
 });
