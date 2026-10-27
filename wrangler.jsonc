@@ -16,6 +16,14 @@
       "database_name": "shiori",
       "database_id": "3b579616-c88e-499e-b410-e8b6180db608",
       "migrations_dir": "migrations",
+    },
+    // The dictionary (JMdict), apart from study data so backups stay small.
+    // Filled with `npm run dict:load` (see "Dictionary" in docs/DESIGN.md).
+    {
+      "binding": "DICT",
+      "database_name": "shiori-dict",
+      "database_id": "4cf4ca8e-9079-483c-9992-1bae28212ab0",
+      "migrations_dir": "dict-migrations",
     }
   ],
   // Private bucket for the nightly backups. Create it once with

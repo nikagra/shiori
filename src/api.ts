@@ -1,7 +1,8 @@
 // Typed client for the Shiori API.
 
 import { parseBackup, type Backup, type NightlyStatus } from '../shared/backup';
-import type { FuriganaPrefs } from '../shared/furigana';
+import type { FuriganaPrefs, Ruby } from '../shared/furigana';
+import type { DictEntry } from '../shared/dictionary';
 
 export type Direction = 'jp_en' | 'en_jp';
 export type { WordState as WordStatus } from '../shared/wordSearch';
@@ -19,6 +20,11 @@ export interface Word {
   listId: number | null;
   mastery: number | null;
   status: WordStatus;
+  /** The JMdict entry it's linked to (worker/db.ts Word). */
+  dictSeq: number | null;
+  dict: 'linked' | 'none' | 'unchecked';
+  furigana: Ruby[] | null;
+  usuallyKana: boolean;
 }
 
 /** A word as its list shows it (worker/db.ts ListWord). */
@@ -94,6 +100,24 @@ export interface QueueItem {
   page: { id: number; number: number; position: number } | null;
 }
 
+export interface DictStatus {
+  version: string | null;
+  chunks: number;
+  loaded: number;
+  complete: boolean;
+  words: { linked: number; none: number; unchecked: number };
+}
+
+/** One of your words linked to a search result. */
+export interface MyEntryWord {
+  id: number;
+  dictSeq: number;
+  kana: string;
+  kanji: string | null;
+  listId: number | null;
+  listName: string | null;
+}
+
 export interface ImportResult {
   format: 'basic' | 'custom';
   added: number;
@@ -137,6 +161,15 @@ export const api = {
   triageAnswer: (id: number, result: 'known' | 'unknown' | 'ignore') => call<{ ok: true }>('POST', `/triage/${id}`, { result }),
   listWords: (listId: number) => call<ListWord[]>('GET', `/lists/${listId}/words`),
   updateWord: (id: number, changes: WordChanges) => call<ListWord>('PATCH', `/words/${id}`, changes),
+  /** Links a word to a dictionary entry, or (null) says none fits. */
+  linkEntry: (id: number, dictSeq: number | null) => call<ListWord>('PATCH', `/words/${id}`, { dictSeq }),
+  dictStatus: () => call<DictStatus>('GET', '/dict/status'),
+  dictSearch: (q: string) => call<{ entries: DictEntry[]; mine: MyEntryWord[] }>('GET', `/dict/search?q=${encodeURIComponent(q)}`),
+  dictEntry: (seq: number) => call<DictEntry>('GET', `/dict/entries/${seq}`),
+  /** Looks up the next batch of your words with no entry yet. */
+  dictLookUp: () => call<{ looked: number; matched: number; remaining: number }>('POST', '/dict/look-up'),
+  addFromDict: (listId: number, word: { dictSeq: number; kanji: string | null; kana: string; coreMeaning?: string }) =>
+    call<ListWord>('POST', `/lists/${listId}/words`, word),
   setAside: (id: number) => call<ListWord>('POST', `/words/${id}/set-aside`),
   bringBack: (id: number) => call<ListWord>('POST', `/words/${id}/bring-back`),
   checkAgain: (id: number) => call<ListWord>('POST', `/words/${id}/check-again`),

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, type Stats } from '../api';
 import { Notice } from '../components/ui';
 import { nightlyIsStale } from '../../shared/backup';
+import { lookUpInBackground } from '../components/DictSearch';
 
 export function Home() {
   const [stats, setStats] = useState<Stats | null>(null);
@@ -11,6 +12,7 @@ export function Home() {
 
   useEffect(() => {
     api.stats().then(setStats, (e: Error) => setError(e.message));
+    lookUpInBackground();
     api.nightlyBackups().then(
       (n) => {
         const savedAt = n.latest?.savedAt;
@@ -52,6 +54,10 @@ export function Home() {
           <span className="tile__label">imported, to check</span>
         </a>
       </section>
+
+      <a href="#/add" className="button button--wide">
+        Add a word from the dictionary
+      </a>
 
       <p className="muted">{stats.learned} {stats.learned === 1 ? 'word' : 'words'} in spaced review.</p>
 

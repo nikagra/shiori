@@ -70,7 +70,7 @@ jobs:
           cache: npm
       - run: npm ci
         if: steps.setup.outputs.ready == 'true'
-      # Builds, applies new migrations to the cloud database, then uploads the Worker.
+      # Builds, applies new migrations to the cloud databases (study data and dictionary), then uploads the Worker.
       - run: npm run deploy
         if: steps.setup.outputs.ready == 'true'
         env:

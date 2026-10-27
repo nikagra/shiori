@@ -6,6 +6,9 @@ import { PAGE_SIZES } from '../../shared/pageSession';
 import { useFurigana } from '../furigana';
 import { useSettings } from '../settings';
 import { canSpeak, hasJapaneseVoice } from '../speech';
+import { lookUpAll } from '../components/DictSearch';
+import { DICT_CREDITS } from '../../shared/dictionary';
+import type { DictStatus } from '../api';
 
 /** `scrollTo` names a section to bring into view, e.g. "backup" from Home's warning. */
 export function Settings({ scrollTo }: { scrollTo?: string }) {
@@ -29,7 +32,76 @@ export function Settings({ scrollTo }: { scrollTo?: string }) {
         </a>
       </section>
       <Backup />
+      {/* Below Backup: it grows once its status loads, which mustn't push
+          Backup away after Home's warning scrolled to it. */}
+      <Dictionary />
     </div>
+  );
+}
+
+/** What's loaded, how your words match it, and the credits its licence asks for. */
+function Dictionary() {
+  const [status, setStatus] = useState<DictStatus | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const load = () => api.dictStatus().then(setStatus, (e: Error) => setError(e.message));
+  useEffect(() => {
+    load();
+  }, []);
+
+  const lookUp = async () => {
+    setBusy('Looking up…');
+    setError(null);
+    try {
+      await lookUpAll((remaining) => setBusy(`Looking up… ${remaining} to go`));
+      await load();
+    } catch (e) {
+      setError((e as Error).message);
+    }
+    setBusy(null);
+  };
+
+  return (
+    <section className="card stack stack--tight" aria-label="Dictionary" data-section="dictionary">
+      <h2>Dictionary</h2>
+      {error && <p className="error">{error}</p>}
+      {!status ? (
+        !error && <p className="muted">Checking…</p>
+      ) : status.loaded === 0 ? (
+        <p className="error" data-testid="dict-status">
+          Not loaded yet. On the laptop, run <code>npm run dict:load -- --remote</code> (see DESIGN.md, Dictionary).
+        </p>
+      ) : (
+        <>
+          <p className="muted" data-testid="dict-status">
+            {status.version}
+            {status.complete ? '.' : `: ${status.loaded} of ${status.chunks} parts loaded so far (common words first).`}
+          </p>
+          <p className="small" data-testid="dict-words">
+            Your words: {status.words.linked} in the dictionary
+            {status.words.none > 0 && `, ${status.words.none} not found${status.complete ? '' : ' yet'}`}
+            {status.words.unchecked > 0 && `, ${status.words.unchecked} not looked up yet`}.
+          </p>
+          <button type="button" className="button" onClick={lookUp} disabled={busy !== null}>
+            {busy ?? 'Look up my words'}
+          </button>
+          <p className="muted small">Words you import or add are looked up by themselves, and opening Home looks up any still waiting (also words with no match while the dictionary was loading). Editing a word lets you pick its entry.</p>
+        </>
+      )}
+      <p className="muted small">
+        Uses{' '}
+        {DICT_CREDITS.map((c, i) => (
+          <span key={c.name}>
+            {i > 0 && (i === DICT_CREDITS.length - 1 ? ' and ' : ', ')}
+            <a href={c.url} target="_blank" rel="noreferrer">
+              {c.name}
+            </a>{' '}
+            ({c.by})
+          </span>
+        ))}
+        , under the Creative Commons Attribution-ShareAlike 4.0 licence.
+      </p>
+    </section>
   );
 }
 

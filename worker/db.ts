@@ -1,4 +1,5 @@
 import type { ImportedWord } from '../shared/renshuu';
+import { normalizeKana } from '../shared/kana';
 import { coreMeaning } from '../shared/meaning';
 import { buildQueue, type QueueCandidate } from '../shared/queue';
 import { DEFAULT_WEIGHT, effectiveWeight, MAX_NAME, NEW_PER_DAY, MAX_PAGES_PER_WEEK, pickList, RECENT_DAYS, WEIGHT_RANGE } from '../shared/lists';
@@ -17,7 +18,8 @@ import {
 import { MAX_PAGE_WORDS, PAGE_READY, type PageStage } from '../shared/pageSession';
 import { BACKUP_FORMAT, BACKUP_SCHEMA, BACKUP_TABLES, LISTS_FROM_LABELS, type Backup, type BackupRow, type BackupTable } from '../shared/backup';
 import type { WordState as WordStatus } from '../shared/wordSearch';
-import { DEFAULT_PREFS, HINTS_TO_LEARNING, isKanji, knownKanjiSet, markLearning, uniqueKanji, type FuriganaPrefs } from '../shared/furigana';
+import { DEFAULT_PREFS, HINTS_TO_LEARNING, isKanji, knownKanjiSet, markLearning, uniqueKanji, type FuriganaPrefs, type Ruby } from '../shared/furigana';
+import { dictInfo, entryCoreMeaning, pairs, posLabel, senseStrings, sensesFor, type DictEntry, type WordDictInfo } from '../shared/dictionary';
 
 export type { WordState as WordStatus } from '../shared/wordSearch';
 
@@ -34,6 +36,10 @@ export interface WordRow {
   renshuu_mastery: number | null;
   status: WordStatus;
   list_id: number | null;
+  dict_seq: number | null;
+  dict_checked: number | null;
+  furigana: string | null;
+  usually_kana: number;
 }
 
 export interface Word {
@@ -47,6 +53,13 @@ export interface Word {
   listId: number | null;
   mastery: number | null;
   status: WordStatus;
+  /** The JMdict entry it's linked to, or null. */
+  dictSeq: number | null;
+  /** Looked up in the dictionary: 'linked', 'none' (no entry fits), or 'unchecked' (not yet). */
+  dict: 'linked' | 'none' | 'unchecked';
+  /** Readings per kanji from the dictionary. */
+  furigana: Ruby[] | null;
+  usuallyKana: boolean;
 }
 
 export function toWord(r: WordRow): Word {
@@ -61,6 +74,10 @@ export function toWord(r: WordRow): Word {
     listId: r.list_id,
     mastery: r.renshuu_mastery,
     status: r.status,
+    dictSeq: r.dict_seq,
+    dict: r.dict_seq !== null ? 'linked' : r.dict_checked !== null ? 'none' : 'unchecked',
+    furigana: r.furigana ? (JSON.parse(r.furigana) as Ruby[]) : null,
+    usuallyKana: r.usually_kana === 1,
   };
 }
 
@@ -195,7 +212,7 @@ export async function listWords(db: D1Database, listId: number): Promise<ListWor
   return rows.results.map(toListWord);
 }
 
-async function getListWord(db: D1Database, id: number): Promise<ListWord> {
+export async function getListWord(db: D1Database, id: number): Promise<ListWord> {
   const row = await db.prepare(`${LIST_WORD_SQL} WHERE w.id = ?`).bind(id).first<ListWordRow>();
   if (!row) throw new AppError(404, 'word not found');
   return toListWord(row);
@@ -233,13 +250,25 @@ export async function updateWord(db: D1Database, id: number, changes: WordChange
     sets.push(`${col} = ?`);
     values.push(value);
   };
+  let kana = word.kana;
+  let kanji = word.kanji;
   if (changes.kana !== undefined) {
-    const kana = String(changes.kana ?? '').normalize('NFKC').trim();
+    kana = String(changes.kana ?? '').normalize('NFKC').trim();
     if (!kana) throw new AppError(400, 'a word needs its kana');
     if (!KANA.test(kana)) throw new AppError(400, 'the reading must be in kana');
     set('kana', kana);
   }
-  if (changes.kanji !== undefined) set('kanji', String(changes.kanji ?? '').normalize('NFKC').trim() || null);
+  if (changes.kanji !== undefined) {
+    kanji = String(changes.kanji ?? '').normalize('NFKC').trim() || null;
+    set('kanji', kanji);
+  }
+  // A new spelling drops the dictionary link; it's looked up again (worker/dict.ts).
+  if (kana !== word.kana || kanji !== word.kanji) {
+    set('dict_seq', null);
+    set('dict_checked', null);
+    set('furigana', null);
+    set('usually_kana', 0);
+  }
   if (changes.coreMeaning !== undefined) {
     const meaning = String(changes.coreMeaning ?? '').trim();
     if (!meaning) throw new AppError(400, 'meaning must not be empty');
@@ -377,6 +406,151 @@ function logReview(
 
 /** True when a batch failed on a UNIQUE constraint, i.e. another request got there first. */
 const isUniqueViolation = (e: unknown) => e instanceof Error && /UNIQUE constraint failed/i.test(e.message);
+
+// ---------------------------------------------------------------- dictionary
+
+/** dict_checked for a word whose entry you chose (or said none fits): it's never looked up again by itself. */
+export const DICT_CHOSEN = 1_000_000;
+
+export interface WordToLookUp {
+  id: number;
+  kana: string;
+  kanji: string | null;
+  senses: string[];
+}
+
+/**
+ * Words with no dictionary entry that haven't been looked up since this much
+ * of the dictionary was loaded: new words, and words with no match while it
+ * was still loading.
+ */
+export async function wordsToLookUp(db: D1Database, loaded: number, limit: number, id?: number): Promise<{ words: WordToLookUp[]; remaining: number }> {
+  const where = `dict_seq IS NULL AND (dict_checked IS NULL OR dict_checked < ?)${id === undefined ? '' : ' AND id = ?'}`;
+  const params = id === undefined ? [loaded] : [loaded, id];
+  const [rows, count] = await db.batch([
+    db.prepare(`SELECT id, kana, kanji, senses FROM words WHERE ${where} ORDER BY id LIMIT ?`).bind(...params, limit),
+    db.prepare(`SELECT COUNT(*) AS n FROM words WHERE ${where}`).bind(...params),
+  ]);
+  const words = (rows.results as { id: number; kana: string; kanji: string | null; senses: string }[]).map((r) => ({ ...r, senses: JSON.parse(r.senses) as string[] }));
+  return { words, remaining: (count.results[0] as { n: number }).n };
+}
+
+/** Saves what the dictionary says about each word, unless its spelling changed in between. Not an edit of yours, so updated_at stays. */
+export async function saveDictInfo(db: D1Database, items: { word: WordToLookUp; info: WordDictInfo; checked: number }[]): Promise<void> {
+  const stmt = db.prepare(
+    `UPDATE words SET dict_seq = ?, dict_checked = ?, furigana = ?, usually_kana = ?
+     WHERE id = ? AND kana = ? AND IFNULL(kanji, '') = IFNULL(?, '') AND IFNULL(dict_checked, 0) < ${DICT_CHOSEN}`,
+  );
+  for (let i = 0; i < items.length; i += 50) {
+    await db.batch(
+      items
+        .slice(i, i + 50)
+        .map(({ word, info, checked }) =>
+          stmt.bind(info.dictSeq, checked, info.furigana ? JSON.stringify(info.furigana) : null, info.usuallyKana ? 1 : 0, word.id, word.kana, word.kanji),
+        ),
+    );
+  }
+}
+
+/** The pair in an entry that spells this word, or the entry's first one. */
+function pairFor(entry: DictEntry, kanji: string | null, kana: string) {
+  const all = pairs(entry, true);
+  const same = (r: string) => normalizeKana(r) === normalizeKana(kana);
+  return all.find(([k, r]) => same(r) && k === kanji) ?? all.find(([, r]) => same(r)) ?? all[0];
+}
+
+/** Links a word to the entry you picked, or (null) to none: "not in the dictionary". */
+export async function linkEntry(db: D1Database, id: number, entry: DictEntry | null, now: Date): Promise<ListWord> {
+  const word = await getListWord(db, id);
+  const pair = entry && pairFor(entry, word.kanji, word.kana);
+  const info = entry ? dictInfo(word, { entry, kanji: pair?.[0] ?? null, kana: pair?.[1] ?? word.kana }) : null;
+  changedMeanwhile(
+    await db
+      .prepare(`UPDATE words SET dict_seq = ?, dict_checked = ?, furigana = ?, usually_kana = ?, updated_at = ? WHERE id = ? AND kana = ? AND IFNULL(kanji, '') = IFNULL(?, '')`)
+      .bind(info?.dictSeq ?? null, DICT_CHOSEN, info?.furigana ? JSON.stringify(info.furigana) : null, info?.usuallyKana ? 1 : 0, iso(now), id, word.kana, word.kanji)
+      .run(),
+  );
+  return getListWord(db, id);
+}
+
+export interface NewWord {
+  /** The written form you chose, or null to write it in kana. */
+  kanji: string | null;
+  kana: string;
+  coreMeaning?: unknown;
+}
+
+/**
+ * Adds a word from the dictionary to a list. It waits for a page, like a word
+ * you didn't know in the check pass: you looked it up because you didn't.
+ */
+export async function addFromDict(db: D1Database, listId: number, entry: DictEntry, chosen: NewWord, now: Date): Promise<ListWord> {
+  const list = await getListRow(db, listId);
+  if (list.archived_at) throw new AppError(409, 'that list is archived; unarchive it first');
+  const ok = pairs(entry, true).some(([k, r]) => r === chosen.kana && (chosen.kanji === null || k === chosen.kanji));
+  if (!ok) throw new AppError(400, 'that spelling is not in this dictionary entry');
+  const existing = await db
+    .prepare(`SELECT l.name FROM words w LEFT JOIN lists l ON l.id = w.list_id WHERE w.kana = ? AND IFNULL(w.kanji, '') = IFNULL(?, '')`)
+    .bind(chosen.kana, chosen.kanji)
+    .first<{ name: string | null }>();
+  if (existing) throw new AppError(409, `you already have this word${existing.name ? ` in ${existing.name}` : ''}`);
+  const senses = sensesFor(entry, chosen.kanji, chosen.kana);
+  const core = String(chosen.coreMeaning ?? '').trim() || entryCoreMeaning(senses);
+  const info = dictInfo({ kanji: chosen.kanji, kana: chosen.kana }, { entry, kanji: chosen.kanji ?? pairFor(entry, null, chosen.kana)?.[0] ?? null, kana: chosen.kana });
+  const row = await db
+    .prepare(
+      `INSERT INTO words
+         (kana, kanji, senses, core_meaning, pos, source, source_list, list_id, source_order, renshuu_mastery, status,
+          dict_seq, dict_checked, furigana, usually_kana, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, 'dictionary', ?, ?, (SELECT IFNULL(MAX(source_order), 0) + 1 FROM words), NULL, 'inbox', ?, ?, ?, ?, ?, ?)
+       RETURNING id`,
+    )
+    .bind(
+      chosen.kana,
+      chosen.kanji,
+      JSON.stringify(senseStrings(senses)),
+      core,
+      posLabel(senses[0]?.pos ?? []) || null,
+      list.name,
+      listId,
+      entry.seq,
+      DICT_CHOSEN,
+      info.furigana ? JSON.stringify(info.furigana) : null,
+      info.usuallyKana ? 1 : 0,
+      iso(now),
+      iso(now),
+    )
+    .first<{ id: number }>()
+    .catch((e: unknown) => {
+      if (isUniqueViolation(e)) throw new AppError(409, 'you already have this word');
+      throw e;
+    });
+  return getListWord(db, row!.id);
+}
+
+/** Your words linked to these entries, to show which search results you have already. */
+export async function wordsForEntries(db: D1Database, seqs: number[]): Promise<{ id: number; dictSeq: number; kana: string; kanji: string | null; listId: number | null; listName: string | null }[]> {
+  if (!seqs.length) return [];
+  const rows = await db
+    .prepare(
+      `SELECT w.id, w.dict_seq, w.kana, w.kanji, w.list_id, l.name FROM words w LEFT JOIN lists l ON l.id = w.list_id
+       WHERE w.dict_seq IN (${seqs.map(() => '?').join(', ')})`,
+    )
+    .bind(...seqs)
+    .all<{ id: number; dict_seq: number; kana: string; kanji: string | null; list_id: number | null; name: string | null }>();
+  return rows.results.map((r) => ({ id: r.id, dictSeq: r.dict_seq, kana: r.kana, kanji: r.kanji, listId: r.list_id, listName: r.name }));
+}
+
+/** Your words by dictionary state, for Settings. */
+export async function dictCounts(db: D1Database): Promise<{ linked: number; none: number; unchecked: number }> {
+  const row = await db
+    .prepare(
+      `SELECT IFNULL(SUM(dict_seq IS NOT NULL), 0) AS linked, IFNULL(SUM(dict_seq IS NULL AND dict_checked IS NOT NULL), 0) AS none,
+         IFNULL(SUM(dict_seq IS NULL AND dict_checked IS NULL), 0) AS unchecked FROM words`,
+    )
+    .first<{ linked: number; none: number; unchecked: number }>();
+  return row ?? { linked: 0, none: 0, unchecked: 0 };
+}
 
 // ---------------------------------------------------------------- triage
 

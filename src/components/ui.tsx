@@ -32,7 +32,7 @@ export function JapaneseWord({
   size = 'large',
   onHint,
 }: {
-  word: Pick<Word, 'id' | 'kanji' | 'kana'>;
+  word: Pick<Word, 'id' | 'kanji' | 'kana'> & Partial<Pick<Word, 'furigana'>>;
   showReading: boolean;
   size?: 'large' | 'small';
   /** Called once a peek is saved, with the kanji that moved to "still learning". */
@@ -43,7 +43,7 @@ export function JapaneseWord({
   const furigana = useFurigana();
   const [peeked, setPeeked] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const hidden = word.kanji ? hiddenKanji(word.kanji, word.kana, furigana.known) : '';
+  const hidden = word.kanji ? hiddenKanji(word.kanji, word.kana, furigana.known, word.furigana) : '';
   useEffect(() => {
     setPeeked(false);
     setError(null);
@@ -83,12 +83,12 @@ export function JapaneseWord({
 }
 
 /** The written form, with furigana over kanji you don't know yet, or over every kanji with `all`. */
-export function Written({ word, all = false }: { word: Pick<Word, 'kanji' | 'kana'>; all?: boolean }) {
+export function Written({ word, all = false }: { word: Pick<Word, 'kanji' | 'kana'> & Partial<Pick<Word, 'furigana'>>; all?: boolean }) {
   const { known } = useFurigana();
   if (word.kanji === null) return <>{word.kana}</>;
   return (
     <>
-      {furiganaSegments(word.kanji, word.kana, all ? NO_KANJI : known).map((s, i) =>
+      {furiganaSegments(word.kanji, word.kana, all ? NO_KANJI : known, word.furigana).map((s, i) =>
         s.ruby ? (
           <ruby key={i}>
             {s.text}

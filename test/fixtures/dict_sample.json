@@ -1,0 +1,5594 @@
+{
+ "version": "JMdict 2026-10-26 (jmdict-simplified 3.6.2)",
+ "entries": [
+  {
+   "seq": 1001010,
+   "common": true,
+   "kanji": [],
+   "kana": [
+    {
+     "text": "うっかり",
+     "common": true
+    },
+    {
+     "text": "ウッカリ"
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "adv",
+      "adv-to",
+      "vs"
+     ],
+     "gloss": [
+      "carelessly",
+      "thoughtlessly",
+      "inadvertently"
+     ],
+     "misc": [
+      "on-mim"
+     ]
+    }
+   ]
+  },
+  {
+   "seq": 1001030,
+   "common": true,
+   "kanji": [],
+   "kana": [
+    {
+     "text": "うとうと",
+     "common": true
+    },
+    {
+     "text": "ウトウト"
+    },
+    {
+     "text": "うとっと",
+     "tags": [
+      "sk"
+     ]
+    },
+    {
+     "text": "ウトッと",
+     "tags": [
+      "sk"
+     ]
+    },
+    {
+     "text": "ウトっと",
+     "tags": [
+      "sk"
+     ]
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "adv",
+      "adv-to",
+      "vs"
+     ],
+     "gloss": [
+      "falling into a doze",
+      "dozing off",
+      "nodding off"
+     ],
+     "misc": [
+      "on-mim"
+     ]
+    }
+   ]
+  },
+  {
+   "seq": 1003940,
+   "common": false,
+   "kanji": [],
+   "kana": [
+    {
+     "text": "クラクラ"
+    },
+    {
+     "text": "くらくら"
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "adv",
+      "adv-to",
+      "vs"
+     ],
+     "gloss": [
+      "dizzily",
+      "giddily",
+      "spinning",
+      "reeling",
+      "swimming"
+     ],
+     "misc": [
+      "on-mim"
+     ]
+    },
+    {
+     "pos": [
+      "adv",
+      "adv-to"
+     ],
+     "gloss": [
+      "boiling up"
+     ],
+     "misc": [
+      "on-mim"
+     ]
+    }
+   ]
+  },
+  {
+   "seq": 1005160,
+   "common": true,
+   "kanji": [],
+   "kana": [
+    {
+     "text": "させる",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "v1",
+      "vt"
+     ],
+     "gloss": [
+      "to make (someone) do"
+     ]
+    },
+    {
+     "pos": [
+      "v1",
+      "vt"
+     ],
+     "gloss": [
+      "to allow (someone) to do"
+     ]
+    }
+   ]
+  },
+  {
+   "seq": 1005600,
+   "common": true,
+   "kanji": [
+    {
+     "text": "仕舞った",
+     "tags": [
+      "rK"
+     ]
+    }
+   ],
+   "kana": [
+    {
+     "text": "しまった",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "int"
+     ],
+     "gloss": [
+      "darn it!",
+      "darn!",
+      "oops!",
+      "oh dear!",
+      "oh no!"
+     ],
+     "misc": [
+      "uk"
+     ]
+    }
+   ],
+   "furigana": {
+    "仕舞った|しまった": [
+     [
+      "仕",
+      "し"
+     ],
+     [
+      "舞",
+      "ま"
+     ],
+     [
+      "った"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1006380,
+   "common": true,
+   "kanji": [],
+   "kana": [
+    {
+     "text": "ずっと",
+     "common": true
+    },
+    {
+     "text": "ずーっと",
+     "common": true
+    },
+    {
+     "text": "ずうっと",
+     "tags": [
+      "sk"
+     ]
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "adv"
+     ],
+     "gloss": [
+      "continuously",
+      "the whole time",
+      "all the way",
+      "throughout"
+     ],
+     "info": [
+      "ずーっと is emphatic"
+     ]
+    },
+    {
+     "pos": [
+      "adv"
+     ],
+     "gloss": [
+      "much (more)",
+      "(by) far",
+      "far and away",
+      "a lot",
+      "a great deal"
+     ]
+    },
+    {
+     "pos": [
+      "adv"
+     ],
+     "gloss": [
+      "far (away)",
+      "long (ago, before, after)"
+     ]
+    },
+    {
+     "pos": [
+      "adv"
+     ],
+     "gloss": [
+      "straight",
+      "directly"
+     ]
+    }
+   ]
+  },
+  {
+   "seq": 1012600,
+   "common": false,
+   "kanji": [],
+   "kana": [
+    {
+     "text": "もたもた"
+    },
+    {
+     "text": "モタモタ"
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "adv",
+      "adv-to",
+      "vs"
+     ],
+     "gloss": [
+      "slowly",
+      "inefficiently",
+      "tardily",
+      "dawdling"
+     ],
+     "misc": [
+      "on-mim"
+     ]
+    }
+   ]
+  },
+  {
+   "seq": 1049000,
+   "common": true,
+   "kanji": [],
+   "kana": [
+    {
+     "text": "コート",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "coat"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "coating"
+     ]
+    }
+   ]
+  },
+  {
+   "seq": 1080510,
+   "common": true,
+   "kanji": [],
+   "kana": [
+    {
+     "text": "テレビ",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "television",
+      "TV"
+     ],
+     "misc": [
+      "abbr"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "TV program",
+      "TV programme",
+      "TV broadcast"
+     ]
+    }
+   ]
+  },
+  {
+   "seq": 1087630,
+   "common": true,
+   "kanji": [],
+   "kana": [
+    {
+     "text": "トンネル",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "tunnel"
+     ]
+    },
+    {
+     "pos": [
+      "vs"
+     ],
+     "gloss": [
+      "to tunnel (through a potential barrier)"
+     ]
+    },
+    {
+     "pos": [
+      "n",
+      "vs"
+     ],
+     "gloss": [
+      "letting a grounder go through one's legs"
+     ]
+    }
+   ]
+  },
+  {
+   "seq": 1157170,
+   "common": true,
+   "kanji": [
+    {
+     "text": "為る",
+     "tags": [
+      "rK"
+     ]
+    }
+   ],
+   "kana": [
+    {
+     "text": "する",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "vs-i"
+     ],
+     "gloss": [
+      "to do",
+      "to carry out",
+      "to perform"
+     ],
+     "misc": [
+      "uk"
+     ]
+    },
+    {
+     "pos": [
+      "vs-i"
+     ],
+     "gloss": [
+      "to cause to become",
+      "to make (into)",
+      "to turn (into)"
+     ],
+     "misc": [
+      "uk"
+     ]
+    },
+    {
+     "pos": [
+      "vs-i"
+     ],
+     "gloss": [
+      "to serve as",
+      "to act as",
+      "to work as"
+     ],
+     "misc": [
+      "uk"
+     ]
+    },
+    {
+     "pos": [
+      "vs-i"
+     ],
+     "gloss": [
+      "to wear (clothes, a facial expression, etc.)"
+     ],
+     "misc": [
+      "uk"
+     ]
+    },
+    {
+     "pos": [
+      "vs-i"
+     ],
+     "gloss": [
+      "to judge as being",
+      "to view as being",
+      "to think of as",
+      "to treat as",
+      "to use as"
+     ],
+     "misc": [
+      "uk"
+     ],
+     "info": [
+      "as 〜にする,〜とする"
+     ]
+    },
+    {
+     "pos": [
+      "vs-i"
+     ],
+     "gloss": [
+      "to decide on",
+      "to choose"
+     ],
+     "misc": [
+      "uk"
+     ],
+     "info": [
+      "as 〜にする"
+     ]
+    },
+    {
+     "pos": [
+      "vs-i",
+      "vi"
+     ],
+     "gloss": [
+      "to be sensed (of a smell, noise, etc.)"
+     ],
+     "misc": [
+      "uk"
+     ],
+     "info": [
+      "as 〜がする"
+     ]
+    },
+    {
+     "pos": [
+      "vs-i",
+      "vi"
+     ],
+     "gloss": [
+      "to be (in a state, condition, etc.)"
+     ],
+     "misc": [
+      "uk"
+     ]
+    },
+    {
+     "pos": [
+      "vs-i",
+      "vi"
+     ],
+     "gloss": [
+      "to be worth",
+      "to cost"
+     ],
+     "misc": [
+      "uk"
+     ]
+    },
+    {
+     "pos": [
+      "vs-i",
+      "vi"
+     ],
+     "gloss": [
+      "to pass (of time)",
+      "to elapse"
+     ],
+     "misc": [
+      "uk"
+     ]
+    },
+    {
+     "pos": [
+      "vs-i",
+      "vt"
+     ],
+     "gloss": [
+      "to place, or raise, person A to a post or status B"
+     ],
+     "misc": [
+      "uk"
+     ],
+     "info": [
+      "as AをBにする"
+     ]
+    },
+    {
+     "pos": [
+      "vs-i",
+      "vt"
+     ],
+     "gloss": [
+      "to transform A to B",
+      "to make A into B",
+      "to exchange A for B"
+     ],
+     "misc": [
+      "uk"
+     ],
+     "info": [
+      "as AをBにする"
+     ]
+    },
+    {
+     "pos": [
+      "vs-i",
+      "vt"
+     ],
+     "gloss": [
+      "to make use of A for B",
+      "to view A as B",
+      "to handle A as if it were B"
+     ],
+     "misc": [
+      "uk"
+     ],
+     "info": [
+      "as AをBにする"
+     ]
+    },
+    {
+     "pos": [
+      "vs-i",
+      "vt"
+     ],
+     "gloss": [
+      "to feel A about B"
+     ],
+     "misc": [
+      "uk"
+     ],
+     "info": [
+      "as AをBにする"
+     ]
+    },
+    {
+     "pos": [
+      "suf",
+      "vs-i"
+     ],
+     "gloss": [
+      "verbalizing suffix (applies to nouns noted in this dictionary with the part of speech \"vs\")"
+     ],
+     "misc": [
+      "uk"
+     ]
+    },
+    {
+     "pos": [
+      "aux-v",
+      "vs-i"
+     ],
+     "gloss": [
+      "creates a humble verb (after a noun prefixed with \"o\" or \"go\")"
+     ],
+     "misc": [
+      "uk"
+     ]
+    },
+    {
+     "pos": [
+      "aux-v",
+      "vs-i"
+     ],
+     "gloss": [
+      "to be just about to",
+      "to be just starting to",
+      "to try to",
+      "to attempt to"
+     ],
+     "misc": [
+      "uk"
+     ],
+     "info": [
+      "as 〜うとする,〜ようとする"
+     ]
+    }
+   ],
+   "furigana": {
+    "為る|する": [
+     [
+      "為",
+      "す"
+     ],
+     [
+      "る"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1163400,
+   "common": true,
+   "kanji": [
+    {
+     "text": "一緒",
+     "common": true
+    },
+    {
+     "text": "一しょ",
+     "tags": [
+      "sK"
+     ]
+    }
+   ],
+   "kana": [
+    {
+     "text": "いっしょ",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "(doing) together"
+     ],
+     "info": [
+      "usu. adverbially as 〜に"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "one lump",
+      "one mixture",
+      "the same category"
+     ]
+    },
+    {
+     "pos": [
+      "adj-no",
+      "n"
+     ],
+     "gloss": [
+      "the same",
+      "identical"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "(at) the same time"
+     ],
+     "info": [
+      "usu. adverbially as 〜に"
+     ]
+    }
+   ],
+   "furigana": {
+    "一緒|いっしょ": [
+     [
+      "一",
+      "いっ"
+     ],
+     [
+      "緒",
+      "しょ"
+     ]
+    ],
+    "一しょ|いっしょ": [
+     [
+      "一",
+      "いっ"
+     ],
+     [
+      "しょ"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1184450,
+   "common": true,
+   "kanji": [
+    {
+     "text": "下る",
+     "common": true
+    },
+    {
+     "text": "降る"
+    }
+   ],
+   "kana": [
+    {
+     "text": "くだる",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "v5r",
+      "vi"
+     ],
+     "gloss": [
+      "to descend",
+      "to go down",
+      "to come down"
+     ]
+    },
+    {
+     "pos": [
+      "v5r",
+      "vi"
+     ],
+     "gloss": [
+      "to be handed down (of an order, judgment, etc.)"
+     ]
+    },
+    {
+     "pos": [
+      "v5r",
+      "vi"
+     ],
+     "gloss": [
+      "to pass (of time)"
+     ]
+    },
+    {
+     "pos": [
+      "v5r",
+      "vi"
+     ],
+     "gloss": [
+      "to surrender",
+      "to capitulate"
+     ]
+    },
+    {
+     "pos": [
+      "v5r",
+      "vi"
+     ],
+     "gloss": [
+      "to be less than",
+      "to be inferior to"
+     ],
+     "info": [
+      "often in neg. form"
+     ]
+    },
+    {
+     "pos": [
+      "v5r",
+      "vi"
+     ],
+     "gloss": [
+      "to have the runs",
+      "to have diarrhea"
+     ],
+     "info": [
+      "also written as 瀉る"
+     ]
+    },
+    {
+     "pos": [
+      "v5r",
+      "vi"
+     ],
+     "gloss": [
+      "to pass (in stool)",
+      "to be discharged from the body"
+     ]
+    },
+    {
+     "pos": [
+      "v5r",
+      "vi"
+     ],
+     "gloss": [
+      "to depreciate oneself",
+      "to be humble"
+     ],
+     "misc": [
+      "arch"
+     ]
+    }
+   ],
+   "furigana": {
+    "下る|くだる": [
+     [
+      "下",
+      "くだ"
+     ],
+     [
+      "る"
+     ]
+    ],
+    "降る|くだる": [
+     [
+      "降",
+      "くだ"
+     ],
+     [
+      "る"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1195290,
+   "common": false,
+   "kanji": [
+    {
+     "text": "荷車"
+    }
+   ],
+   "kana": [
+    {
+     "text": "にぐるま"
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "cart",
+      "wagon"
+     ]
+    }
+   ],
+   "furigana": {
+    "荷車|にぐるま": [
+     [
+      "荷",
+      "に"
+     ],
+     [
+      "車",
+      "ぐるま"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1200330,
+   "common": true,
+   "kanji": [
+    {
+     "text": "怪物",
+     "common": true
+    }
+   ],
+   "kana": [
+    {
+     "text": "かいぶつ",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "monster"
+     ]
+    }
+   ],
+   "furigana": {
+    "怪物|かいぶつ": [
+     [
+      "怪",
+      "かい"
+     ],
+     [
+      "物",
+      "ぶつ"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1206730,
+   "common": true,
+   "kanji": [
+    {
+     "text": "学校",
+     "common": true
+    },
+    {
+     "text": "學校",
+     "tags": [
+      "sK"
+     ]
+    }
+   ],
+   "kana": [
+    {
+     "text": "がっこう",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "school"
+     ]
+    }
+   ],
+   "furigana": {
+    "学校|がっこう": [
+     [
+      "学",
+      "がっ"
+     ],
+     [
+      "校",
+      "こう"
+     ]
+    ],
+    "學校|がっこう": [
+     [
+      "學",
+      "がっ"
+     ],
+     [
+      "校",
+      "こう"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1218380,
+   "common": true,
+   "kanji": [
+    {
+     "text": "危ない",
+     "common": true
+    },
+    {
+     "text": "危い",
+     "tags": [
+      "sK"
+     ]
+    }
+   ],
+   "kana": [
+    {
+     "text": "あぶない",
+     "common": true
+    },
+    {
+     "text": "アブない",
+     "tags": [
+      "sk"
+     ]
+    },
+    {
+     "text": "アブナい",
+     "tags": [
+      "sk"
+     ]
+    },
+    {
+     "text": "あぶねー",
+     "tags": [
+      "sk"
+     ]
+    },
+    {
+     "text": "あっぶねー",
+     "tags": [
+      "sk"
+     ]
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "adj-i"
+     ],
+     "gloss": [
+      "dangerous",
+      "risky",
+      "hazardous",
+      "perilous",
+      "precarious"
+     ]
+    },
+    {
+     "pos": [
+      "adj-i"
+     ],
+     "gloss": [
+      "in danger",
+      "in jeopardy",
+      "critical",
+      "grave",
+      "at risk"
+     ]
+    },
+    {
+     "pos": [
+      "adj-i"
+     ],
+     "gloss": [
+      "uncertain",
+      "unreliable",
+      "insecure",
+      "unsteady",
+      "doubtful"
+     ]
+    },
+    {
+     "pos": [
+      "adj-i"
+     ],
+     "gloss": [
+      "close (call)",
+      "narrow (escape)"
+     ]
+    },
+    {
+     "pos": [
+      "adj-i"
+     ],
+     "gloss": [
+      "sketchy",
+      "shady",
+      "dodgy"
+     ],
+     "misc": [
+      "col"
+     ],
+     "info": [
+      "often as アブない"
+     ]
+    },
+    {
+     "pos": [
+      "int"
+     ],
+     "gloss": [
+      "look out!",
+      "watch out!",
+      "be careful!"
+     ]
+    }
+   ],
+   "furigana": {
+    "危ない|あぶない": [
+     [
+      "危",
+      "あぶ"
+     ],
+     [
+      "ない"
+     ]
+    ],
+    "危い|あぶない": [
+     [
+      "危",
+      "あぶな"
+     ],
+     [
+      "い"
+     ]
+    ],
+    "危ない|アブない": [
+     [
+      "危",
+      "アブ"
+     ],
+     [
+      "ない"
+     ]
+    ],
+    "危い|アブない": [
+     [
+      "危",
+      "アブな"
+     ],
+     [
+      "い"
+     ]
+    ],
+    "危い|アブナい": [
+     [
+      "危",
+      "アブナ"
+     ],
+     [
+      "い"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1254340,
+   "common": true,
+   "kanji": [
+    {
+     "text": "決心",
+     "common": true
+    }
+   ],
+   "kana": [
+    {
+     "text": "けっしん",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "n",
+      "vs",
+      "vt"
+     ],
+     "gloss": [
+      "determination",
+      "resolution"
+     ]
+    }
+   ],
+   "furigana": {
+    "決心|けっしん": [
+     [
+      "決",
+      "けっ"
+     ],
+     [
+      "心",
+      "しん"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1258330,
+   "common": true,
+   "kanji": [
+    {
+     "text": "犬",
+     "common": true
+    },
+    {
+     "text": "狗"
+    }
+   ],
+   "kana": [
+    {
+     "text": "いぬ",
+     "common": true
+    },
+    {
+     "text": "イヌ",
+     "kanji": []
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "dog (Canis (lupus) familiaris)",
+      "canine"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "squealer",
+      "rat",
+      "snitch",
+      "informer",
+      "informant",
+      "spy"
+     ],
+     "misc": [
+      "derog",
+      "uk"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "loser",
+      "asshole"
+     ],
+     "misc": [
+      "derog"
+     ]
+    },
+    {
+     "pos": [
+      "n-pref"
+     ],
+     "gloss": [
+      "counterfeit",
+      "inferior",
+      "useless",
+      "wasteful"
+     ]
+    }
+   ],
+   "furigana": {
+    "犬|いぬ": [
+     [
+      "犬",
+      "いぬ"
+     ]
+    ],
+    "狗|いぬ": [
+     [
+      "狗",
+      "いぬ"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1259860,
+   "common": true,
+   "kanji": [
+    {
+     "text": "見知らぬ",
+     "common": true
+    },
+    {
+     "text": "見しらぬ",
+     "tags": [
+      "sK"
+     ]
+    }
+   ],
+   "kana": [
+    {
+     "text": "みしらぬ",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "adj-pn"
+     ],
+     "gloss": [
+      "strange",
+      "unfamiliar",
+      "unknown"
+     ]
+    }
+   ],
+   "furigana": {
+    "見知らぬ|みしらぬ": [
+     [
+      "見",
+      "み"
+     ],
+     [
+      "知",
+      "し"
+     ],
+     [
+      "らぬ"
+     ]
+    ],
+    "見しらぬ|みしらぬ": [
+     [
+      "見",
+      "み"
+     ],
+     [
+      "しらぬ"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1260670,
+   "common": true,
+   "kanji": [
+    {
+     "text": "元",
+     "common": true
+    },
+    {
+     "text": "本",
+     "common": true
+    },
+    {
+     "text": "素"
+    },
+    {
+     "text": "基"
+    },
+    {
+     "text": "因",
+     "tags": [
+      "sK"
+     ]
+    }
+   ],
+   "kana": [
+    {
+     "text": "もと",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "origin",
+      "source",
+      "beginning"
+     ],
+     "info": [
+      "esp. 元"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "basis",
+      "base",
+      "foundation",
+      "root"
+     ],
+     "info": [
+      "oft. 基"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "cause"
+     ],
+     "info": [
+      "also written as 因, 原"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "(raw) material",
+      "ingredient",
+      "base",
+      "mix (e.g. for a cake)",
+      "(soup) stock"
+     ],
+     "info": [
+      "esp. 素"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "(one's) side"
+     ],
+     "kanji": [
+      "元"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "capital",
+      "principal",
+      "cost price"
+     ],
+     "kanji": [
+      "元"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "root (of a plant)",
+      "(tree) trunk"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "part (of a brush, chopsticks, etc.) one holds (with the hand)"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "first three lines of a waka"
+     ]
+    },
+    {
+     "pos": [
+      "ctr"
+     ],
+     "gloss": [
+      "counter for plants or trees"
+     ],
+     "kanji": [
+      "本"
+     ]
+    },
+    {
+     "pos": [
+      "ctr"
+     ],
+     "gloss": [
+      "counter for falcons (in falconry)"
+     ],
+     "kanji": [
+      "本"
+     ]
+    }
+   ],
+   "furigana": {
+    "元|もと": [
+     [
+      "元",
+      "もと"
+     ]
+    ],
+    "本|もと": [
+     [
+      "本",
+      "もと"
+     ]
+    ],
+    "素|もと": [
+     [
+      "素",
+      "もと"
+     ]
+    ],
+    "基|もと": [
+     [
+      "基",
+      "もと"
+     ]
+    ],
+    "因|もと": [
+     [
+      "因",
+      "もと"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1279680,
+   "common": true,
+   "kanji": [
+    {
+     "text": "構う",
+     "common": true
+    }
+   ],
+   "kana": [
+    {
+     "text": "かまう",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "v5u",
+      "vi"
+     ],
+     "gloss": [
+      "to mind",
+      "to care about",
+      "to be concerned about",
+      "to have a regard for"
+     ]
+    },
+    {
+     "pos": [
+      "v5u",
+      "vi"
+     ],
+     "gloss": [
+      "to be an issue",
+      "to matter",
+      "to create inconvenience"
+     ]
+    },
+    {
+     "pos": [
+      "v5u",
+      "vt"
+     ],
+     "gloss": [
+      "to keep company",
+      "to care for",
+      "to look after",
+      "to entertain",
+      "to pay attention to",
+      "to spend time with"
+     ],
+     "misc": [
+      "uk"
+     ]
+    },
+    {
+     "pos": [
+      "v5u",
+      "vi"
+     ],
+     "gloss": [
+      "to interfere with",
+      "to meddle in"
+     ]
+    },
+    {
+     "pos": [
+      "v5u",
+      "vt"
+     ],
+     "gloss": [
+      "to tease"
+     ]
+    },
+    {
+     "pos": [
+      "v5u",
+      "vt"
+     ],
+     "gloss": [
+      "to banish",
+      "to prohibit"
+     ],
+     "misc": [
+      "arch"
+     ]
+    }
+   ],
+   "furigana": {
+    "構う|かまう": [
+     [
+      "構",
+      "かま"
+     ],
+     [
+      "う"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1282790,
+   "common": true,
+   "kanji": [
+    {
+     "text": "降る",
+     "common": true
+    }
+   ],
+   "kana": [
+    {
+     "text": "ふる",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "v5r",
+      "vi"
+     ],
+     "gloss": [
+      "to fall (of rain, snow, ash, etc.)",
+      "to come down"
+     ]
+    },
+    {
+     "pos": [
+      "v5r",
+      "vi"
+     ],
+     "gloss": [
+      "to form (of frost)"
+     ]
+    },
+    {
+     "pos": [
+      "v5r",
+      "vi"
+     ],
+     "gloss": [
+      "to beam down (of sunlight or moonlight)",
+      "to pour in"
+     ]
+    },
+    {
+     "pos": [
+      "v5r",
+      "vi"
+     ],
+     "gloss": [
+      "to visit (of luck, misfortune, etc.)",
+      "to come",
+      "to arrive"
+     ]
+    }
+   ],
+   "furigana": {
+    "降る|ふる": [
+     [
+      "降",
+      "ふ"
+     ],
+     [
+      "る"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1298670,
+   "common": true,
+   "kanji": [
+    {
+     "text": "刷る",
+     "common": true
+    },
+    {
+     "text": "摺る"
+    }
+   ],
+   "kana": [
+    {
+     "text": "する",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "v5r",
+      "vt"
+     ],
+     "gloss": [
+      "to print"
+     ]
+    },
+    {
+     "pos": [
+      "v5r",
+      "vt"
+     ],
+     "gloss": [
+      "to color or pattern fabric using a wooden mold"
+     ]
+    }
+   ],
+   "furigana": {
+    "刷る|する": [
+     [
+      "刷",
+      "す"
+     ],
+     [
+      "る"
+     ]
+    ],
+    "摺る|する": [
+     [
+      "摺",
+      "す"
+     ],
+     [
+      "る"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1304600,
+   "common": true,
+   "kanji": [
+    {
+     "text": "残酷",
+     "common": true
+    },
+    {
+     "text": "惨酷",
+     "tags": [
+      "rK"
+     ]
+    },
+    {
+     "text": "残刻",
+     "tags": [
+      "rK"
+     ]
+    },
+    {
+     "text": "惨刻",
+     "tags": [
+      "rK"
+     ]
+    }
+   ],
+   "kana": [
+    {
+     "text": "ざんこく",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "adj-na",
+      "n"
+     ],
+     "gloss": [
+      "cruel",
+      "brutal",
+      "ruthless",
+      "merciless",
+      "inhuman"
+     ]
+    }
+   ],
+   "furigana": {
+    "残酷|ざんこく": [
+     [
+      "残",
+      "ざん"
+     ],
+     [
+      "酷",
+      "こく"
+     ]
+    ],
+    "惨酷|ざんこく": [
+     [
+      "惨",
+      "ざん"
+     ],
+     [
+      "酷",
+      "こく"
+     ]
+    ],
+    "残刻|ざんこく": [
+     [
+      "残",
+      "ざん"
+     ],
+     [
+      "刻",
+      "こく"
+     ]
+    ],
+    "惨刻|ざんこく": [
+     [
+      "惨",
+      "ざん"
+     ],
+     [
+      "刻",
+      "こく"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1310530,
+   "common": true,
+   "kanji": [
+    {
+     "text": "枝",
+     "common": true
+    }
+   ],
+   "kana": [
+    {
+     "text": "えだ",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "branch",
+      "bough",
+      "limb",
+      "twig",
+      "sprig",
+      "spray"
+     ]
+    }
+   ],
+   "furigana": {
+    "枝|えだ": [
+     [
+      "枝",
+      "えだ"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1316300,
+   "common": true,
+   "kanji": [
+    {
+     "text": "時代",
+     "common": true
+    }
+   ],
+   "kana": [
+    {
+     "text": "じだい",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "period",
+      "epoch",
+      "era",
+      "age"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "the times",
+      "those days"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "oldness",
+      "ancientness",
+      "antiquity"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "antique",
+      "period piece"
+     ],
+     "misc": [
+      "abbr"
+     ]
+    }
+   ],
+   "furigana": {
+    "時代|じだい": [
+     [
+      "時",
+      "じ"
+     ],
+     [
+      "代",
+      "だい"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1323350,
+   "common": true,
+   "kanji": [
+    {
+     "text": "蛇",
+     "common": true
+    }
+   ],
+   "kana": [
+    {
+     "text": "へび",
+     "common": true
+    },
+    {
+     "text": "じゃ"
+    },
+    {
+     "text": "くちなわ"
+    },
+    {
+     "text": "へみ",
+     "tags": [
+      "ok"
+     ]
+    },
+    {
+     "text": "ヘビ",
+     "kanji": []
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "snake"
+     ],
+     "info": [
+      "じゃ is more associated with serpent and large snakes"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "serpent",
+      "large snake"
+     ]
+    }
+   ],
+   "furigana": {
+    "蛇|へび": [
+     [
+      "蛇",
+      "へび"
+     ]
+    ],
+    "蛇|じゃ": [
+     [
+      "蛇",
+      "じゃ"
+     ]
+    ],
+    "蛇|くちなわ": [
+     [
+      "蛇",
+      "くちなわ"
+     ]
+    ],
+    "蛇|へみ": [
+     [
+      "蛇",
+      "へみ"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1344410,
+   "common": true,
+   "kanji": [
+    {
+     "text": "助ける",
+     "common": true
+    },
+    {
+     "text": "援ける",
+     "tags": [
+      "rK"
+     ]
+    },
+    {
+     "text": "救ける",
+     "tags": [
+      "rK"
+     ]
+    },
+    {
+     "text": "扶ける",
+     "tags": [
+      "rK"
+     ]
+    },
+    {
+     "text": "佐ける",
+     "tags": [
+      "rK"
+     ]
+    },
+    {
+     "text": "佑ける",
+     "tags": [
+      "rK"
+     ]
+    },
+    {
+     "text": "輔ける",
+     "tags": [
+      "rK"
+     ]
+    },
+    {
+     "text": "補ける",
+     "tags": [
+      "sK"
+     ]
+    }
+   ],
+   "kana": [
+    {
+     "text": "たすける",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "v1",
+      "vt"
+     ],
+     "gloss": [
+      "to save",
+      "to rescue",
+      "to spare"
+     ]
+    },
+    {
+     "pos": [
+      "v1",
+      "vt"
+     ],
+     "gloss": [
+      "to help",
+      "to assist"
+     ]
+    },
+    {
+     "pos": [
+      "v1",
+      "vt"
+     ],
+     "gloss": [
+      "to support (financially)",
+      "to contribute (to)",
+      "to provide aid"
+     ]
+    },
+    {
+     "pos": [
+      "v1",
+      "vt"
+     ],
+     "gloss": [
+      "to facilitate",
+      "to stimulate",
+      "to promote",
+      "to contribute to"
+     ]
+    }
+   ],
+   "furigana": {
+    "助ける|たすける": [
+     [
+      "助",
+      "たす"
+     ],
+     [
+      "ける"
+     ]
+    ],
+    "援ける|たすける": [
+     [
+      "援",
+      "たす"
+     ],
+     [
+      "ける"
+     ]
+    ],
+    "救ける|たすける": [
+     [
+      "救",
+      "たす"
+     ],
+     [
+      "ける"
+     ]
+    ],
+    "扶ける|たすける": [
+     [
+      "扶",
+      "たす"
+     ],
+     [
+      "ける"
+     ]
+    ],
+    "佐ける|たすける": [
+     [
+      "佐",
+      "たす"
+     ],
+     [
+      "ける"
+     ]
+    ],
+    "佑ける|たすける": [
+     [
+      "佑",
+      "たす"
+     ],
+     [
+      "ける"
+     ]
+    ],
+    "輔ける|たすける": [
+     [
+      "輔",
+      "たす"
+     ],
+     [
+      "ける"
+     ]
+    ],
+    "補ける|たすける": [
+     [
+      "補",
+      "たす"
+     ],
+     [
+      "ける"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1358280,
+   "common": true,
+   "kanji": [
+    {
+     "text": "食べる",
+     "common": true
+    },
+    {
+     "text": "喰べる",
+     "tags": [
+      "sK"
+     ]
+    }
+   ],
+   "kana": [
+    {
+     "text": "たべる",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "v1",
+      "vt"
+     ],
+     "gloss": [
+      "to eat"
+     ]
+    },
+    {
+     "pos": [
+      "v1",
+      "vt"
+     ],
+     "gloss": [
+      "to live on (e.g. a salary)",
+      "to live off",
+      "to subsist on"
+     ]
+    }
+   ],
+   "furigana": {
+    "食べる|たべる": [
+     [
+      "食",
+      "た"
+     ],
+     [
+      "べる"
+     ]
+    ],
+    "喰べる|たべる": [
+     [
+      "喰",
+      "た"
+     ],
+     [
+      "べる"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1358340,
+   "common": true,
+   "kanji": [
+    {
+     "text": "食べ物",
+     "common": true
+    },
+    {
+     "text": "食べもの",
+     "tags": [
+      "sK"
+     ]
+    }
+   ],
+   "kana": [
+    {
+     "text": "たべもの",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "food"
+     ]
+    }
+   ],
+   "furigana": {
+    "食べ物|たべもの": [
+     [
+      "食",
+      "た"
+     ],
+     [
+      "べ"
+     ],
+     [
+      "物",
+      "もの"
+     ]
+    ],
+    "食べもの|たべもの": [
+     [
+      "食",
+      "た"
+     ],
+     [
+      "べもの"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1361330,
+   "common": true,
+   "kanji": [
+    {
+     "text": "振る",
+     "common": true
+    }
+   ],
+   "kana": [
+    {
+     "text": "ふる",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "v5r",
+      "vt"
+     ],
+     "gloss": [
+      "to wave",
+      "to shake",
+      "to swing"
+     ]
+    },
+    {
+     "pos": [
+      "v5r",
+      "vt"
+     ],
+     "gloss": [
+      "to sprinkle",
+      "to throw (dice)"
+     ]
+    },
+    {
+     "pos": [
+      "v5r",
+      "vt"
+     ],
+     "gloss": [
+      "to cast (actor)",
+      "to allocate (work)"
+     ]
+    },
+    {
+     "pos": [
+      "v5r",
+      "vt"
+     ],
+     "gloss": [
+      "to turn down (someone)",
+      "to reject",
+      "to jilt",
+      "to dump"
+     ]
+    },
+    {
+     "pos": [
+      "v5r",
+      "vt"
+     ],
+     "gloss": [
+      "to abandon",
+      "to give up",
+      "to ruin"
+     ]
+    },
+    {
+     "pos": [
+      "v5r",
+      "vt"
+     ],
+     "gloss": [
+      "to add kana indicating a reading of a word"
+     ]
+    },
+    {
+     "pos": [
+      "v5r",
+      "vt"
+     ],
+     "gloss": [
+      "to slightly change headings",
+      "to change directions"
+     ]
+    },
+    {
+     "pos": [
+      "v5r",
+      "vt"
+     ],
+     "gloss": [
+      "to extract by broiling",
+      "to prepare an infusion of",
+      "to decoct"
+     ]
+    },
+    {
+     "pos": [
+      "v5r",
+      "vt"
+     ],
+     "gloss": [
+      "to carry with great vigor (e.g. a portable shrine)"
+     ]
+    },
+    {
+     "pos": [
+      "v5r",
+      "vt"
+     ],
+     "gloss": [
+      "to bring up a topic",
+      "to lead to a topic"
+     ]
+    },
+    {
+     "pos": [
+      "v5r",
+      "vt"
+     ],
+     "gloss": [
+      "to replace",
+      "to substitute"
+     ]
+    },
+    {
+     "pos": [
+      "v5r",
+      "vt"
+     ],
+     "gloss": [
+      "to set up a joke for someone else"
+     ]
+    }
+   ],
+   "furigana": {
+    "振る|ふる": [
+     [
+      "振",
+      "ふ"
+     ],
+     [
+      "る"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1371260,
+   "common": true,
+   "kanji": [
+    {
+     "text": "水",
+     "common": true
+    }
+   ],
+   "kana": [
+    {
+     "text": "みず",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "water (esp. cool or cold)"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "fluid (esp. in an animal tissue)",
+      "liquid"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "flood",
+      "floodwaters"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "water offered to wrestlers just prior to a bout"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "break granted to wrestlers engaged in a prolonged bout"
+     ]
+    }
+   ],
+   "furigana": {
+    "水|みず": [
+     [
+      "水",
+      "みず"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1373400,
+   "common": true,
+   "kanji": [
+    {
+     "text": "雛",
+     "common": true
+    },
+    {
+     "text": "ひよっ子",
+     "tags": [
+      "sK"
+     ]
+    }
+   ],
+   "kana": [
+    {
+     "text": "ひよこ",
+     "common": true
+    },
+    {
+     "text": "ひよっこ"
+    },
+    {
+     "text": "ヒヨコ",
+     "kanji": []
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "young bird",
+      "chick",
+      "fledgling"
+     ],
+     "misc": [
+      "uk"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "greenhorn",
+      "fledgeling",
+      "novice",
+      "rookie",
+      "juvenile"
+     ],
+     "misc": [
+      "uk"
+     ]
+    }
+   ],
+   "furigana": {
+    "雛|ひよこ": [
+     [
+      "雛",
+      "ひよこ"
+     ]
+    ],
+    "雛|ひよっこ": [
+     [
+      "雛",
+      "ひよっこ"
+     ]
+    ],
+    "ひよっ子|ひよっこ": [
+     [
+      "ひよっ"
+     ],
+     [
+      "子",
+      "こ"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1377030,
+   "common": true,
+   "kanji": [
+    {
+     "text": "正月",
+     "common": true
+    }
+   ],
+   "kana": [
+    {
+     "text": "しょうがつ",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "New Year (esp. first three days)"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "first month of the year",
+      "January"
+     ]
+    }
+   ],
+   "furigana": {
+    "正月|しょうがつ": [
+     [
+      "正",
+      "しょう"
+     ],
+     [
+      "月",
+      "がつ"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1386840,
+   "common": true,
+   "kanji": [
+    {
+     "text": "絶対",
+     "common": true
+    }
+   ],
+   "kana": [
+    {
+     "text": "ぜったい",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "adv"
+     ],
+     "gloss": [
+      "absolutely",
+      "definitely",
+      "unconditionally"
+     ]
+    },
+    {
+     "pos": [
+      "adj-no"
+     ],
+     "gloss": [
+      "absolute",
+      "unconditional",
+      "unmistakable"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "absoluteness"
+     ]
+    }
+   ],
+   "furigana": {
+    "絶対|ぜったい": [
+     [
+      "絶",
+      "ぜっ"
+     ],
+     [
+      "対",
+      "たい"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1399970,
+   "common": true,
+   "kanji": [
+    {
+     "text": "掻く",
+     "common": true
+    },
+    {
+     "text": "搔く",
+     "tags": [
+      "sK"
+     ]
+    }
+   ],
+   "kana": [
+    {
+     "text": "かく",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "v5k",
+      "vt"
+     ],
+     "gloss": [
+      "to scratch"
+     ],
+     "misc": [
+      "uk"
+     ]
+    },
+    {
+     "pos": [
+      "v5k",
+      "vt"
+     ],
+     "gloss": [
+      "to perspire"
+     ],
+     "misc": [
+      "uk"
+     ]
+    },
+    {
+     "pos": [
+      "v5k",
+      "vt"
+     ],
+     "gloss": [
+      "to shovel",
+      "to paddle"
+     ],
+     "misc": [
+      "uk"
+     ]
+    }
+   ],
+   "furigana": {
+    "掻く|かく": [
+     [
+      "掻",
+      "か"
+     ],
+     [
+      "く"
+     ]
+    ],
+    "搔く|かく": [
+     [
+      "搔",
+      "か"
+     ],
+     [
+      "く"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1409110,
+   "common": true,
+   "kanji": [
+    {
+     "text": "駄目",
+     "common": true
+    }
+   ],
+   "kana": [
+    {
+     "text": "だめ",
+     "common": true
+    },
+    {
+     "text": "ダメ",
+     "kanji": []
+    },
+    {
+     "text": "だーめ",
+     "tags": [
+      "sk"
+     ]
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "adj-na",
+      "n"
+     ],
+     "gloss": [
+      "no good",
+      "not serving its purpose",
+      "useless",
+      "broken"
+     ],
+     "misc": [
+      "uk"
+     ]
+    },
+    {
+     "pos": [
+      "adj-na",
+      "n"
+     ],
+     "gloss": [
+      "hopeless",
+      "wasted",
+      "in vain",
+      "purposeless"
+     ],
+     "misc": [
+      "uk"
+     ]
+    },
+    {
+     "pos": [
+      "adj-na",
+      "n"
+     ],
+     "gloss": [
+      "cannot",
+      "must not",
+      "not allowed"
+     ],
+     "misc": [
+      "uk"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "neutral point",
+      "intersection owned by neither player at the end of a game"
+     ]
+    },
+    {
+     "pos": [
+      "int"
+     ],
+     "gloss": [
+      "no!",
+      "stop!"
+     ],
+     "misc": [
+      "uk"
+     ]
+    }
+   ],
+   "furigana": {
+    "駄目|だめ": [
+     [
+      "駄",
+      "だ"
+     ],
+     [
+      "目",
+      "め"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1416840,
+   "common": true,
+   "kanji": [
+    {
+     "text": "誰か",
+     "common": true
+    }
+   ],
+   "kana": [
+    {
+     "text": "だれか",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "pn"
+     ],
+     "gloss": [
+      "someone",
+      "somebody"
+     ]
+    }
+   ],
+   "furigana": {
+    "誰か|だれか": [
+     [
+      "誰",
+      "だれ"
+     ],
+     [
+      "か"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1418480,
+   "common": true,
+   "kanji": [
+    {
+     "text": "炭",
+     "common": true
+    }
+   ],
+   "kana": [
+    {
+     "text": "すみ",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "charcoal"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "charred remains"
+     ],
+     "misc": [
+      "rare"
+     ]
+    }
+   ],
+   "furigana": {
+    "炭|すみ": [
+     [
+      "炭",
+      "すみ"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1419200,
+   "common": true,
+   "kanji": [
+    {
+     "text": "団栗",
+     "tags": [
+      "ateji",
+      "rK"
+     ]
+    },
+    {
+     "text": "橡",
+     "tags": [
+      "rK"
+     ]
+    }
+   ],
+   "kana": [
+    {
+     "text": "どんぐり",
+     "common": true
+    },
+    {
+     "text": "ドングリ",
+     "kanji": []
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "acorn"
+     ],
+     "misc": [
+      "uk"
+     ]
+    }
+   ],
+   "furigana": {
+    "橡|どんぐり": [
+     [
+      "橡",
+      "どんぐり"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1426680,
+   "common": true,
+   "kanji": [
+    {
+     "text": "虫",
+     "common": true
+    },
+    {
+     "text": "蟲",
+     "tags": [
+      "oK"
+     ]
+    }
+   ],
+   "kana": [
+    {
+     "text": "むし",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "insect",
+      "bug",
+      "cricket",
+      "moth"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "worm",
+      "roundworm"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "thing inside one's body believed to influence one's thoughts and feelings",
+      "(one's) unconscious"
+     ],
+     "info": [
+      "from a traditional belief of an internal insect"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "nervousness",
+      "fretfulness"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "person devoted to one thing",
+      "single-minded person"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "valve core"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "mushi (type of game played with a stripped deck)"
+     ],
+     "misc": [
+      "uk"
+     ]
+    }
+   ],
+   "furigana": {
+    "虫|むし": [
+     [
+      "虫",
+      "むし"
+     ]
+    ],
+    "蟲|むし": [
+     [
+      "蟲",
+      "むし"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1446150,
+   "common": true,
+   "kanji": [
+    {
+     "text": "冬眠",
+     "common": true
+    }
+   ],
+   "kana": [
+    {
+     "text": "とうみん",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "n",
+      "vs",
+      "vi"
+     ],
+     "gloss": [
+      "hibernation",
+      "winter sleep",
+      "brumation",
+      "torpor"
+     ]
+    }
+   ],
+   "furigana": {
+    "冬眠|とうみん": [
+     [
+      "冬",
+      "とう"
+     ],
+     [
+      "眠",
+      "みん"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1457040,
+   "common": true,
+   "kanji": [
+    {
+     "text": "突然",
+     "common": true
+    }
+   ],
+   "kana": [
+    {
+     "text": "とつぜん",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "adj-no",
+      "adj-na",
+      "adv"
+     ],
+     "gloss": [
+      "abrupt",
+      "sudden",
+      "unexpected"
+     ]
+    }
+   ],
+   "furigana": {
+    "突然|とつぜん": [
+     [
+      "突",
+      "とつ"
+     ],
+     [
+      "然",
+      "ぜん"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1467640,
+   "common": true,
+   "kanji": [
+    {
+     "text": "猫",
+     "common": true
+    }
+   ],
+   "kana": [
+    {
+     "text": "ねこ",
+     "common": true
+    },
+    {
+     "text": "ネコ",
+     "kanji": []
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "cat (esp. the domestic cat, Felis catus)",
+      "feline"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "shamisen"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "geisha"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "wheelbarrow"
+     ],
+     "misc": [
+      "abbr"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "clay bed-warmer"
+     ],
+     "misc": [
+      "abbr"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "bottom (submissive partner of a homosexual relationship)"
+     ],
+     "misc": [
+      "uk",
+      "sl"
+     ]
+    }
+   ],
+   "furigana": {
+    "猫|ねこ": [
+     [
+      "猫",
+      "ねこ"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1478200,
+   "common": true,
+   "kanji": [
+    {
+     "text": "抜ける",
+     "common": true
+    },
+    {
+     "text": "脱ける"
+    }
+   ],
+   "kana": [
+    {
+     "text": "ぬける",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "v1",
+      "vi"
+     ],
+     "gloss": [
+      "to come out",
+      "to fall out",
+      "to be omitted",
+      "to be missing",
+      "to escape",
+      "to come loose"
+     ]
+    },
+    {
+     "pos": [
+      "v1",
+      "vi"
+     ],
+     "gloss": [
+      "to fade",
+      "to discolour"
+     ]
+    },
+    {
+     "pos": [
+      "v1",
+      "vi"
+     ],
+     "gloss": [
+      "to wear a hole (e.g. clothes)"
+     ]
+    },
+    {
+     "pos": [
+      "v1",
+      "vi"
+     ],
+     "gloss": [
+      "to leave (e.g. a meeting)"
+     ]
+    },
+    {
+     "pos": [
+      "v1",
+      "vi"
+     ],
+     "gloss": [
+      "to be clear",
+      "to be transparent (e.g. of the sky)"
+     ]
+    },
+    {
+     "pos": [
+      "v1",
+      "vi"
+     ],
+     "gloss": [
+      "to be absentminded",
+      "to be careless",
+      "to be inattentive",
+      "to be foolish"
+     ],
+     "info": [
+      "usu. as 抜けた or 抜けている"
+     ]
+    },
+    {
+     "pos": [
+      "v1",
+      "vi"
+     ],
+     "gloss": [
+      "to exit (a program loop)"
+     ]
+    },
+    {
+     "pos": [
+      "v1",
+      "vt"
+     ],
+     "gloss": [
+      "to go through",
+      "to pass through",
+      "to give way",
+      "to collapse"
+     ]
+    },
+    {
+     "pos": [
+      "v1",
+      "vt"
+     ],
+     "gloss": [
+      "to finish a round with more than 88 points (not counting points gained from scoring combinations)"
+     ]
+    }
+   ],
+   "furigana": {
+    "抜ける|ぬける": [
+     [
+      "抜",
+      "ぬ"
+     ],
+     [
+      "ける"
+     ]
+    ],
+    "脱ける|ぬける": [
+     [
+      "脱",
+      "ぬ"
+     ],
+     [
+      "ける"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1481890,
+   "common": true,
+   "kanji": [
+    {
+     "text": "範囲",
+     "common": true
+    }
+   ],
+   "kana": [
+    {
+     "text": "はんい",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "extent",
+      "scope",
+      "sphere",
+      "range",
+      "span"
+     ]
+    }
+   ],
+   "furigana": {
+    "範囲|はんい": [
+     [
+      "範",
+      "はん"
+     ],
+     [
+      "囲",
+      "い"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1487400,
+   "common": true,
+   "kanji": [
+    {
+     "text": "必ず",
+     "common": true
+    }
+   ],
+   "kana": [
+    {
+     "text": "かならず",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "adv"
+     ],
+     "gloss": [
+      "always",
+      "without exception",
+      "necessarily",
+      "certainly",
+      "without fail",
+      "positively",
+      "invariably"
+     ]
+    }
+   ],
+   "furigana": {
+    "必ず|かならず": [
+     [
+      "必",
+      "かなら"
+     ],
+     [
+      "ず"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1501110,
+   "common": true,
+   "kanji": [
+    {
+     "text": "腹",
+     "common": true
+    },
+    {
+     "text": "肚",
+     "tags": [
+      "rK"
+     ]
+    }
+   ],
+   "kana": [
+    {
+     "text": "はら",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "abdomen",
+      "belly",
+      "stomach"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "womb"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "one's mind",
+      "one's real intentions",
+      "one's true motive"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "courage",
+      "nerve",
+      "willpower"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "generosity",
+      "magnanimity"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "feelings",
+      "emotions"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "wide middle part",
+      "bulging part"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "inside",
+      "interior",
+      "inner part"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "anti-node"
+     ]
+    },
+    {
+     "pos": [
+      "suf",
+      "ctr"
+     ],
+     "gloss": [
+      "counter for hard roe"
+     ]
+    },
+    {
+     "pos": [
+      "suf",
+      "ctr"
+     ],
+     "gloss": [
+      "counter for containers with bulging middles (pots, vases, etc.)"
+     ]
+    }
+   ],
+   "furigana": {
+    "腹|はら": [
+     [
+      "腹",
+      "はら"
+     ]
+    ],
+    "肚|はら": [
+     [
+      "肚",
+      "はら"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1522150,
+   "common": true,
+   "kanji": [
+    {
+     "text": "本",
+     "common": true
+    }
+   ],
+   "kana": [
+    {
+     "text": "ほん",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "book",
+      "volume",
+      "script"
+     ]
+    },
+    {
+     "pos": [
+      "pref"
+     ],
+     "gloss": [
+      "this",
+      "present",
+      "current",
+      "... in question",
+      "... at issue"
+     ]
+    },
+    {
+     "pos": [
+      "pref"
+     ],
+     "gloss": [
+      "main",
+      "head",
+      "principal"
+     ]
+    },
+    {
+     "pos": [
+      "pref"
+     ],
+     "gloss": [
+      "real",
+      "genuine",
+      "regular",
+      "proper"
+     ]
+    },
+    {
+     "pos": [
+      "ctr"
+     ],
+     "gloss": [
+      "counter for long, thin objects (sticks, tubes, strings, bottles, pillars, rivers, rail lines, etc.)"
+     ]
+    },
+    {
+     "pos": [
+      "ctr"
+     ],
+     "gloss": [
+      "counter for films, TV shows, etc."
+     ]
+    },
+    {
+     "pos": [
+      "ctr"
+     ],
+     "gloss": [
+      "counter for telephone calls, letters, and emails"
+     ]
+    },
+    {
+     "pos": [
+      "ctr"
+     ],
+     "gloss": [
+      "counter for goals, home runs, etc."
+     ]
+    },
+    {
+     "pos": [
+      "ctr"
+     ],
+     "gloss": [
+      "counter for rounds or points (in judo, kendo, etc.)"
+     ]
+    }
+   ],
+   "furigana": {
+    "本|ほん": [
+     [
+      "本",
+      "ほん"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1535880,
+   "common": true,
+   "kanji": [
+    {
+     "text": "戻る",
+     "common": true
+    }
+   ],
+   "kana": [
+    {
+     "text": "もどる",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "v5r",
+      "vi"
+     ],
+     "gloss": [
+      "to turn back (e.g. half-way)"
+     ]
+    },
+    {
+     "pos": [
+      "v5r",
+      "vi"
+     ],
+     "gloss": [
+      "to return",
+      "to go back"
+     ]
+    },
+    {
+     "pos": [
+      "v5r",
+      "vi"
+     ],
+     "gloss": [
+      "to recover (e.g. something lost)",
+      "to be returned"
+     ]
+    },
+    {
+     "pos": [
+      "v5r",
+      "vi"
+     ],
+     "gloss": [
+      "to rebound",
+      "to spring back"
+     ]
+    }
+   ],
+   "furigana": {
+    "戻る|もどる": [
+     [
+      "戻",
+      "もど"
+     ],
+     [
+      "る"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1536350,
+   "common": true,
+   "kanji": [
+    {
+     "text": "夜",
+     "common": true
+    }
+   ],
+   "kana": [
+    {
+     "text": "よる",
+     "common": true
+    },
+    {
+     "text": "よ"
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "n",
+      "adv"
+     ],
+     "gloss": [
+      "night",
+      "evening"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "dinner"
+     ],
+     "kana": [
+      "よる"
+     ]
+    }
+   ],
+   "furigana": {
+    "夜|よる": [
+     [
+      "夜",
+      "よる"
+     ]
+    ],
+    "夜|よ": [
+     [
+      "夜",
+      "よ"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1537150,
+   "common": true,
+   "kanji": [
+    {
+     "text": "夜明け",
+     "common": true
+    },
+    {
+     "text": "夜明",
+     "tags": [
+      "io"
+     ]
+    }
+   ],
+   "kana": [
+    {
+     "text": "よあけ",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "dawn",
+      "daybreak"
+     ]
+    }
+   ],
+   "furigana": {
+    "夜明け|よあけ": [
+     [
+      "夜",
+      "よ"
+     ],
+     [
+      "明",
+      "あ"
+     ],
+     [
+      "け"
+     ]
+    ],
+    "夜明|よあけ": [
+     [
+      "夜",
+      "よ"
+     ],
+     [
+      "明",
+      "あけ"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1549140,
+   "common": true,
+   "kanji": [
+    {
+     "text": "卵",
+     "common": true
+    },
+    {
+     "text": "玉子",
+     "common": true
+    }
+   ],
+   "kana": [
+    {
+     "text": "たまご",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "eggs",
+      "egg",
+      "spawn",
+      "roe"
+     ],
+     "kanji": [
+      "卵"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "(hen's) egg"
+     ],
+     "info": [
+      "oft. 玉子 in cooking"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "a ... in the making",
+      "future (lawyer, doctor, etc.)",
+      "budding ..."
+     ],
+     "info": [
+      "as ...の卵"
+     ],
+     "kanji": [
+      "卵"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "beginning",
+      "origin",
+      "infancy"
+     ],
+     "kanji": [
+      "卵"
+     ]
+    }
+   ],
+   "furigana": {
+    "卵|たまご": [
+     [
+      "卵",
+      "たまご"
+     ]
+    ],
+    "玉子|たまご": [
+     [
+      "玉",
+      "たま"
+     ],
+     [
+      "子",
+      "ご"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1567440,
+   "common": false,
+   "kanji": [
+    {
+     "text": "掏る"
+    }
+   ],
+   "kana": [
+    {
+     "text": "する"
+    },
+    {
+     "text": "スる",
+     "kanji": []
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "v5r",
+      "vt"
+     ],
+     "gloss": [
+      "to pickpocket",
+      "to steal"
+     ],
+     "misc": [
+      "uk"
+     ]
+    }
+   ],
+   "furigana": {
+    "掏る|する": [
+     [
+      "掏",
+      "す"
+     ],
+     [
+      "る"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1575480,
+   "common": true,
+   "kanji": [
+    {
+     "text": "鼾",
+     "common": true
+    }
+   ],
+   "kana": [
+    {
+     "text": "いびき",
+     "common": true
+    },
+    {
+     "text": "イビキ",
+     "kanji": []
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "snoring",
+      "snore"
+     ],
+     "misc": [
+      "uk"
+     ]
+    }
+   ],
+   "furigana": {
+    "鼾|いびき": [
+     [
+      "鼾",
+      "いびき"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1579110,
+   "common": true,
+   "kanji": [
+    {
+     "text": "今日",
+     "common": true
+    }
+   ],
+   "kana": [
+    {
+     "text": "きょう",
+     "common": true,
+     "tags": [
+      "gikun"
+     ]
+    },
+    {
+     "text": "こんにち",
+     "common": true
+    },
+    {
+     "text": "こんち"
+    },
+    {
+     "text": "こんじつ"
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "n",
+      "adv"
+     ],
+     "gloss": [
+      "today",
+      "this day"
+     ]
+    },
+    {
+     "pos": [
+      "n",
+      "adv"
+     ],
+     "gloss": [
+      "these days",
+      "recently",
+      "nowadays"
+     ],
+     "kana": [
+      "こんにち"
+     ]
+    }
+   ],
+   "furigana": {
+    "今日|きょう": [
+     [
+      "今日",
+      "きょう"
+     ]
+    ],
+    "今日|こんにち": [
+     [
+      "今",
+      "こん"
+     ],
+     [
+      "日",
+      "にち"
+     ]
+    ],
+    "今日|こんち": [
+     [
+      "今",
+      "こん"
+     ],
+     [
+      "日",
+      "ち"
+     ]
+    ],
+    "今日|こんじつ": [
+     [
+      "今",
+      "こん"
+     ],
+     [
+      "日",
+      "じつ"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1581900,
+   "common": true,
+   "kanji": [
+    {
+     "text": "剃る",
+     "common": true
+    }
+   ],
+   "kana": [
+    {
+     "text": "そる",
+     "common": true
+    },
+    {
+     "text": "する"
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "v5r",
+      "vt"
+     ],
+     "gloss": [
+      "to shave"
+     ]
+    }
+   ],
+   "furigana": {
+    "剃る|そる": [
+     [
+      "剃",
+      "そ"
+     ],
+     [
+      "る"
+     ]
+    ],
+    "剃る|する": [
+     [
+      "剃",
+      "す"
+     ],
+     [
+      "る"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1582710,
+   "common": true,
+   "kanji": [
+    {
+     "text": "日本",
+     "common": true
+    }
+   ],
+   "kana": [
+    {
+     "text": "にほん",
+     "common": true
+    },
+    {
+     "text": "にっぽん",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "Japan"
+     ]
+    }
+   ],
+   "furigana": {
+    "日本|にほん": [
+     [
+      "日本",
+      "にほん"
+     ]
+    ],
+    "日本|にっぽん": [
+     [
+      "日本",
+      "にっぽん"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1586840,
+   "common": true,
+   "kanji": [
+    {
+     "text": "或る"
+    },
+    {
+     "text": "或",
+     "common": true
+    }
+   ],
+   "kana": [
+    {
+     "text": "ある",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "adj-pn"
+     ],
+     "gloss": [
+      "a certain ...",
+      "some ..."
+     ],
+     "misc": [
+      "uk"
+     ]
+    }
+   ],
+   "furigana": {
+    "或る|ある": [
+     [
+      "或",
+      "あ"
+     ],
+     [
+      "る"
+     ]
+    ],
+    "或|ある": [
+     [
+      "或",
+      "ある"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1591710,
+   "common": true,
+   "kanji": [
+    {
+     "text": "恐竜",
+     "common": true
+    },
+    {
+     "text": "恐龍"
+    }
+   ],
+   "kana": [
+    {
+     "text": "きょうりゅう",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "dinosaur"
+     ]
+    }
+   ],
+   "furigana": {
+    "恐竜|きょうりゅう": [
+     [
+      "恐",
+      "きょう"
+     ],
+     [
+      "竜",
+      "りゅう"
+     ]
+    ],
+    "恐龍|きょうりゅう": [
+     [
+      "恐",
+      "きょう"
+     ],
+     [
+      "龍",
+      "りゅう"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1595910,
+   "common": true,
+   "kanji": [
+    {
+     "text": "擦る",
+     "common": true
+    },
+    {
+     "text": "擂る"
+    },
+    {
+     "text": "摩る",
+     "tags": [
+      "rK"
+     ]
+    },
+    {
+     "text": "磨る",
+     "tags": [
+      "rK"
+     ]
+    }
+   ],
+   "kana": [
+    {
+     "text": "する",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "v5r",
+      "vt"
+     ],
+     "gloss": [
+      "to rub",
+      "to chafe",
+      "to strike (match)",
+      "to file",
+      "to frost (glass)"
+     ]
+    },
+    {
+     "pos": [
+      "v5r",
+      "vt"
+     ],
+     "gloss": [
+      "to squander (one's money)",
+      "to run through (one's fortune)",
+      "to lose money (e.g. by gambling)"
+     ]
+    }
+   ],
+   "furigana": {
+    "擦る|する": [
+     [
+      "擦",
+      "す"
+     ],
+     [
+      "る"
+     ]
+    ],
+    "擂る|する": [
+     [
+      "擂",
+      "す"
+     ],
+     [
+      "る"
+     ]
+    ],
+    "摩る|する": [
+     [
+      "摩",
+      "す"
+     ],
+     [
+      "る"
+     ]
+    ],
+    "磨る|する": [
+     [
+      "磨",
+      "す"
+     ],
+     [
+      "る"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1600270,
+   "common": true,
+   "kanji": [
+    {
+     "text": "乗せる",
+     "common": true
+    },
+    {
+     "text": "載せる"
+    }
+   ],
+   "kana": [
+    {
+     "text": "のせる",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "v1",
+      "vt"
+     ],
+     "gloss": [
+      "to place on (something)"
+     ]
+    },
+    {
+     "pos": [
+      "v1",
+      "vt"
+     ],
+     "gloss": [
+      "to give (someone) a ride",
+      "to give a lift",
+      "to pick up",
+      "to help on board"
+     ],
+     "info": [
+      "esp. 乗せる"
+     ]
+    },
+    {
+     "pos": [
+      "v1",
+      "vt"
+     ],
+     "gloss": [
+      "to load (luggage)",
+      "to carry",
+      "to take on board"
+     ],
+     "info": [
+      "esp. 載せる"
+     ]
+    },
+    {
+     "pos": [
+      "v1",
+      "vt"
+     ],
+     "gloss": [
+      "to send out (on the airwaves, etc.)"
+     ]
+    },
+    {
+     "pos": [
+      "v1",
+      "vt"
+     ],
+     "gloss": [
+      "to deceive",
+      "to take for a ride"
+     ]
+    },
+    {
+     "pos": [
+      "v1",
+      "vt"
+     ],
+     "gloss": [
+      "to (sing) along with (musical accompaniment)"
+     ]
+    },
+    {
+     "pos": [
+      "v1",
+      "vt"
+     ],
+     "gloss": [
+      "to let (someone) take part"
+     ]
+    },
+    {
+     "pos": [
+      "v1",
+      "vt"
+     ],
+     "gloss": [
+      "to excite (someone)"
+     ]
+    },
+    {
+     "pos": [
+      "v1",
+      "vt"
+     ],
+     "gloss": [
+      "to publish (an article)",
+      "to run (an ad)"
+     ],
+     "kanji": [
+      "載せる"
+     ]
+    }
+   ],
+   "furigana": {
+    "乗せる|のせる": [
+     [
+      "乗",
+      "の"
+     ],
+     [
+      "せる"
+     ]
+    ],
+    "載せる|のせる": [
+     [
+      "載",
+      "の"
+     ],
+     [
+      "せる"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1611020,
+   "common": true,
+   "kanji": [
+    {
+     "text": "何で",
+     "common": true
+    }
+   ],
+   "kana": [
+    {
+     "text": "なんで",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "adv"
+     ],
+     "gloss": [
+      "why?",
+      "what for?"
+     ],
+     "misc": [
+      "uk"
+     ]
+    },
+    {
+     "pos": [
+      "adv"
+     ],
+     "gloss": [
+      "how?",
+      "by what means?"
+     ]
+    }
+   ],
+   "furigana": {
+    "何で|なんで": [
+     [
+      "何",
+      "なん"
+     ],
+     [
+      "で"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1611290,
+   "common": true,
+   "kanji": [
+    {
+     "text": "腹いっぱい",
+     "common": true
+    },
+    {
+     "text": "腹一杯",
+     "common": true
+    }
+   ],
+   "kana": [
+    {
+     "text": "はらいっぱい",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "n",
+      "adv"
+     ],
+     "gloss": [
+      "having a full stomach",
+      "being full"
+     ]
+    },
+    {
+     "pos": [
+      "adv"
+     ],
+     "gloss": [
+      "to one's heart's content"
+     ]
+    }
+   ],
+   "furigana": {
+    "腹いっぱい|はらいっぱい": [
+     [
+      "腹",
+      "はら"
+     ],
+     [
+      "いっぱい"
+     ]
+    ],
+    "腹一杯|はらいっぱい": [
+     [
+      "腹",
+      "はら"
+     ],
+     [
+      "一",
+      "いっ"
+     ],
+     [
+      "杯",
+      "ぱい"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 1642200,
+   "common": false,
+   "kanji": [
+    {
+     "text": "悖る"
+    },
+    {
+     "text": "戻る",
+     "tags": [
+      "rK"
+     ]
+    }
+   ],
+   "kana": [
+    {
+     "text": "もとる"
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "v5r",
+      "vi"
+     ],
+     "gloss": [
+      "to go against",
+      "to act contrary to",
+      "to run counter to",
+      "to deviate from"
+     ],
+     "misc": [
+      "uk"
+     ]
+    }
+   ],
+   "furigana": {
+    "悖る|もとる": [
+     [
+      "悖",
+      "もと"
+     ],
+     [
+      "る"
+     ]
+    ],
+    "戻る|もとる": [
+     [
+      "戻",
+      "もと"
+     ],
+     [
+      "る"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 2016410,
+   "common": true,
+   "kanji": [],
+   "kana": [
+    {
+     "text": "みたい",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "suf",
+      "adj-na"
+     ],
+     "gloss": [
+      "-like",
+      "sort of",
+      "similar to",
+      "resembling"
+     ],
+     "misc": [
+      "col"
+     ]
+    }
+   ]
+  },
+  {
+   "seq": 2038080,
+   "common": false,
+   "kanji": [
+    {
+     "text": "振る"
+    }
+   ],
+   "kana": [
+    {
+     "text": "ぶる"
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "suf",
+      "v5r"
+     ],
+     "gloss": [
+      "to assume an air of ...",
+      "to act ...",
+      "to affect ...",
+      "to pose as ...",
+      "to behave like ...",
+      "to pretend to be ..."
+     ],
+     "misc": [
+      "uk"
+     ],
+     "info": [
+      "after a noun, adjectival noun or adjective stem"
+     ]
+    },
+    {
+     "pos": [
+      "v5r",
+      "vi"
+     ],
+     "gloss": [
+      "to put on airs",
+      "to be self-important"
+     ],
+     "misc": [
+      "col",
+      "uk"
+     ]
+    }
+   ],
+   "furigana": {
+    "振る|ぶる": [
+     [
+      "振",
+      "ぶ"
+     ],
+     [
+      "る"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 2080710,
+   "common": false,
+   "kanji": [
+    {
+     "text": "枝"
+    }
+   ],
+   "kana": [
+    {
+     "text": "し"
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "ctr"
+     ],
+     "gloss": [
+      "counter for long, thin things (i.e. swords)"
+     ]
+    }
+   ],
+   "furigana": {
+    "枝|し": [
+     [
+      "枝",
+      "し"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 2141530,
+   "common": false,
+   "kanji": [],
+   "kana": [
+    {
+     "text": "どうしたら"
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "exp"
+     ],
+     "gloss": [
+      "how can (one) do something"
+     ]
+    }
+   ]
+  },
+  {
+   "seq": 2153780,
+   "common": false,
+   "kanji": [
+    {
+     "text": "水"
+    }
+   ],
+   "kana": [
+    {
+     "text": "すい"
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "Wednesday"
+     ],
+     "misc": [
+      "abbr"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "shaved ice (served with flavored syrup)"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "water (fifth of the five elements)"
+     ]
+    }
+   ],
+   "furigana": {
+    "水|すい": [
+     [
+      "水",
+      "すい"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 2223040,
+   "common": false,
+   "kanji": [
+    {
+     "text": "鼾を掻く"
+    },
+    {
+     "text": "鼾をかく",
+     "tags": [
+      "sK"
+     ]
+    },
+    {
+     "text": "いびきを掻く",
+     "tags": [
+      "sK"
+     ]
+    },
+    {
+     "text": "イビキを掻く",
+     "tags": [
+      "sK"
+     ]
+    }
+   ],
+   "kana": [
+    {
+     "text": "いびきをかく"
+    },
+    {
+     "text": "イビキをかく",
+     "kanji": []
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "exp",
+      "v5k"
+     ],
+     "gloss": [
+      "to snore"
+     ],
+     "misc": [
+      "uk"
+     ]
+    }
+   ],
+   "furigana": {
+    "鼾を掻く|いびきをかく": [
+     [
+      "鼾",
+      "いびき"
+     ],
+     [
+      "を"
+     ],
+     [
+      "掻",
+      "か"
+     ],
+     [
+      "く"
+     ]
+    ],
+    "鼾をかく|いびきをかく": [
+     [
+      "鼾",
+      "いびき"
+     ],
+     [
+      "をかく"
+     ]
+    ],
+    "いびきを掻く|いびきをかく": [
+     [
+      "いびきを"
+     ],
+     [
+      "掻",
+      "か"
+     ],
+     [
+      "く"
+     ]
+    ],
+    "イビキを掻く|いびきをかく": [
+     [
+      "イビキを"
+     ],
+     [
+      "掻",
+      "か"
+     ],
+     [
+      "く"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 2272970,
+   "common": false,
+   "kanji": [
+    {
+     "text": "然せる"
+    }
+   ],
+   "kana": [
+    {
+     "text": "させる"
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "adj-pn"
+     ],
+     "gloss": [
+      "(any) particular",
+      "notable",
+      "noteworthy",
+      "significant",
+      "considerable"
+     ],
+     "misc": [
+      "dated",
+      "uk"
+     ],
+     "info": [
+      "with neg. sentence"
+     ]
+    }
+   ],
+   "furigana": {
+    "然せる|させる": [
+     [
+      "然",
+      "さ"
+     ],
+     [
+      "せる"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 2423240,
+   "common": false,
+   "kanji": [
+    {
+     "text": "玄関口"
+    }
+   ],
+   "kana": [
+    {
+     "text": "げんかんぐち"
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "entrance door",
+      "front door"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "gateway (to a region, etc.)"
+     ]
+    }
+   ],
+   "furigana": {
+    "玄関口|げんかんぐち": [
+     [
+      "玄",
+      "げん"
+     ],
+     [
+      "関",
+      "かん"
+     ],
+     [
+      "口",
+      "ぐち"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 2568020,
+   "common": false,
+   "kanji": [],
+   "kana": [
+    {
+     "text": "せる"
+    },
+    {
+     "text": "させる"
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "aux-v",
+      "v1"
+     ],
+     "gloss": [
+      "auxiliary verb indicating the causative voice"
+     ],
+     "info": [
+      "～せる connects to -nai stem of 五段 verbs and to サ変 as さ～せる; ～させる connects to -nai stem of 一段 and カ変 verbs and to サ変 as せ～させる"
+     ]
+    },
+    {
+     "pos": [
+      "aux-v",
+      "v1"
+     ],
+     "gloss": [
+      "auxiliary verb indicating the granting of permission to do something"
+     ]
+    },
+    {
+     "pos": [
+      "aux-v",
+      "v1"
+     ],
+     "gloss": [
+      "auxiliary verb used as an honorific for others' actions"
+     ],
+     "misc": [
+      "hon"
+     ],
+     "info": [
+      "as 〜(さ)せられる, あら〜せられる, 〜(さ)せ給う, etc."
+     ]
+    }
+   ]
+  },
+  {
+   "seq": 2647520,
+   "common": false,
+   "kanji": [
+    {
+     "text": "卵"
+    },
+    {
+     "text": "殻"
+    },
+    {
+     "text": "稃"
+    }
+   ],
+   "kana": [
+    {
+     "text": "かい"
+    },
+    {
+     "text": "かいご",
+     "kanji": [
+      "卵"
+     ]
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "egg",
+      "eggshell"
+     ],
+     "misc": [
+      "arch"
+     ]
+    }
+   ],
+   "furigana": {
+    "卵|かい": [
+     [
+      "卵",
+      "かい"
+     ]
+    ],
+    "殻|かい": [
+     [
+      "殻",
+      "かい"
+     ]
+    ],
+    "稃|かい": [
+     [
+      "稃",
+      "かい"
+     ]
+    ],
+    "卵|かいご": [
+     [
+      "卵",
+      "かいご"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 2647530,
+   "common": false,
+   "kanji": [
+    {
+     "text": "卵"
+    }
+   ],
+   "kana": [
+    {
+     "text": "らん"
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "ovum",
+      "ovule",
+      "egg cell"
+     ]
+    }
+   ],
+   "furigana": {
+    "卵|らん": [
+     [
+      "卵",
+      "らん"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 2698030,
+   "common": false,
+   "kanji": [
+    {
+     "text": "猫"
+    }
+   ],
+   "kana": [
+    {
+     "text": "ねこま"
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "cat"
+     ],
+     "misc": [
+      "arch"
+     ]
+    }
+   ],
+   "furigana": {
+    "猫|ねこま": [
+     [
+      "猫",
+      "ねこま"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 2827999,
+   "common": false,
+   "kanji": [
+    {
+     "text": "夜"
+    }
+   ],
+   "kana": [
+    {
+     "text": "や"
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "ctr"
+     ],
+     "gloss": [
+      "counter for nights"
+     ],
+     "info": [
+      "after numbers in the ichi, ni, san counting system"
+     ]
+    }
+   ],
+   "furigana": {
+    "夜|や": [
+     [
+      "夜",
+      "や"
+     ]
+    ]
+   }
+  },
+  {
+   "seq": 2842174,
+   "common": true,
+   "kanji": [],
+   "kana": [
+    {
+     "text": "コート",
+     "common": true
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "court (e.g. tennis, basketball, volleyball)"
+     ]
+    }
+   ]
+  },
+  {
+   "seq": 2847628,
+   "common": true,
+   "kanji": [
+    {
+     "text": "雛",
+     "common": true
+    }
+   ],
+   "kana": [
+    {
+     "text": "ひな",
+     "common": true
+    },
+    {
+     "text": "ヒナ",
+     "kanji": []
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "young bird",
+      "chick",
+      "fledgling"
+     ],
+     "misc": [
+      "uk"
+     ]
+    },
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "hina doll",
+      "doll displayed during the Girls' Festival"
+     ]
+    }
+   ],
+   "furigana": {
+    "雛|ひな": [
+     [
+      "雛",
+      "ひな"
+     ]
+    ]
+   }
+  }
+ ]
+}

@@ -981,3 +981,25 @@ rt {
   border-top: 1px solid var(--line);
   padding-top: 16px;
 }
+
+/* Dictionary: a result's senses, numbered, with part of speech in front. */
+.dict-senses {
+  margin: 0;
+  padding-left: 1.4em;
+  display: grid;
+  gap: 4px;
+  font-size: 0.95rem;
+}
+
+.dict-senses__pos {
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+}
+
+.dict-reading {
+  font-size: 1.4rem;
+}
+
+.dict-note {
+  font-size: 0.85rem;
+}

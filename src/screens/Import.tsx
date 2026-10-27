@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, type ImportResult, type ListSummary } from '../api';
 import { Notice } from '../components/ui';
+import { lookUpAll } from '../components/DictSearch';
 
 export function Import() {
   const [text, setText] = useState('');
@@ -10,6 +11,8 @@ export function Import() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** Words still to look up in the dictionary after an import, then how many were found. */
+  const [lookUp, setLookUp] = useState<{ remaining: number; found: number | null; notLoaded?: boolean } | null>(null);
 
   useEffect(() => {
     api.lists().then(
@@ -28,8 +31,23 @@ export function Import() {
     setBusy(true);
     setError(null);
     setResult(null);
+    setLookUp(null);
     try {
-      setResult(await api.importText(text, listId));
+      const imported = await api.importText(text, listId);
+      setResult(imported);
+      if (imported.added > 0) {
+        // Each new word gets its dictionary entry: readings per kanji, and a
+        // flag in the check pass when none fits.
+        setLookUp({ remaining: imported.added, found: null });
+        try {
+          const { looked, matched } = await lookUpAll((remaining) => setLookUp({ remaining, found: null }));
+          setLookUp({ remaining: 0, found: matched, notLoaded: looked === 0 });
+        } catch (e) {
+          // The words are in; Settings › Dictionary can look them up later.
+          setLookUp(null);
+          throw e;
+        }
+      }
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -103,6 +121,15 @@ export function Import() {
                 ))}
               </ul>
             </details>
+          )}
+          {lookUp && (
+            <p data-testid="import-lookup">
+              {lookUp.found === null
+                ? `Looking the words up in the dictionary… ${lookUp.remaining} to go.`
+                : lookUp.notLoaded
+                  ? 'The dictionary isn’t loaded yet, so they’ll be looked up later.'
+                  : `Found ${lookUp.found} of them in the dictionary.`}
+            </p>
           )}
           {result.added > 0 && (
             <p>
