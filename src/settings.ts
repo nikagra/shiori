@@ -9,6 +9,8 @@ export interface Settings {
   pageSize: number;
   /** The list the check pass takes words from; null for all lists. */
   checkList: number | null;
+  /** The list "Add a word" puts words in, when you didn't come from a list. */
+  addList: number | null;
 }
 
 const DEFAULTS: Settings = {
@@ -16,6 +18,7 @@ const DEFAULTS: Settings = {
   listenFirst: false,
   pageSize: 12,
   checkList: null,
+  addList: null,
 };
 const KEY = 'shiori.settings';
 

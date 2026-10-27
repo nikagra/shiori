@@ -1,0 +1,64 @@
+# Fills the cloud dictionary (D1 shiori-dict) a day's worth at a time, until
+# it's complete; then each run only checks and stops. The free plan allows
+# 100,000 row writes a day and the whole dictionary takes about 440,000, so
+# it takes about five nights; common words come first. Uses the same
+# repository secrets as the deploy. See "Dictionary" in docs/DESIGN.md.
+name: Dictionary
+
+on:
+  schedule:
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+    inputs:
+      budget:
+        description: Row writes for this run (Workers Paid allows far more)
+        default: '90000'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dictionary
+  cancel-in-progress: false
+
+jobs:
+  load:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check setup
+        id: setup
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::notice::Skipped: add the CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID repository secrets."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.setup.outputs.ready == 'true'
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: steps.setup.outputs.ready == 'true'
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+        if: steps.setup.outputs.ready == 'true'
+      - name: Is it complete?
+        id: status
+        if: steps.setup.outputs.ready == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npm run -s dict:load -- --remote --status | tail -n 1 >> "$GITHUB_OUTPUT"
+      - name: Download and build
+        if: steps.setup.outputs.ready == 'true' && steps.status.outputs.complete != 'true'
+        run: npm run dict:download && npm run dict:build
+      - name: Load a day's worth
+        if: steps.setup.outputs.ready == 'true' && steps.status.outputs.complete != 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npm run dict:load -- --remote --budget "${{ inputs.budget || '90000' }}"

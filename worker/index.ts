@@ -4,9 +4,12 @@ import { parseRenshuuExport } from '../shared/renshuu';
 import { Rating, type Grade } from '../shared/scheduler';
 import { clearNightly, nightlyStatus, saveNightly } from './backup';
 import * as db from './db';
+import { dictStatus, entryBySeq, lookUpWords, searchDict } from './dict';
 
 export interface Env {
   DB: D1Database;
+  /** The dictionary (JMdict), its own database: worker/dict.ts. */
+  DICT: D1Database;
   /** Private bucket for the nightly copies (worker/backup.ts). */
   BACKUPS: R2Bucket;
   /** Set to "1" only by the end-to-end test server (vite.config.ts); enables the /test endpoints (reset, time travel, a nightly backup run). */
@@ -64,7 +67,21 @@ app.post('/triage/:id', async (c) => {
 });
 
 app.patch('/words/:id', async (c) => {
-  return c.json(await db.updateWord(c.env.DB, intParam(c.req.param('id'), 'id'), await c.req.json<db.WordChanges>(), new Date()));
+  const id = intParam(c.req.param('id'), 'id');
+  const body = await c.req.json<db.WordChanges & { dictSeq?: unknown }>();
+  const { dictSeq, ...changes } = body;
+  let word = await db.updateWord(c.env.DB, id, changes, new Date());
+  if (dictSeq !== undefined) {
+    // The entry you picked for it, or null: none fits.
+    const entry = dictSeq === null ? null : await entryBySeq(c.env.DICT, intParam(dictSeq, 'dictSeq'));
+    if (dictSeq !== null && !entry) throw new db.AppError(404, 'dictionary entry not found');
+    word = await db.linkEntry(c.env.DB, id, entry, new Date());
+  } else if (word.dict === 'unchecked') {
+    // A new spelling: look it up now.
+    await lookUpWords(c.env.DB, c.env.DICT, id);
+    word = await db.getListWord(c.env.DB, id);
+  }
+  return c.json(word);
 });
 
 app.post('/words/:id/set-aside', async (c) => c.json(await db.setAside(c.env.DB, intParam(c.req.param('id'), 'id'), new Date())));
@@ -151,6 +168,16 @@ app.patch('/lists/:id', async (c) => {
 
 app.get('/lists/:id/words', async (c) => c.json(await db.listWords(c.env.DB, intParam(c.req.param('id'), 'id'))));
 
+// A word from the dictionary.
+app.post('/lists/:id/words', async (c) => {
+  const body = await c.req.json<{ dictSeq?: unknown; kanji?: unknown; kana?: unknown; coreMeaning?: unknown }>();
+  const entry = await entryBySeq(c.env.DICT, intParam(body.dictSeq, 'dictSeq'));
+  if (!entry) throw new db.AppError(404, 'dictionary entry not found');
+  const kanji = body.kanji === null || body.kanji === undefined ? null : String(body.kanji);
+  const word = await db.addFromDict(c.env.DB, intParam(c.req.param('id'), 'id'), entry, { kanji, kana: String(body.kana ?? ''), coreMeaning: body.coreMeaning }, new Date());
+  return c.json(word, 201);
+});
+
 app.post('/lists/:id/merge', async (c) => {
   const { into } = await c.req.json<{ into: number }>();
   await db.mergeList(c.env.DB, intParam(c.req.param('id'), 'id'), intParam(into, 'into'), new Date());
@@ -161,6 +188,22 @@ app.delete('/lists/:id', async (c) => {
   await db.deleteList(c.env.DB, intParam(c.req.param('id'), 'id'));
   return c.json({ ok: true });
 });
+
+app.get('/dict/status', async (c) => c.json({ ...(await dictStatus(c.env.DICT)), words: await db.dictCounts(c.env.DB) }));
+
+app.get('/dict/search', async (c) => {
+  const entries = await searchDict(c.env.DICT, c.req.query('q') ?? '');
+  return c.json({ entries, mine: await db.wordsForEntries(c.env.DB, entries.map((e) => e.seq)) });
+});
+
+app.get('/dict/entries/:seq', async (c) => {
+  const entry = await entryBySeq(c.env.DICT, intParam(c.req.param('seq'), 'seq'));
+  if (!entry) throw new db.AppError(404, 'dictionary entry not found');
+  return c.json(entry);
+});
+
+// Looks up the next batch of words that have no entry yet; call until remaining is 0.
+app.post('/dict/look-up', async (c) => c.json(await lookUpWords(c.env.DB, c.env.DICT)));
 
 app.get('/furigana', async (c) => c.json(await db.getFurigana(c.env.DB)));
 

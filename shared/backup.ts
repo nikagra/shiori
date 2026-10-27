@@ -19,7 +19,7 @@ export const TABLE_SINCE: Record<BackupTable, string> = {
 };
 
 /** The latest migration the backup's rows fit. A test keeps it in step with migrations/. */
-export const BACKUP_SCHEMA = '0003_lists';
+export const BACKUP_SCHEMA = '0004_dictionary';
 
 /**
  * The end of migrations/0003_lists.sql, word for word (a test checks): makes

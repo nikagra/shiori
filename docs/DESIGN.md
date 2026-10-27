@@ -52,6 +52,10 @@ Custom (all fields, with POS and mastery). Words are deduplicated on
 `(kana, kanji)`. In the Custom format, a mastery of `--` or `255` counts as
 unknown. Every imported word starts as `unverified`.
 
+Every new word is then looked up in the dictionary (see Dictionary below).
+Your meanings stay as imported: the dictionary only adds the link, readings
+per kanji and the "usually written in kana" note.
+
 ### Check pass (Triage screen)
 
 Each imported word gets one recall attempt. "From list" picks one list to
@@ -118,6 +122,64 @@ Each list opens to its words (`#/lists/<id>`), in the order they came in.
   words and its one list. A learned word can move: its learned page stays
   in its old list, as history.
 
+### Dictionary (`shared/dictionary.ts`, `worker/dict.ts`, AddWord, DictSearch)
+
+- **Data.** English JMdict from
+  [jmdict-simplified](https://github.com/scriptin/jmdict-simplified) with
+  per-kanji readings from
+  [JmdictFurigana](https://github.com/Doublevil/JmdictFurigana), both CC
+  BY-SA 4.0 (credits in Settings › Dictionary). The releases loaded are
+  pinned in `dict-sources.json`. About 219k entries, 22.6k of them common.
+- **Storage.** Its own D1 database, `shiori-dict` (binding `DICT`,
+  `dict-migrations/`), so backups stay small and it can be dropped and
+  loaded again at any time. `entries` holds one JSON row per entry
+  (`DictEntry` in `shared/dictEntry.ts`); its id is the search order,
+  common words first. `entries_fts` is a contentless FTS5 index over the
+  written forms and readings, the meanings, and JMdict's entry number
+  (`seq`, which stays the same across versions, so words store that).
+  `meta` records the version and which chunks are loaded.
+- **Loading.** `npm run dict:download` fetches the pinned releases into
+  `.dict-data/`, `npm run dict:build` writes SQL chunks of 5,000 entries
+  (common first), and `npm run dict:load` loads the chunks not loaded yet
+  (`--remote` for Cloudflare). A chunk costs about two row writes per
+  entry, and the free plan allows 100,000 a day, so `--remote` stops at a
+  budget (90,000 by default). The **Dictionary** workflow
+  (`.github/workflows/dictionary.yml`) runs this every night until the
+  dictionary is complete, about five nights; common words are in after the
+  first. A chunk that fails halfway is simply loaded again. A new version
+  needs `--fresh` (drops it and loads everything again) after changing
+  `dict-sources.json`.
+- **Search** (`searchSteps`, `searchRank`): kana match hiragana and katakana
+  alike; romaji (one word) is read as kana and as English; English matches
+  a phrase first ("to go"), then every word, the last one as a prefix.
+  Ranking: an exact form or reading, then a meaning that is exactly the
+  query (as the first meaning first), then forms that start with it.
+  JMdict has no frequency ranks, so ties go to common words, then words
+  written with N5/N4 kanji or in hiragana (食べる before 喫する for "eat",
+  家 before ハウス for "house").
+- **Add a word** (`#/add`, Home's button, or "Add a word" on a list:
+  `#/add/<list>`): search, open a result to see every sense, choose the
+  spelling and the meaning to learn (the first sense's first glosses to
+  start with), then add it. It waits for a page, since you looked it up
+  because you didn't know it. A word usually written in kana is added in
+  kana unless you untick that. Results you have already say which list.
+- **Matching your words** (`matchWord`): by written form and reading
+  (katakana and hiragana alike; a kana-only word in Renshuu's kanji field
+  counts as kana-only). When several entries share the spelling (コート:
+  coat or court), the one sharing most meaning words with yours wins, then
+  the common one. All 450 manga words match. Imports look their words up
+  straight away (in batches of 100, to stay inside the Worker's limits);
+  Settings › Dictionary has "Look up my words" for the rest. A word with no
+  match is looked up again as the dictionary fills, and editing its
+  spelling looks it up again.
+- **What a word keeps**: `dict_seq`, readings per kanji (`furigana`) when
+  they spell the word as you have it, and `usually_kana`. Your meanings are
+  never replaced; the word's editor shows the dictionary's meanings, with a
+  button to copy the first one into yours, and lets you pick another entry
+  or say none fits (that choice is kept, `DICT_CHOSEN`).
+- **No match** is flagged in the check pass ("Not in the dictionary: check
+  its spelling") and in the word's editor.
+
 ### Pages (`shared/pageSession.ts`, PageView, PageGrid)
 
 - A new page takes 10, 12 or 15 words (`PAGE_SIZES`), all from one list
@@ -179,9 +241,12 @@ Each list opens to its words (`#/lists/<id>`), in the order they came in.
 
 - Known kanji are the N5+N4 lists (or N5 only, or none), plus "Also known",
   minus "Still learning". The lists are the common unofficial JLPT ones.
-- Furigana are shown only over kanji runs that contain an unknown kanji. The
-  reading is lined up with the written form around okurigana (食べ物 → 食(た)
-  べ 物(もの)). If the reading can't be lined up, it goes over the whole word.
+- Furigana are shown only over kanji that you don't know. A word linked to
+  the dictionary has its reading per kanji from JmdictFurigana (冬眠 → 冬(とう)
+  眠(みん), so only 眠 gets furigana when you know 冬). Otherwise the reading is
+  lined up with the written form around okurigana (食べ物 → 食(た) べ 物(もの)),
+  and furigana go over a run of kanji with an unknown one; if the reading
+  can't be lined up, it goes over the whole word.
 - On a question, "Show furigana" (shortcut F) reveals the hidden readings. Each
   peek is logged against those kanji in `kanji_hints`, not against the word's
   grade. After `HINTS_TO_LEARNING` (2) peeks, a kanji moves to Still learning.
@@ -326,11 +391,12 @@ again (its deletes come first), or rewind with Time Travel.
 
 | Part | Where | Notes |
 |---|---|---|
-| UI | `src/` (React 19, Vite) | Screens: Home, Triage (Check), Pages, PagePicker, PageView, Lists (with ListWords under it), Review, Settings (with Import under it) |
+| UI | `src/` (React 19, Vite) | Screens: Home, Triage (Check), Pages, PagePicker, PageView, Lists (with ListWords under it), AddWord, Review, Settings (with Import under it) |
 | Shared logic | `shared/` | Pure TypeScript used by both UI and worker; unit tested |
 | API | `worker/index.ts` (Hono on Cloudflare Workers) | Under `/api/*`; the rest is the single-page app. Also the nightly cron (`scheduled`) |
 | Data access | `worker/db.ts` | Multi-row changes run as one D1 batch, so a failed or repeated request can't leave half-done state |
-| Database | D1 (SQLite), `migrations/` | `0001_init.sql`, `0002_furigana.sql`, `0003_lists.sql` |
+| Database | D1 (SQLite), `migrations/` | `0001_init.sql`, `0002_furigana.sql`, `0003_lists.sql`, `0004_dictionary.sql` |
+| Dictionary | D1 `shiori-dict`, `dict-migrations/` | JMdict with an FTS5 index; no study data (`worker/dict.ts`) |
 | Backups | R2 bucket `shiori-backups` | Nightly JSON copies, 30 days (`worker/backup.ts`) |
 
 ### Data model
@@ -340,7 +406,9 @@ again (its deletes come first), or rewind with Time Travel.
 - `words`: kana, kanji, `senses` (JSON), `core_meaning`, pos, source,
   `source_list` (the import label), `list_id`, `source_order`,
   `renshuu_mastery`, `status` (`unverified` → `inbox` → `on_page` →
-  `graduated`, or `ignored`).
+  `graduated`, or `ignored`), and from the dictionary `dict_seq`,
+  `dict_checked` (how many dictionary chunks were loaded when it was looked
+  up), `furigana` and `usually_kana`. `source` is `renshuu` or `dictionary`.
 - `pages` and `page_words`: page number, stage, `list_id`, and each word's
   fixed position.
 - `cards`: one per word and direction, with the full FSRS state as JSON plus
@@ -360,6 +428,8 @@ again (its deletes come first), or rewind with Time Travel.
 - `npm run test:e2e` runs Playwright at iPhone and laptop sizes, on port 5174
   with its own database (and R2 copies) in `.wrangler/e2e`. The test-only
   endpoints (`/api/test/reset`, `/api/test/make-due`, `/api/test/nightly`)
-  are on only for that server. Never point the end-to-end tests at
+  are on only for that server. Its dictionary is the sample in
+  `test/fixtures/dict_sample.json` (81 entries, made with `dict:build
+  --forms`). Never point the end-to-end tests at
   `.wrangler/state`: an early run wiped real study data that way.
 - Commits end their subject line with an emoji that fits the change.

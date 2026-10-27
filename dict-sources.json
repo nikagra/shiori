@@ -1,0 +1,5 @@
+{
+  "//": "The dictionary releases Shiori loads (scripts/dict-download.ts). Changing them means loading the dictionary again with --fresh: see Dictionary in docs/DESIGN.md.",
+  "jmdict": { "repo": "scriptin/jmdict-simplified", "tag": "3.6.2+20261026175559", "asset": "jmdict-eng-3.6.2+20261026175559.json.zip" },
+  "furigana": { "repo": "Doublevil/JmdictFurigana", "tag": "2.3.1+2026-10-25", "asset": "JmdictFurigana.json" }
+}

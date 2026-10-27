@@ -3,7 +3,7 @@
 Where the project stands and what comes next. Start here when picking the work
 back up. For how the app works, see [DESIGN.md](DESIGN.md).
 
-## Status (2026-10-26)
+## Status (2026-10-27)
 
 - **v0.1 is merged into `main`** (PR #1, squashed as 6dd130e; history on
   `main` was rewritten on 25 Oct so every commit is Mikita's with an emoji
@@ -26,8 +26,9 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   in `.wrangler/state`, separate from the cloud one. An old database holding
   only test data is kept in `.wrangler/state-test-backup-20261025` and can be
   deleted.
-- Tests: 133 unit tests, 62 end-to-end runs (31 tests at iPhone and laptop
-  sizes), and `tsc -b` all pass.
+- Tests: 156 unit tests, 66 end-to-end runs (33 tests at iPhone and laptop
+  sizes), and
+  `tsc -b` all pass.
 - **Backup and export** (26 Oct): Settings › Backup downloads all study data as
   one JSON file, a nightly cron saves the same file to the private R2 bucket
   `shiori-backups` (30 days kept), and `npm run backup:sql` turns a file back
@@ -65,6 +66,20 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   word taken off goes back to waiting or is set aside. Words close in meaning
   are pointed out. Any page can be deleted: an unfinished page's words wait
   again, a learned page's words keep their reviews. No migration.
+- **Dictionary** (27 Oct): English JMdict with per-kanji readings, in its
+  own D1 database `shiori-dict` (created 27 Oct, id in `wrangler.jsonc`).
+  "Add a word" (Home, or a list) searches it by kana, romaji, kanji or
+  English and adds the word to a list, waiting for a page. Imported words
+  are matched to entries (all 450 manga words match) without changing your
+  meanings; a word with no match is flagged in the check pass, and a
+  word's editor shows the dictionary's meanings and can pick another
+  entry. Furigana go over each unknown kanji (冬眠: only 眠). Settings ›
+  Dictionary shows what's loaded and the credits. Migration
+  `0004_dictionary`. The **Dictionary** GitHub workflow fills the cloud
+  dictionary over about five nights (common words on the first); on the
+  laptop, `npm run dict:download && npm run dict:build && npm run
+  dict:load` loads all of it in a few minutes. See "Dictionary" in
+  DESIGN.md.
 - First iPhone feedback (25 Oct) is in: "Don't know" on review and drill
   cards, next words hidden in the in-order drill, "Study the page again",
   whole words on the grid, safer iOS speech. Sound on the iPhone still needs
@@ -81,7 +96,7 @@ in the everyday loop: finding, adding, editing and arranging words.
 What the word loop can't do yet:
 
 - ~~See what's in a list, or find, edit or move a word.~~ Done in step 2.
-- Add one word. Import only takes a pasted or uploaded Renshuu export.
+- ~~Add one word.~~ Done in step 4 (from the dictionary).
 - ~~Shape a page: drop a word with a similar meaning, pick the words yourself,
   or delete a page.~~ Done in step 3.
 - Handle leeches, show what each grade button does, or change the 20 new
@@ -94,7 +109,8 @@ furigana), deploy on merge, backup and export (26 Oct; check the first
 nightly copy shows in Settings), lists you manage with their own pace (26 Oct;
 try it on the iPhone: the Lists tab, then a page from School and one from
 Manga), Settings (26 Oct), words you can see and change (26 Oct), pages you shape
-(26 Oct).
+(26 Oct), dictionary (27 Oct; after the merge, run the Dictionary workflow
+once by hand or wait for the night, then try Add a word on the iPhone).
 
 ### v0.2: a complete word tool
 
@@ -115,25 +131,17 @@ Manga), Settings (26 Oct), words you can see and change (26 Oct), pages you shap
    or one you pick takes its place), and delete a page (unfinished: its words
    wait again; learned: they keep their reviews). Words close in meaning are
    pointed out while picking and on a new page.
-4. **Dictionary** (Mikita, 26 Oct: simpler import and word search).
-   - Data: English JMdict from jmdict-simplified (about 210k entries, updated
-     weekly) and JmdictFurigana, both CC BY-SA 4.0, so the app needs a
-     credits line. No Jisho API: it's unofficial and has no uptime promise.
-   - Storage: a separate D1 database `shiori-dict`, so backups stay small and
-     the dictionary can be rebuilt any time. Search uses SQLite FTS5. The full
-     set fits the free plan's 500 MB, but the free plan allows only 100k row
-     writes a day, so the loader is resumable and fills it over a few nights
-     (or at once on Workers Paid). The ~23k common entries load first, in a
-     day. The loader can start during steps 1 to 3.
-   - Add a word: search by kana, romaji (WanaKana), kanji or English, then
-     tap a result to put it in a list. This replaces the Renshuu Reading
-     Buddy step on the iPhone.
-   - Import: match each Renshuu word to a dictionary entry; the check pass
-     flags words with no match. Editing a word (step 2) can pick another
-     entry.
-   - Per-kanji furigana from JmdictFurigana (Mikita, 25 Oct): readings over a
-     run of kanji (冬眠, 日本) don't line up with each kanji today. Also show
-     "usually written in kana" forms.
+4. ~~**Dictionary**~~ Done (27 Oct; Mikita, 26 Oct: simpler import and word
+   search). JMdict (jmdict-simplified) and JmdictFurigana, CC BY-SA 4.0,
+   credited in Settings; no Jisho API. A separate D1 database with FTS5,
+   loaded in resumable chunks within the free plan's 100k row writes a day.
+   Add a word by kana, romaji, kanji or English (replacing Renshuu's
+   Reading Buddy step); imports are matched to entries, keeping your
+   meanings (Mikita, 27 Oct: imported translations stay as they are, added
+   words take the dictionary's); words with no match are flagged in the
+   check pass and their entry can be picked in the word's editor; furigana
+   per kanji and "usually written in kana". Later: example sentences
+   (v0.3) and kanji info (KANJIDIC) come from the same sources.
 5. **Finish review.**
    - Drill misses that mean something (Mikita, 26 Oct: Renshuu repeats a
      missed question until you get it right, so you answer from short-term

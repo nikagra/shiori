@@ -137,7 +137,13 @@ export function Triage() {
           <div className="flash__answer">
             <SpeakButton text={word.kana} />
             <Meaning word={word} />
+            {word.usuallyKana && <p className="muted small">Usually written in kana.</p>}
           </div>
+        )}
+        {word.dict === 'none' && (
+          <p className="muted small" data-testid="not-in-dictionary">
+            Not in the dictionary: check its spelling in <a href={`#/lists/${word.listId}`}>its list</a>.
+          </p>
         )}
       </article>
 

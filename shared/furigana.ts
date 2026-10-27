@@ -87,9 +87,22 @@ export function alignReading(written: string, reading: string): { text: string; 
   return parts.map((p) => (p.kanji ? { text: p.text, reading: match[group++] } : { text: p.text }));
 }
 
+/** A reading per kanji from the dictionary (JmdictFurigana): [text, reading] parts that spell the written form. */
+export type Ruby = [text: string, reading?: string];
+
+/**
+ * The reading lined up with the written form: the dictionary's reading per
+ * kanji when it has one that spells this word (冬眠 → 冬(とう) 眠(みん)),
+ * otherwise lined up around the okurigana by alignReading.
+ */
+export function readingParts(written: string, reading: string, ruby?: Ruby[] | null): { text: string; reading?: string }[] {
+  if (ruby?.length && ruby.map((r) => r[0]).join('') === written) return ruby.map(([text, r]) => (r ? { text, reading: r } : { text }));
+  return alignReading(written, reading);
+}
+
 /** The written form split into segments, with furigana over runs that hold an unknown kanji. */
-export function furigana(written: string, reading: string, known: Set<string>): Segment[] {
-  return alignReading(written, reading).map(({ text, reading }) =>
+export function furigana(written: string, reading: string, known: Set<string>, ruby?: Ruby[] | null): Segment[] {
+  return readingParts(written, reading, ruby).map(({ text, reading }) =>
     reading !== undefined && [...text].some((ch) => isKanji(ch) && !known.has(ch)) ? { text, ruby: reading } : { text },
   );
 }
@@ -98,9 +111,9 @@ export function furigana(written: string, reading: string, known: Set<string>): 
  * The kanji a furigana hint would reveal: those in runs that show no reading
  * now, because you're meant to know every kanji in them.
  */
-export function hiddenKanji(written: string, reading: string, known: Set<string>): string {
+export function hiddenKanji(written: string, reading: string, known: Set<string>, ruby?: Ruby[] | null): string {
   return uniqueKanji(
-    furigana(written, reading, known)
+    furigana(written, reading, known, ruby)
       .filter((s) => s.ruby === undefined)
       .map((s) => s.text)
       .join(''),

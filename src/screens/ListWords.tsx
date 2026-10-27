@@ -3,7 +3,9 @@ import { bind, toKana, unbind } from 'wanakana';
 import { api, writtenForm, type ListSummary, type ListWord } from '../api';
 import { Notice, plural, shortDate } from '../components/ui';
 import { useWordFilter, WordFilter } from '../components/WordFilter';
+import { DictResults, DictSearchBox, SenseList, useDictSearch, useDictStatus } from '../components/DictSearch';
 import { WORD_STATES } from '../../shared/wordSearch';
+import { entryCoreMeaning, headPair, posLabel, sensesFor, type DictEntry } from '../../shared/dictionary';
 
 // One list's words: find them, then edit, move, set aside or delete one.
 
@@ -52,7 +54,14 @@ export function ListWords({ id }: { id: number }) {
       <a href="#/lists" className="link-button link-button--back">
         ← Lists
       </a>
-      <h1>{list.name}</h1>
+      <div className="row row--between">
+        <h1>{list.name}</h1>
+        {!list.archived && (
+          <a href={`#/add/${id}`} className="button button--small">
+            Add a word
+          </a>
+        )}
+      </div>
       <p className="muted small" data-testid="word-counts">
         {words.length === 0
           ? 'No words yet.'
@@ -121,6 +130,7 @@ function WordEditor({
   onError: (message: string) => void;
 }) {
   const kanaRef = useRef<HTMLInputElement>(null);
+  const meaningRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [into, setInto] = useState<number | ''>('');
   // Romaji typed on a laptop turns into kana, as in review.
@@ -197,7 +207,7 @@ function WordEditor({
         </div>
         <label className="field">
           <span>Meaning</span>
-          <input name="meaning" defaultValue={w.coreMeaning} autoComplete="off" required />
+          <input ref={meaningRef} name="meaning" defaultValue={w.coreMeaning} autoComplete="off" required />
         </label>
         {w.senses.length > 1 && (
           <details className="small">
@@ -213,6 +223,18 @@ function WordEditor({
           Save
         </button>
       </form>
+
+      <DictPanel
+        word={w}
+        busy={busy}
+        onLink={(dictSeq, message) => run(() => api.linkEntry(w.id, dictSeq), () => message)}
+        onUseMeaning={(meaning) => {
+          if (meaningRef.current) {
+            meaningRef.current.value = meaning;
+            meaningRef.current.focus();
+          }
+        }}
+      />
 
       {onPage ? (
         <p className="muted small">Moving, setting aside and deleting wait until the page is learned, so the page keeps its words.</p>
@@ -279,6 +301,103 @@ function WordEditor({
             <p className="muted small">Check again undoes your check pass answer, while the word has no reviews yet.</p>
           )}
         </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The word's dictionary entry: what it says, its meaning to copy into yours,
+ * or another entry to link (or none). Your meanings never change by
+ * themselves.
+ */
+function DictPanel({
+  word: w,
+  busy,
+  onLink,
+  onUseMeaning,
+}: {
+  word: ListWord;
+  busy: boolean;
+  onLink: (dictSeq: number | null, message: string) => Promise<void>;
+  onUseMeaning: (meaning: string) => void;
+}) {
+  const status = useDictStatus();
+  const [entry, setEntry] = useState<DictEntry | null>(null);
+  const [picking, setPicking] = useState(false);
+  const [open, setOpen] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const search = useDictSearch();
+  useEffect(() => {
+    if (w.dictSeq === null) return setEntry(null);
+    api.dictEntry(w.dictSeq).then(setEntry, (e: Error) => setError(e.message));
+  }, [w.dictSeq]);
+  const name = writtenForm(w);
+
+  const senses = entry ? sensesFor(entry, w.kanji, w.kana) : [];
+  return (
+    <div className="stack stack--tight" data-testid="dict-panel">
+      <p className="small">
+        {w.dict === 'linked' && entry && (
+          <>
+            Dictionary: <span lang="ja">{headPair(entry)[0] ? `${headPair(entry)[0]}（${headPair(entry)[1]}）` : headPair(entry)[1]}</span>
+            {senses[0] && posLabel(senses[0].pos) && <span className="muted"> · {posLabel(senses[0].pos)}</span>}
+            {w.usuallyKana && <span className="muted"> · usually written in kana</span>}
+          </>
+        )}
+        {w.dict === 'linked' && !entry && !error && 'Dictionary: loading…'}
+        {w.dict === 'none' && (status?.complete === false ? 'Not found in the dictionary yet (it is still loading).' : 'Not in the dictionary.')}
+        {w.dict === 'unchecked' && 'Not looked up in the dictionary yet.'}
+      </p>
+      {error && <p className="error small">{error}</p>}
+      {entry && (
+        <details className="small">
+          <summary className="muted">The dictionary’s meanings ({senses.length})</summary>
+          <SenseList senses={senses} />
+          <button type="button" className="link-button" onClick={() => onUseMeaning(entryCoreMeaning(senses))}>
+            Use its first meaning as mine
+          </button>
+        </details>
+      )}
+      {picking ? (
+        <div className="stack stack--tight">
+          <DictSearchBox search={search} label={`Find the entry for ${name}`} autoFocus />
+          <DictResults
+            search={search}
+            open={open}
+            onOpen={setOpen}
+            mineLabel={(m) => (m.id === w.id ? 'this word' : 'yours')}
+            detail={(e) => (
+              <div className="word-editor stack stack--tight">
+                <SenseList senses={e.senses} />
+                <button type="button" className="button button--primary" disabled={busy} onClick={() => onLink(e.seq, `Linked ${name} to its dictionary entry.`).then(() => setPicking(false))}>
+                  This is the word
+                </button>
+              </div>
+            )}
+          />
+          <div className="row">
+            <button type="button" className="button" onClick={() => setPicking(false)}>
+              Cancel
+            </button>
+            {w.dict !== 'none' && (
+              <button type="button" className="button" disabled={busy} onClick={() => onLink(null, `${name} is marked as not in the dictionary.`).then(() => setPicking(false))}>
+                None of these
+              </button>
+            )}
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          className="link-button"
+          onClick={() => {
+            search.setQuery(w.kanji ?? w.kana);
+            setPicking(true);
+          }}
+        >
+          {w.dict === 'linked' ? 'Pick another entry' : 'Find it in the dictionary'}
+        </button>
       )}
     </div>
   );

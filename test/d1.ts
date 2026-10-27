@@ -1,6 +1,7 @@
 import { DatabaseSync, type SQLInputValue } from 'node:sqlite';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { chunkSql, toChunks, type DictEntry } from '../shared/dictEntry';
 
 // A small in-memory stand-in for Cloudflare D1, backed by node:sqlite, so the
 // database layer can be tested in plain Vitest. It covers only what Shiori
@@ -73,5 +74,15 @@ export function createTestDb(): D1Database {
   for (const f of readdirSync(dir).filter((f) => f.endsWith('.sql')).sort()) {
     db.exec(readFileSync(join(dir, f), 'utf8'));
   }
+  return new FakeD1(db) as unknown as D1Database;
+}
+
+/** The dictionary database, with the sample entries in test/fixtures/dict_sample.json loaded as the loader would. */
+export function createDictDb(chunkSize = 1000): D1Database {
+  const db = new DatabaseSync(':memory:');
+  db.exec(readFileSync(join(import.meta.dirname, '..', 'dict-migrations', '0001_dictionary.sql'), 'utf8'));
+  const sample = JSON.parse(readFileSync(join(import.meta.dirname, 'fixtures', 'dict_sample.json'), 'utf8')) as { version: string; entries: DictEntry[] };
+  const chunks = toChunks(sample.entries, chunkSize);
+  for (const chunk of chunks) db.exec(chunkSql(chunk, sample.version, chunks.length));
   return new FakeD1(db) as unknown as D1Database;
 }
