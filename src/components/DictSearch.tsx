@@ -34,18 +34,33 @@ export const refreshDictStatus = () => {
 /**
  * Looks up every word that has no dictionary entry yet, a batch per request
  * (each request stays small for the Worker). `onProgress` gets the words
- * still waiting. Returns how many found an entry.
+ * still waiting. Returns how many were looked up and how many found an entry
+ * (none looked up: the dictionary isn't loaded, or nothing was waiting).
  */
-export async function lookUpAll(onProgress?: (remaining: number) => void): Promise<number> {
+export async function lookUpAll(onProgress?: (remaining: number) => void): Promise<{ looked: number; matched: number }> {
+  let looked = 0;
   let matched = 0;
   for (;;) {
     const r = await api.dictLookUp();
+    looked += r.looked;
     matched += r.matched;
     onProgress?.(r.remaining);
     if (r.remaining <= 0 || r.looked === 0) break;
   }
-  refreshDictStatus();
-  return matched;
+  if (looked > 0) refreshDictStatus();
+  return { looked, matched };
+}
+
+let background: Promise<unknown> | null = null;
+/**
+ * Once per visit, looks up words still waiting: words from before the
+ * dictionary, and words with no match while it was still loading (it fills
+ * night by night). Quiet: Settings › Dictionary shows the state.
+ */
+export function lookUpInBackground() {
+  background ??= lookUpAll().catch(() => {
+    background = null;
+  });
 }
 
 /** Waits this long after the last key before searching, so typing stays quick. */

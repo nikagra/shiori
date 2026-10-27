@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, type Stats } from '../api';
 import { Notice } from '../components/ui';
 import { nightlyIsStale } from '../../shared/backup';
+import { lookUpInBackground } from '../components/DictSearch';
 
 export function Home() {
   const [stats, setStats] = useState<Stats | null>(null);
@@ -11,6 +12,7 @@ export function Home() {
 
   useEffect(() => {
     api.stats().then(setStats, (e: Error) => setError(e.message));
+    lookUpInBackground();
     api.nightlyBackups().then(
       (n) => {
         const savedAt = n.latest?.savedAt;

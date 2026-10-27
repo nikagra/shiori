@@ -124,7 +124,9 @@ function AddForm({
             onChange={(e) => {
               const i = Number(e.target.value);
               setPick(i);
-              setMeaning(entryCoreMeaning(sensesFor(entry, choices[i][0], choices[i][1])));
+              const [k, r] = choices[i];
+              setMeaning(entryCoreMeaning(sensesFor(entry, k, r)));
+              setInKana(k !== null && usuallyKana(entry, k, r));
             }}
           >
             {choices.map(([k, r], i) => (
@@ -148,7 +150,8 @@ function AddForm({
           {usuallyKana(entry, kanji, kana) && <span className="muted"> · usually written in kana</span>}
         </p>
       )}
-      <SenseList senses={senses} />
+      {/* Every sense, also those for other spellings: the meaning to learn starts from this spelling's. */}
+      <SenseList senses={entry.senses} />
       {kanji && (
         <label className="toggle">
           <input type="checkbox" checked={inKana} onChange={(e) => setInKana(e.target.checked)} />

@@ -1,4 +1,5 @@
 import type { ImportedWord } from '../shared/renshuu';
+import { normalizeKana } from '../shared/kana';
 import { coreMeaning } from '../shared/meaning';
 import { buildQueue, type QueueCandidate } from '../shared/queue';
 import { DEFAULT_WEIGHT, effectiveWeight, MAX_NAME, NEW_PER_DAY, MAX_PAGES_PER_WEEK, pickList, RECENT_DAYS, WEIGHT_RANGE } from '../shared/lists';
@@ -454,7 +455,8 @@ export async function saveDictInfo(db: D1Database, items: { word: WordToLookUp; 
 /** The pair in an entry that spells this word, or the entry's first one. */
 function pairFor(entry: DictEntry, kanji: string | null, kana: string) {
   const all = pairs(entry, true);
-  return all.find(([k, r]) => r === kana && k === kanji) ?? all.find(([, r]) => r === kana) ?? all[0];
+  const same = (r: string) => normalizeKana(r) === normalizeKana(kana);
+  return all.find(([k, r]) => same(r) && k === kanji) ?? all.find(([, r]) => same(r)) ?? all[0];
 }
 
 /** Links a word to the entry you picked, or (null) to none: "not in the dictionary". */

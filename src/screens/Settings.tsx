@@ -85,7 +85,7 @@ function Dictionary() {
           <button type="button" className="button" onClick={lookUp} disabled={busy !== null}>
             {busy ?? 'Look up my words'}
           </button>
-          <p className="muted small">Words you import or add are looked up by themselves. A word with no match is looked up again as the dictionary fills; editing a word lets you pick its entry.</p>
+          <p className="muted small">Words you import or add are looked up by themselves, and opening Home looks up any still waiting (also words with no match while the dictionary was loading). Editing a word lets you pick its entry.</p>
         </>
       )}
       <p className="muted small">

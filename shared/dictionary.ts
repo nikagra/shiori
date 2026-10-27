@@ -33,7 +33,8 @@ export function searchSteps(query: string): string[] {
   if (!q) return [];
   const steps: string[] = [];
   const kanaForms = (s: string) => [...new Set([s, toHiragana(s, { passRomaji: true }), toKatakana(s, { passRomaji: true })])];
-  if (JAPANESE.test(q) && !LATIN.test(q)) {
+  // Any kana or kanji: a written form, even with letters in it (Tシャツ).
+  if (JAPANESE.test(q)) {
     const forms = kanaForms(q.replace(/[\s〜～]/g, ''));
     steps.push(`forms : (${forms.map((f) => `${quote(f)}*`).join(' OR ')})`);
     return steps;
@@ -122,7 +123,8 @@ export interface Match {
  * The dictionary entry for one of your words: the same written form and
  * reading (katakana and hiragana alike). Several entries with that spelling
  * (コート: coat or court) are told apart by the meanings they share with
- * yours, then by which is common. null when none fits.
+ * yours, then (for a word you write in kana) by an entry usually written in
+ * kana, then by which is common. null when none fits.
  */
 export function matchWord(word: WordToMatch, candidates: DictEntry[]): Match | null {
   const kanji = writtenWithKanji(word.kanji);
@@ -131,7 +133,8 @@ export function matchWord(word: WordToMatch, candidates: DictEntry[]): Match | n
   for (const entry of candidates) {
     for (const [k, r] of pairs(entry, true)) {
       if (normalizeKana(r) !== kana) continue;
-      if (kanji ? k === kanji : true) {
+      // Forms as NFKC, like yours: Ｔシャツ in JMdict is Tシャツ.
+      if (kanji ? k !== null && k.normalize('NFKC') === kanji : true) {
         fits.push({ entry, kanji: k, kana: r });
         break;
       }
@@ -164,11 +167,12 @@ export interface WordDictInfo {
 export function dictInfo(word: { kanji: string | null; kana: string }, match: Match | null): WordDictInfo {
   if (!match) return { dictSeq: null, furigana: null, usuallyKana: false };
   const kanji = writtenWithKanji(word.kanji);
-  const ruby = kanji ? rubyFor(match.entry, kanji, match.kana) : null;
+  const ruby = kanji ? rubyFor(match.entry, match.kanji ?? kanji, match.kana) : null;
+  // Only readings that spell out the word as you have it, written and read.
+  const fits = ruby && ruby.map((r) => r[0]).join('') === word.kanji && normalizeKana(ruby.map((r) => r[1] ?? r[0]).join('')) === normalizeKana(word.kana);
   return {
     dictSeq: match.entry.seq,
-    // Only when it spells out the word as you have it.
-    furigana: ruby && ruby.map((r) => r[0]).join('') === word.kanji ? ruby : null,
+    furigana: fits ? ruby : null,
     usuallyKana: usuallyKana(match.entry, kanji ?? match.kanji, match.kana),
   };
 }

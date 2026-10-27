@@ -119,8 +119,10 @@ export function toRuby(item: FuriganaItem): Ruby[] {
 
 /** The text the search index holds for an entry: every written form and reading, and every meaning. */
 export function indexText(e: DictEntry): { forms: string; glosses: string } {
+  const forms = [...e.kanji, ...e.kana].map((f) => f.text);
   return {
-    forms: [...e.kanji, ...e.kana].map((f) => f.text).join(' '),
+    // Also as NFKC, the way searches and your words are normalized: Ｔシャツ is found as Tシャツ.
+    forms: [...new Set([...forms, ...forms.map((f) => f.normalize('NFKC'))])].join(' '),
     glosses: e.senses.flatMap((s) => s.gloss).join(' ; '),
   };
 }
@@ -262,21 +264,23 @@ export function entryCoreMeaning(senses: DictSense[], maxGlosses = 3): string {
 /** A SQL string literal. */
 const sqlText = (s: string) => `'${s.replace(/'/g, "''")}'`;
 
-/** D1 refuses statements over 100 KB; multi-row inserts stay well under it. */
-const MAX_STATEMENT = 60_000;
+/** D1 refuses statements over 100 KB; multi-row inserts stay well under it (in UTF-8 bytes). */
+const MAX_STATEMENT = 50_000;
+const bytes = (s: string) => new TextEncoder().encode(s).length;
 
 function inserts(head: string, rows: string[]): string[] {
   const out: string[] = [];
   let batch: string[] = [];
   let size = 0;
   for (const row of rows) {
-    if (batch.length && size + row.length > MAX_STATEMENT) {
+    const length = bytes(row);
+    if (batch.length && size + length > MAX_STATEMENT) {
       out.push(`${head}\n${batch.join(',\n')};`);
       batch = [];
       size = 0;
     }
     batch.push(row);
-    size += row.length + 2;
+    size += length + 2;
   }
   if (batch.length) out.push(`${head}\n${batch.join(',\n')};`);
   return out;

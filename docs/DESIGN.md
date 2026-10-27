@@ -145,13 +145,15 @@ Each list opens to its words (`#/lists/<id>`), in the order they came in.
   entry, and the free plan allows 100,000 a day, so `--remote` stops at a
   budget (90,000 by default). The **Dictionary** workflow
   (`.github/workflows/dictionary.yml`) runs this every night until the
-  dictionary is complete, about five nights; common words are in after the
-  first. A chunk that fails halfway is simply loaded again. A new version
+  dictionary is complete: 8 chunks a night, so six nights; common words are
+  in after the first. The limit is per account and per UTC day, so a run
+  by hand on the same day as the nightly one can go over it. A chunk that fails halfway is simply loaded again. A new version
   needs `--fresh` (drops it and loads everything again) after changing
   `dict-sources.json`.
 - **Search** (`searchSteps`, `searchRank`): kana match hiragana and katakana
   alike; romaji (one word) is read as kana and as English; English matches
-  a phrase first ("to go"), then every word, the last one as a prefix.
+  a phrase first ("to go"), then every word, the last one as a prefix when
+  it has three letters or more.
   Ranking: an exact form or reading, then a meaning that is exactly the
   query (as the first meaning first), then forms that start with it.
   JMdict has no frequency ranks, so ties go to common words, then words
@@ -167,18 +169,21 @@ Each list opens to its words (`#/lists/<id>`), in the order they came in.
   (katakana and hiragana alike; a kana-only word in Renshuu's kanji field
   counts as kana-only). When several entries share the spelling (コート:
   coat or court), the one sharing most meaning words with yours wins, then
-  the common one. All 450 manga words match. Imports look their words up
+  (for a word you write in kana) one usually written in kana, then the
+  common one. Full-width letters count as plain ones (Ｔシャツ = Tシャツ). All 450 manga words match. Imports look their words up
   straight away (in batches of 100, to stay inside the Worker's limits);
-  Settings › Dictionary has "Look up my words" for the rest. A word with no
-  match is looked up again as the dictionary fills, and editing its
-  spelling looks it up again.
+  opening Home looks up any still waiting once per visit (words from before
+  the dictionary, and words with no match while it was still loading), and
+  Settings › Dictionary has "Look up my words". Editing a word's spelling
+  looks it up again.
 - **What a word keeps**: `dict_seq`, readings per kanji (`furigana`) when
   they spell the word as you have it, and `usually_kana`. Your meanings are
   never replaced; the word's editor shows the dictionary's meanings, with a
   button to copy the first one into yours, and lets you pick another entry
   or say none fits (that choice is kept, `DICT_CHOSEN`).
 - **No match** is flagged in the check pass ("Not in the dictionary: check
-  its spelling") and in the word's editor.
+  its spelling") once the whole dictionary is in, and in the word's editor
+  ("not found yet" while it loads).
 
 ### Pages (`shared/pageSession.ts`, PageView, PageGrid)
 

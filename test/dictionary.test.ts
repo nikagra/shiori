@@ -87,6 +87,11 @@ describe('building entries', () => {
     expect(sql.trimEnd().endsWith(`('loaded:0002', '30');`)).toBe(true);
   });
 
+  it('indexes full-width forms as typed too', () => {
+    const shirt: DictEntry = { seq: 9, common: true, kanji: [{ text: 'Ｔシャツ' }], kana: [{ text: 'ティーシャツ' }], senses: [{ pos: ['n'], gloss: ['T-shirt'] }] };
+    expect(indexText(shirt).forms.split(' ')).toEqual(expect.arrayContaining(['Ｔシャツ', 'Tシャツ', 'ティーシャツ']));
+  });
+
   it('reads parts of speech and a first meaning', () => {
     const e = bySeq(TABERU);
     expect(posLabel(e.senses[0].pos)).toBe('Ichidan verb · transitive');
@@ -100,6 +105,9 @@ describe('search steps', () => {
   it('reads kana as hiragana and katakana, and kanji as written', () => {
     expect(searchSteps('てれび')).toEqual(['forms : ("てれび"* OR "テレビ"*)']);
     expect(searchSteps('食べ')).toEqual(['forms : ("食べ"* OR "食ベ"*)']);
+    // Letters with kana are a written form, full-width or not.
+    expect(searchSteps('Ｔシャツ')).toEqual(searchSteps('Tシャツ'));
+    expect(searchSteps('Tシャツ')[0]).toMatch(/^forms : /);
   });
 
   it('reads Latin letters as romaji and as English', () => {
@@ -138,6 +146,12 @@ describe('matching your words', () => {
     expect(m(null, 'うっかり')).toMatchObject({ kanji: null, kana: 'うっかり' });
     // Renshuu writes some kana words in the kanji field too.
     expect(m('みたい', 'みたい')?.entry.seq).toBe(2016410);
+  });
+
+  it('matches full-width letters and digits as written', () => {
+    const futari: DictEntry = { seq: 9, common: true, kanji: [{ text: '２人' }], kana: [{ text: 'ふたり' }], senses: [{ pos: ['n'], gloss: ['two people'] }] };
+    expect(matchWord({ kanji: '2人', kana: 'ふたり', senses: [] }, [futari])?.entry.seq).toBe(9);
+    expect(matchWord({ kanji: '２人', kana: 'ふたり', senses: [] }, [futari])?.entry.seq).toBe(9);
   });
 
   it('tells entries with one spelling apart by meaning, then by which is common', () => {
@@ -199,6 +213,17 @@ describe('the dictionary database', () => {
     expect(await heads('nothing like it')).toEqual([]);
   });
 
+  it('loads a chunk again without doubling it', async () => {
+    const chunks = toChunks(sample.entries, 30);
+    await dict.exec(chunkSql(chunks[0], sample.version, chunks.length));
+    expect((await searchDict(dict, 'たべる')).filter((e) => e.seq === TABERU)).toHaveLength(1);
+    expect(await dictStatus(dict)).toMatchObject({ loaded: 3, complete: true });
+  });
+
+  it('says when it is still loading', async () => {
+    expect(await dictStatus(createDictDb(30, 1))).toEqual({ version: sample.version, chunks: 3, loaded: 1, complete: false });
+  });
+
   it('finds an entry by its JMdict number', async () => {
     expect((await entryBySeq(dict, TABERU))?.kanji[0].text).toBe('食べる');
     expect(await entryBySeq(dict, 1)).toBeNull();
@@ -232,6 +257,17 @@ describe('your words and the dictionary', () => {
     // Nothing new to look up until the dictionary grows.
     expect(await lookUpWords(db, dict)).toEqual({ looked: 0, matched: 0, remaining: 0 });
     expect(await repo.dictCounts(db)).toEqual({ linked: 1, none: 1, unchecked: 0 });
+  });
+
+  it('looks a word with no match up again once the dictionary has grown', async () => {
+    // 猫/ねこま isn't common, so it's in the last part loaded.
+    const partial = createDictDb(30, 1);
+    await repo.importWords(db, parseRenshuuExport('猫/ねこま - cat').words, MANGA, now);
+    expect(await lookUpWords(db, partial)).toEqual({ looked: 1, matched: 0, remaining: 0 });
+    expect((await word('ねこま')).dict).toBe('none');
+    expect(await lookUpWords(db, partial)).toEqual({ looked: 0, matched: 0, remaining: 0 });
+    expect(await lookUpWords(db, createDictDb(30))).toEqual({ looked: 1, matched: 1, remaining: 0 });
+    expect(await word('ねこま')).toMatchObject({ dict: 'linked', dictSeq: 2698030 });
   });
 
   it('looks a word up again when its spelling changes', async () => {

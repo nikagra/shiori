@@ -77,12 +77,15 @@ export function createTestDb(): D1Database {
   return new FakeD1(db) as unknown as D1Database;
 }
 
-/** The dictionary database, with the sample entries in test/fixtures/dict_sample.json loaded as the loader would. */
-export function createDictDb(chunkSize = 1000): D1Database {
+/**
+ * The dictionary database, with the sample entries in test/fixtures/dict_sample.json
+ * loaded as the loader would: the first `loaded` chunks (all by default).
+ */
+export function createDictDb(chunkSize = 1000, loaded = Infinity): D1Database {
   const db = new DatabaseSync(':memory:');
   db.exec(readFileSync(join(import.meta.dirname, '..', 'dict-migrations', '0001_dictionary.sql'), 'utf8'));
   const sample = JSON.parse(readFileSync(join(import.meta.dirname, 'fixtures', 'dict_sample.json'), 'utf8')) as { version: string; entries: DictEntry[] };
   const chunks = toChunks(sample.entries, chunkSize);
-  for (const chunk of chunks) db.exec(chunkSql(chunk, sample.version, chunks.length));
+  for (const chunk of chunks.slice(0, loaded)) db.exec(chunkSql(chunk, sample.version, chunks.length));
   return new FakeD1(db) as unknown as D1Database;
 }

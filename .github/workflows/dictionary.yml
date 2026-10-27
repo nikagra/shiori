@@ -1,7 +1,9 @@
 # Fills the cloud dictionary (D1 shiori-dict) a day's worth at a time, until
 # it's complete; then each run only checks and stops. The free plan allows
-# 100,000 row writes a day and the whole dictionary takes about 440,000, so
-# it takes about five nights; common words come first. Uses the same
+# 100,000 row writes a day (for the whole account, so a run by hand on the
+# same UTC day as the nightly one can go over it) and the whole dictionary
+# takes about 440,000: 8 chunks a night, so six nights; common words come
+# first. Uses the same
 # repository secrets as the deploy. See "Dictionary" in docs/DESIGN.md.
 name: Dictionary
 
@@ -11,8 +13,8 @@ on:
   workflow_dispatch:
     inputs:
       budget:
-        description: Row writes for this run (Workers Paid allows far more)
-        default: '90000'
+        description: Row writes for this run (empty for the loader's 90000; Workers Paid allows far more)
+        required: false
 
 permissions:
   contents: read
@@ -52,7 +54,9 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: npm run -s dict:load -- --remote --status | tail -n 1 >> "$GITHUB_OUTPUT"
+        run: |
+          set -o pipefail
+          npm run -s dict:load -- --remote --status | tail -n 1 >> "$GITHUB_OUTPUT"
       - name: Download and build
         if: steps.setup.outputs.ready == 'true' && steps.status.outputs.complete != 'true'
         run: npm run dict:download && npm run dict:build
@@ -61,4 +65,6 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: npm run dict:load -- --remote --budget "${{ inputs.budget || '90000' }}"
+          # Through env, not pasted into the command.
+          BUDGET: ${{ inputs.budget }}
+        run: npm run dict:load -- --remote ${BUDGET:+--budget "$BUDGET"}

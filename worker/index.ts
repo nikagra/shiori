@@ -77,7 +77,7 @@ app.patch('/words/:id', async (c) => {
     if (dictSeq !== null && !entry) throw new db.AppError(404, 'dictionary entry not found');
     word = await db.linkEntry(c.env.DB, id, entry, new Date());
   } else if (word.dict === 'unchecked') {
-    // A new spelling: look it up now.
+    // A new spelling (or a word never looked up): look it up now.
     await lookUpWords(c.env.DB, c.env.DICT, id);
     word = await db.getListWord(c.env.DB, id);
   }

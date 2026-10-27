@@ -330,7 +330,15 @@ function DictPanel({
   const search = useDictSearch();
   useEffect(() => {
     if (w.dictSeq === null) return setEntry(null);
-    api.dictEntry(w.dictSeq).then(setEntry, (e: Error) => setError(e.message));
+    // A late answer for an entry you've since replaced mustn't show.
+    let live = true;
+    api.dictEntry(w.dictSeq).then(
+      (e) => live && setEntry(e),
+      (e: Error) => live && setError(e.message),
+    );
+    return () => {
+      live = false;
+    };
   }, [w.dictSeq]);
   const name = writtenForm(w);
 

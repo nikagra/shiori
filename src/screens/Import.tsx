@@ -12,7 +12,7 @@ export function Import() {
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   /** Words still to look up in the dictionary after an import, then how many were found. */
-  const [lookUp, setLookUp] = useState<{ remaining: number; found: number | null } | null>(null);
+  const [lookUp, setLookUp] = useState<{ remaining: number; found: number | null; notLoaded?: boolean } | null>(null);
 
   useEffect(() => {
     api.lists().then(
@@ -39,8 +39,14 @@ export function Import() {
         // Each new word gets its dictionary entry: readings per kanji, and a
         // flag in the check pass when none fits.
         setLookUp({ remaining: imported.added, found: null });
-        const found = await lookUpAll((remaining) => setLookUp({ remaining, found: null }));
-        setLookUp({ remaining: 0, found });
+        try {
+          const { looked, matched } = await lookUpAll((remaining) => setLookUp({ remaining, found: null }));
+          setLookUp({ remaining: 0, found: matched, notLoaded: looked === 0 });
+        } catch (e) {
+          // The words are in; Settings › Dictionary can look them up later.
+          setLookUp(null);
+          throw e;
+        }
       }
     } catch (e) {
       setError((e as Error).message);
@@ -120,7 +126,9 @@ export function Import() {
             <p data-testid="import-lookup">
               {lookUp.found === null
                 ? `Looking the words up in the dictionary… ${lookUp.remaining} to go.`
-                : `Found ${lookUp.found} of them in the dictionary.`}
+                : lookUp.notLoaded
+                  ? 'The dictionary isn’t loaded yet, so they’ll be looked up later.'
+                  : `Found ${lookUp.found} of them in the dictionary.`}
             </p>
           )}
           {result.added > 0 && (

@@ -44,7 +44,7 @@ async function rawEntries(dict: D1Database, match: string, limit: number): Promi
 
 const entriesFor = async (dict: D1Database, match: string, limit: number) => (await rawEntries(dict, match, limit)).map((r) => JSON.parse(r) as DictEntry);
 
-/** How many results a search looks at before ranking. */
+/** How many results each search step looks at before ranking. */
 const CANDIDATES = 120;
 
 /** Entries for a search box: kana, romaji, kanji or English. Best first. */
@@ -69,7 +69,7 @@ export async function entryBySeq(dict: D1Database, seq: number): Promise<DictEnt
 }
 
 /**
- * Words per lookup query. A reading like かく has dozens of entries, and the
+ * Words per lookup query. A reading like かく has about twenty entries, and the
  * query keeps the first 1000 (common words first), so batches stay small.
  */
 const WORDS_PER_QUERY = 10;

@@ -3,11 +3,13 @@ import { api, type ListSummary, type Word } from '../api';
 import { JapaneseWord, Meaning, Notice, SpeakButton, useKeys } from '../components/ui';
 import { useSettings } from '../settings';
 import { speak } from '../speech';
+import { useDictStatus } from '../components/DictSearch';
 
 // One recall check per imported word: known words go straight to spaced
 // review, the rest wait for a page.
 
 export function Triage() {
+  const dict = useDictStatus();
   const [batch, setBatch] = useState<Word[] | null>(null);
   const [remaining, setRemaining] = useState(0);
   const [index, setIndex] = useState(0);
@@ -140,7 +142,8 @@ export function Triage() {
             {word.usuallyKana && <p className="muted small">Usually written in kana.</p>}
           </div>
         )}
-        {word.dict === 'none' && (
+        {/* Only once the whole dictionary is in: while it loads, a rarer word may just not be there yet. */}
+        {word.dict === 'none' && dict?.complete && (
           <p className="muted small" data-testid="not-in-dictionary">
             Not in the dictionary: check its spelling in <a href={`#/lists/${word.listId}`}>its list</a>.
           </p>

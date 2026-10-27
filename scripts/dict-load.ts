@@ -41,7 +41,7 @@ const json = option('--json');
 const persistTo = option('--persist-to');
 const budget = Number(option('--budget') ?? 90_000);
 if (args.length || !Number.isFinite(budget) || (remote && persistTo)) {
-  console.error('usage: npm run dict:load -- [--remote] [--dir .dict-data/sql | --json fixture.json] [--budget 90000] [--persist-to dir] [--fresh]');
+  console.error('usage: npm run dict:load -- [--remote] [--dir .dict-data/sql | --json fixture.json] [--budget 90000] [--persist-to dir] [--fresh] [--status]');
   process.exit(2);
 }
 
