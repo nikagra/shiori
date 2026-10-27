@@ -294,7 +294,10 @@ function ReviewCard({
                 <>
                   <div className="grade-row grade-intervals" data-testid="grade-intervals" aria-label="When the word comes back">
                     {(['again', 'hard', 'good', 'easy'] as const).map((g) => (
-                      <span key={g}>~{formatInterval(item.intervals[g])}</span>
+                      <span key={g}>
+                        <span className="approx">~</span>
+                        {formatInterval(item.intervals[g])}
+                      </span>
                     ))}
                   </div>
                   <p className="muted small grade-hint">

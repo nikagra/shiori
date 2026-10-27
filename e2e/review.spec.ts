@@ -36,7 +36,19 @@ test('review both directions with honest grading', async ({ page, request }, tes
       await page.getByRole('button', { name: 'Show answer' }).click();
       await expect(card.locator('.meaning__core')).toContainText(word.coreMeaning);
       // A line under the buttons says when the word would come back after each grade.
-      await expect(page.getByTestId('grade-intervals').locator('span')).toHaveText(Array(4).fill(/^~\d+(\.\d)?(m|h|d|w|mo|y)$/));
+      await expect(page.getByTestId('grade-intervals').locator(':scope > span')).toHaveText(Array(4).fill(/^~\d+(\.\d)?(m|h|d|w|mo|y)$/));
+      // The number, not the tilde before it, sits under the middle of its button.
+      const offsets = await page.getByTestId('grade-intervals').evaluate((row) => {
+        const buttons = [...row.previousElementSibling!.querySelectorAll('button')];
+        return [...row.children].map((cell, i) => {
+          const range = document.createRange();
+          range.selectNode(cell.lastChild!);
+          const number = range.getBoundingClientRect();
+          const button = buttons[i].getBoundingClientRect();
+          return Math.abs(number.left + number.width / 2 - (button.left + button.width / 2));
+        });
+      });
+      for (const offset of offsets) expect(offset).toBeLessThan(1);
       if (graded.length === 0) await shot(page, testInfo, '21-review-reading-answer');
       await page.getByRole('button', { name: 'Good' }).click();
     } else {
