@@ -67,3 +67,10 @@ export async function shot(page: Page, testInfo: TestInfo, name: string) {
   await page.screenshot({ path: testInfo.outputPath(`${name}.png`), fullPage: true, style });
   await page.screenshot({ path: join('test-results', 'screens', testInfo.project.name, `${name}.png`), fullPage: true, style });
 }
+
+/** After a drill miss: type the word once while looking at it, to go on. */
+export async function typeItOnce(page: Page, kana: string) {
+  const once = page.getByRole('region', { name: 'Type it once' });
+  await once.getByLabel('Type the word').fill(kana);
+  await once.getByRole('button', { name: 'Check' }).click();
+}

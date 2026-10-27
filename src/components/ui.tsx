@@ -161,7 +161,17 @@ export function Meaning({ word, onEdit }: { word: Word; onEdit?: (meaning: strin
  * Kana answer box. Romaji typed on a laptop turns into hiragana as you type;
  * on the iPhone the Japanese keyboard works as is.
  */
-export function KanaInput({ onSubmit, disabled }: { onSubmit: (value: string) => void; disabled?: boolean }) {
+export function KanaInput({
+  onSubmit,
+  disabled,
+  label = 'Answer in kana',
+  placeholder = 'type the reading (romaji works)',
+}: {
+  onSubmit: (value: string) => void;
+  disabled?: boolean;
+  label?: string;
+  placeholder?: string;
+}) {
   const ref = useRef<HTMLInputElement>(null);
   useEffect(() => {
     const el = ref.current;
@@ -181,8 +191,8 @@ export function KanaInput({ onSubmit, disabled }: { onSubmit: (value: string) =>
       <input
         ref={ref}
         lang="ja"
-        aria-label="Answer in kana"
-        placeholder="type the reading (romaji works)"
+        aria-label={label}
+        placeholder={placeholder}
         autoComplete="off"
         autoCorrect="off"
         autoCapitalize="off"

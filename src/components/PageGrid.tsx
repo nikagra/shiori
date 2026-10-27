@@ -12,6 +12,7 @@ export function PageGrid({
   highlight,
   hideHighlighted = false,
   hiddenIds,
+  revealHighlighted = false,
 }: {
   page: PageDetail;
   /** full: word, reading, meaning · written: the word only · blank: positions only */
@@ -20,17 +21,20 @@ export function PageGrid({
   hideHighlighted?: boolean;
   /** Words not to show yet: their cells keep only the position. */
   hiddenIds?: Set<number>;
+  /** After a miss: the highlighted word shows in its spot whatever the mode (the card shows its reading). */
+  revealHighlighted?: boolean;
 }) {
   return (
     <ol className={`page-grid page-grid--${mode}`} aria-label={`Page ${page.number}`}>
       {page.words.map((w) => {
         const current = w.position === highlight;
-        const hidden = current && hideHighlighted;
+        const revealed = current && revealHighlighted;
+        const hidden = current && hideHighlighted && !revealed;
         const notYet = !current && hiddenIds?.has(w.id);
         return (
-          <li key={w.id} className={`page-cell${current ? ' page-cell--current' : ''}`} data-position={w.position}>
+          <li key={w.id} className={`page-cell${current ? ' page-cell--current' : ''}${revealed ? ' page-cell--revealed' : ''}`} data-position={w.position}>
             <span className="page-cell__number">{w.position + 1}</span>
-            {mode !== 'blank' && !hidden && !notYet && (
+            {(mode !== 'blank' || revealed) && !hidden && !notYet && (
               <span className={`page-cell__word${lengthClass(writtenForm(w))}`} lang="ja" data-written={writtenForm(w)}>
                 {mode === 'full' ? writtenForm(w) : <Written word={w} />}
               </span>

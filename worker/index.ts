@@ -119,10 +119,16 @@ app.delete('/pages/:id', async (c) => {
 });
 
 app.post('/pages/:id/complete', async (c) => {
-  const body = await c.req.json<{ stage: 'ordered' | 'shuffled'; nextDayStart: string }>();
+  const body = await c.req.json<{ stage: 'ordered' | 'shuffled'; nextDayStart: string; misses?: unknown }>();
   if (body.stage !== 'ordered' && body.stage !== 'shuffled') throw new db.AppError(400, 'stage must be ordered or shuffled');
   const nextDay = dateParam(body.nextDayStart, 'nextDayStart');
-  return c.json(await db.completeStage(c.env.DB, intParam(c.req.param('id'), 'id'), body.stage, nextDay, new Date()));
+  if (body.misses !== undefined && !Array.isArray(body.misses)) throw new db.AppError(400, 'misses must be a list');
+  const misses = ((body.misses ?? []) as { wordId?: unknown; direction?: unknown; misses?: unknown }[]).map((m) => ({
+    wordId: intParam(m?.wordId, 'wordId'),
+    direction: m?.direction as db.CardMisses['direction'],
+    misses: m?.misses as number,
+  }));
+  return c.json(await db.completeStage(c.env.DB, intParam(c.req.param('id'), 'id'), body.stage, nextDay, new Date(), misses));
 });
 
 app.get('/review', async (c) => {

@@ -6,21 +6,36 @@ import type { WordState } from './wordSearch';
 // Stage "ordered":  every word in grid order, Japanese→meaning first,
 //                   then meaning→Japanese, again in grid order.
 // Stage "shuffled": the same steps, shuffled, with both directions mixed.
-// A missed step goes to the back of the queue until it is answered correctly.
+//
+// A missed step comes back after at least MISS_GAP other cards, so the retry
+// isn't answered from the last few seconds of memory. Near the end of a
+// drill, steps already answered fill the gap ("fillers": asked again, but
+// they don't count towards progress). A retry you get right finishes the
+// step; the miss stays recorded, per word and direction.
 
 export type PageStage = 'ordered' | 'shuffled' | 'graduated';
 
 export interface DrillStep {
   wordId: number;
   direction: Direction;
+  /** Asked again only to put a gap before a retry. */
+  filler?: boolean;
 }
 
 export interface DrillState {
   queue: DrillStep[];
   completed: number;
   total: number;
-  misses: Record<number, number>;
+  /** Misses by stepKey. */
+  misses: Record<string, number>;
+  /** Steps answered right, the pool fillers come from. */
+  done: DrillStep[];
 }
+
+/** Other cards before a missed step comes back. */
+export const MISS_GAP = 5;
+
+export const stepKey = (s: Pick<DrillStep, 'wordId' | 'direction'>) => `${s.wordId}:${s.direction}`;
 
 export type Random = () => number;
 
@@ -47,22 +62,51 @@ export function startDrill(wordIdsInGridOrder: number[], stage: 'ordered' | 'shu
           ]),
           random,
         );
-  return { queue: steps, completed: 0, total: steps.length, misses: {} };
+  return { queue: steps, completed: 0, total: steps.length, misses: {}, done: [] };
 }
 
 export function currentStep(state: DrillState): DrillStep | null {
   return state.queue[0] ?? null;
 }
 
-export function answerStep(state: DrillState, correct: boolean): DrillState {
+export function answerStep(state: DrillState, correct: boolean, random: Random = Math.random): DrillState {
   const [step, ...rest] = state.queue;
   if (!step) return state;
-  if (correct) return { ...state, queue: rest, completed: state.completed + 1 };
-  return {
-    ...state,
-    queue: [...rest, step],
-    misses: { ...state.misses, [step.wordId]: (state.misses[step.wordId] ?? 0) + 1 },
-  };
+  if (correct) {
+    if (step.filler) return { ...state, queue: rest };
+    return { ...state, queue: rest, completed: state.completed + 1, done: [...state.done, { wordId: step.wordId, direction: step.direction }] };
+  }
+  const key = stepKey(step);
+  const misses = { ...state.misses, [key]: (state.misses[key] ?? 0) + 1 };
+  // Back after MISS_GAP other cards; fillers make up for a short queue.
+  const queued = new Set(rest.map(stepKey));
+  const pool = state.done.filter((s) => s.wordId !== step.wordId && !queued.has(stepKey(s)));
+  const fillers = shuffle(pool, random)
+    .slice(0, Math.max(0, MISS_GAP - rest.length))
+    .map((s) => ({ ...s, filler: true }));
+  const before = [...rest, ...fillers];
+  const at = Math.min(MISS_GAP, before.length);
+  return { ...state, queue: [...before.slice(0, at), step, ...before.slice(at)], misses };
+}
+
+/** Misses per card, for the server. */
+export function missesByCard(state: DrillState): { wordId: number; direction: Direction; misses: number }[] {
+  return Object.entries(state.misses).map(([key, misses]) => {
+    const [wordId, direction] = key.split(':');
+    return { wordId: Number(wordId), direction: direction as Direction, misses };
+  });
+}
+
+/** A saved drill still fits the page: the same words, none missing. */
+export function drillFits(state: DrillState, wordIds: number[]): boolean {
+  const ids = new Set(wordIds);
+  const steps = [...state.queue, ...state.done];
+  return steps.every((s) => ids.has(s.wordId)) && state.total === wordIds.length * 2 && Array.isArray(state.done);
+}
+
+/** The grade a card starts review with, from its misses in step 2: right first time Good, one miss Hard, more Again. */
+export function graduationGrade(misses: number): 'good' | 'hard' | 'again' {
+  return misses <= 0 ? 'good' : misses === 1 ? 'hard' : 'again';
 }
 
 export function isDrillDone(state: DrillState): boolean {

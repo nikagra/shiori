@@ -1,5 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
-import { expectNoHorizontalScroll, graduatePage, resetDb, seedWords, shot, type PageWord } from './helpers';
+import { expectNoHorizontalScroll, graduatePage, resetDb, seedWords, shot, typeItOnce, type PageWord } from './helpers';
 
 // From trying v0.1 on the iPhone: a way to say "don't know" up front, no
 // reading the next answer off the grid, room to study again, and grid words
@@ -30,13 +30,17 @@ test.describe('drill', () => {
     await expect(page.getByRole('button', { name: 'Got it' })).toHaveCount(0);
     await shot(page, testInfo, '40-drill-dont-know');
     await page.getByRole('button', { name: 'Continue' }).click();
+    // A miss means typing the word once, looking at it in its spot.
+    await expect(page.locator('.page-cell--revealed')).toHaveAttribute('data-position', '0');
+    await typeItOnce(page, words[0].kana);
     expect(await position(page)).toBe(1);
     for (const _ of [1, 2]) {
       await page.getByRole('button', { name: 'Show answer' }).click();
       await page.getByRole('button', { name: 'Got it' }).click();
     }
-    // The meaning→Japanese pass starts; the missed word waits at the very end
-    // of the drill (answerStep's unit tests cover the requeue).
+    // The meaning→Japanese pass starts; the missed word comes back after
+    // MISS_GAP cards, here the end of this small drill (answerStep's unit
+    // tests cover the gap and the fillers).
     await expect(page.getByTestId('drill-card')).toHaveAttribute('data-direction', 'en_jp');
     expect(await position(page)).toBe(0);
   });
@@ -59,7 +63,7 @@ test.describe('drill', () => {
     await expect(page.locator('.page-cell[data-position="0"] .page-cell__word')).toBeVisible();
 
     await page.getByRole('button', { name: 'Don’t know yet' }).click();
-    await expect(page.getByTestId('typed-result')).toContainText('comes back at the end');
+    await expect(page.getByTestId('typed-result')).toContainText('comes back after a few cards');
     await expect(page.getByRole('button', { name: /typo/ })).toHaveCount(0);
   });
 
@@ -68,6 +72,7 @@ test.describe('drill', () => {
     // Japanese→meaning: give up on word 1, know words 2 and 3.
     await page.getByRole('button', { name: 'Don’t know yet' }).click();
     await page.getByRole('button', { name: 'Continue' }).click();
+    await typeItOnce(page, words[0].kana);
     for (const _ of [1, 2]) {
       await page.getByRole('button', { name: 'Show answer' }).click();
       await page.getByRole('button', { name: 'Got it' }).click();
@@ -78,6 +83,7 @@ test.describe('drill', () => {
     await page.getByRole('button', { name: 'Continue' }).click();
     await page.getByRole('button', { name: 'Don’t know yet' }).click();
     await page.getByRole('button', { name: 'Continue' }).click();
+    await typeItOnce(page, words[1].kana);
     await page.getByLabel('Answer in kana').fill(words[2].kana);
     await page.getByRole('button', { name: 'Check' }).click();
     await page.getByRole('button', { name: 'Continue' }).click();

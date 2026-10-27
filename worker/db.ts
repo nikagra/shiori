@@ -16,7 +16,7 @@ import {
   type Grade,
   type StoredCard,
 } from '../shared/scheduler';
-import { MAX_PAGE_WORDS, PAGE_READY, type PageStage } from '../shared/pageSession';
+import { graduationGrade, MAX_PAGE_WORDS, PAGE_READY, type PageStage } from '../shared/pageSession';
 import { BACKUP_FORMAT, BACKUP_SCHEMA, BACKUP_TABLES, LISTS_FROM_LABELS, type Backup, type BackupRow, type BackupTable } from '../shared/backup';
 import type { WordState as WordStatus } from '../shared/wordSearch';
 import { DEFAULT_PREFS, HINTS_TO_LEARNING, isKanji, knownKanjiSet, markLearning, uniqueKanji, type FuriganaPrefs, type Ruby } from '../shared/furigana';
@@ -623,9 +623,25 @@ export interface PageSummary {
   listName: string | null;
 }
 
-export interface PageDetail extends PageSummary {
-  words: (Word & { position: number })[];
+/** Drill misses for one word of a page, by step and direction. */
+export interface DrillMisses {
+  step1: Record<Direction, number>;
+  step2: Record<Direction, number>;
 }
+
+export interface PageDetail extends PageSummary {
+  words: (Word & { position: number; misses: DrillMisses })[];
+}
+
+/** Misses a client sends for one card when it finishes a drill step. */
+export interface CardMisses {
+  wordId: number;
+  direction: Direction;
+  misses: number;
+}
+
+/** Most misses stored for one card in one step, so a stuck client can't send nonsense. */
+const MAX_MISSES = 99;
 
 /** SQL: the word can go on a page (PAGE_READY). */
 const PICKABLE = `status IN (${PAGE_READY.map((s) => `'${s}'`).join(', ')})`;
@@ -867,36 +883,85 @@ export async function getPage(db: D1Database, id: number): Promise<PageDetail> {
   if (!page) throw new AppError(404, 'page not found');
   const words = await db
     .prepare(
-      `SELECT w.*, pw.position FROM page_words pw JOIN words w ON w.id = pw.word_id
+      `SELECT w.*, pw.position, pw.ordered_misses_jp_en, pw.ordered_misses_en_jp, pw.shuffled_misses_jp_en, pw.shuffled_misses_en_jp
+       FROM page_words pw JOIN words w ON w.id = pw.word_id
        WHERE pw.page_id = ? ORDER BY pw.position`,
     )
     .bind(id)
-    .all<WordRow & { position: number }>();
-  return { ...toSummary(page), words: words.results.map((r) => ({ ...toWord(r), position: r.position })) };
+    .all<WordRow & { position: number; ordered_misses_jp_en: number; ordered_misses_en_jp: number; shuffled_misses_jp_en: number; shuffled_misses_en_jp: number }>();
+  return {
+    ...toSummary(page),
+    words: words.results.map((r) => ({
+      ...toWord(r),
+      position: r.position,
+      misses: {
+        step1: { jp_en: r.ordered_misses_jp_en, en_jp: r.ordered_misses_en_jp },
+        step2: { jp_en: r.shuffled_misses_jp_en, en_jp: r.shuffled_misses_en_jp },
+      },
+    })),
+  };
 }
 
-/** Marks a drill stage as finished. Finishing "shuffled" graduates the page. */
+/** Checks the misses a client sent: cards of this page, each once. */
+function cleanMisses(page: PageDetail, misses: CardMisses[]): CardMisses[] {
+  const ids = new Set(page.words.map((w) => w.id));
+  const seen = new Set<string>();
+  return misses.map((m) => {
+    const key = `${m.wordId}:${m.direction}`;
+    if (!ids.has(m.wordId)) throw new AppError(400, `word ${m.wordId} is not on this page`);
+    if (!DIRECTIONS.includes(m.direction)) throw new AppError(400, 'direction must be jp_en or en_jp');
+    if (!Number.isInteger(m.misses) || m.misses < 0) throw new AppError(400, 'misses must be a whole number');
+    if (seen.has(key)) throw new AppError(400, `misses for ${key} sent twice`);
+    seen.add(key);
+    return { ...m, misses: Math.min(m.misses, MAX_MISSES) };
+  });
+}
+
+/** The grade a card graduates with, from its step 2 misses (graduationGrade). */
+const GRADUATION_RATING = { good: Rating.Good, hard: Rating.Hard, again: Rating.Again } as const;
+
+/**
+ * Marks a drill stage as finished, with the misses of that step. Finishing
+ * "shuffled" graduates the page: each card starts review graded by its step 2
+ * misses (right first time Good, one miss Hard, more Again).
+ */
 export async function completeStage(
   db: D1Database,
   id: number,
   finished: 'ordered' | 'shuffled',
   nextDayStart: Date,
   now: Date,
+  misses: CardMisses[] = [],
 ): Promise<PageDetail> {
   const page = await getPage(db, id);
   if (page.stage !== finished) return page; // already past this stage (e.g. a retried request)
+  const clean = cleanMisses(page, misses);
+  // Guarded on the stage, so a retry (or the other device) can't record them twice.
+  const recordMisses = clean.map((m) =>
+    db
+      .prepare(
+        `UPDATE page_words SET ${finished}_misses_${m.direction} = ?
+         WHERE page_id = ? AND word_id = ? AND (SELECT stage FROM pages WHERE id = ?) = ?`,
+      )
+      .bind(m.misses, id, m.wordId, id, finished),
+  );
   if (finished === 'ordered') {
-    await db.prepare(`UPDATE pages SET stage = 'shuffled' WHERE id = ?`).bind(id).run();
+    await db.batch([...recordMisses, db.prepare(`UPDATE pages SET stage = 'shuffled' WHERE id = ? AND stage = 'ordered'`).bind(id)]);
     return getPage(db, id);
   }
+  const missed = new Map(clean.map((m) => [`${m.wordId}:${m.direction}`, m.misses]));
   // One batch, so a page never ends up half graduated.
   try {
     await db.batch([
+      ...recordMisses,
       ...page.words.flatMap((w) =>
-        DIRECTIONS.flatMap((direction) => [
-          insertCard(db, w.id, direction, graduate(now, nextDayStart), now),
-          logReview(db, { card: direction, wordId: w.id, kind: 'graduation', rating: Rating.Good, stateBefore: State.New, correct: true }, now),
-        ]),
+        DIRECTIONS.flatMap((direction) => {
+          const rating = GRADUATION_RATING[graduationGrade(missed.get(`${w.id}:${direction}`) ?? 0)];
+          return [
+            insertCard(db, w.id, direction, graduate(now, nextDayStart, rating), now),
+            logReview(db, { card: direction, wordId: w.id, kind: 'graduation', rating, stateBefore: State.New, correct: rating !== Rating.Again }, now),
+          ];
+        }),
       ),
       db.prepare(`UPDATE pages SET stage = 'graduated', graduated_at = ? WHERE id = ?`).bind(iso(now), id),
       db

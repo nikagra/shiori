@@ -26,7 +26,7 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   in `.wrangler/state`, separate from the cloud one. An old database holding
   only test data is kept in `.wrangler/state-test-backup-20261025` and can be
   deleted.
-- Tests: 166 unit tests, 70 end-to-end runs (35 tests at iPhone and laptop
+- Tests: 173 unit tests, 70 end-to-end runs (35 tests at iPhone and laptop
   sizes), and `tsc -b` all pass.
 - **Backup and export** (26 Oct): Settings › Backup downloads all study data as
   one JSON file, a nightly cron saves the same file to the private R2 bucket
@@ -88,6 +88,13 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   the rest of step 5 is in the
   [plan doc](https://claude.ai/artifact/Q2JWAKtgYbekKkHi9yjNmZ), agreed
   with Mikita on 27 Oct.
+- **Finish review, part 2** (27 Oct): drill misses count. A miss shows
+  the word in its spot and you type its kana once; the retry comes after
+  at least 5 other cards (answered steps fill in near the end); misses are
+  kept per word and direction, and step 2 misses start a card at Hard (one)
+  or Again (more). A drill survives Stop on the device. Migration
+  `0005_drill_misses`: after pulling on the laptop, run
+  `npm run db:migrate:local`.
 - First iPhone feedback (25 Oct) is in: "Don't know" on review and drill
   cards, next words hidden in the in-order drill, "Study the page again",
   whole words on the grid, safer iOS speech. Sound on the iPhone still needs
@@ -153,7 +160,7 @@ once by hand or wait for the night, then try Add a word on the iPhone).
 5. **Finish review.** Plan agreed with Mikita (27 Oct,
    [plan doc](https://claude.ai/artifact/Q2JWAKtgYbekKkHi9yjNmZ)), in three
    PRs: (1) grade intervals and new words a day, done; (2) drill misses that
-   count: type the kana after a miss, the retry comes after at least 5 other
+   count, done: type the kana after a miss, the retry comes after at least 5 other
    cards (with fillers near the end), and step 2 misses start a card at Hard
    (one miss) or Again (two or more), per direction; the drill is kept on the
    device across Stop; (3) leeches: 4 lapses take a word out of review until
