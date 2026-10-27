@@ -105,16 +105,18 @@ describe('search steps', () => {
   it('reads Latin letters as romaji and as English', () => {
     expect(searchSteps('taberu')).toEqual([
       'forms : ("たべる" OR "タベル")',
+      'glosses : ("taberu" OR "to taberu")',
       'glosses : ("taberu"*)',
       'forms : ("たべる"* OR "タベル"*)',
     ]);
-    // Not romaji: English only, the last word unfinished.
-    expect(searchSteps('to ea')).toEqual(['glosses : ("to" "ea")']);
-    expect(searchSteps('cat')).toEqual(['glosses : ("cat"*)']);
+    // Several words: English only. The phrase first (as a verb too), then
+    // every word, the last one unfinished when it's long enough.
+    expect(searchSteps('to ea')).toEqual(['glosses : ("to ea")', 'glosses : ("to" "ea")']);
+    expect(searchSteps('cat')).toEqual(['glosses : ("cat" OR "to cat")', 'glosses : ("cat"*)']);
   });
 
   it('quotes what it is given, so nothing typed breaks the query', () => {
-    expect(searchSteps('"eat')).toEqual(['glosses : ("eat"*)']);
+    expect(searchSteps('"eat')).toEqual(['glosses : ("eat" OR "to eat")', 'glosses : ("eat"*)']);
     expect(searchSteps('  ')).toEqual([]);
     expect(searchSteps('!!')).toEqual([]);
   });
