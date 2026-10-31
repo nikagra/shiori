@@ -155,10 +155,29 @@ describe('page drill', () => {
 
   it('spreads clashes at the end back into the drill, and leaves one word as it is', () => {
     const step = (wordId: number, direction: 'jp_en' | 'en_jp' = 'jp_en'): DrillStep => ({ wordId, direction });
-    const spread = spreadWords([step(2), step(2, 'en_jp'), step(1), step(1, 'en_jp')]);
-    expect(neighbours(spread)).toBe(0);
-    expect(spread).toHaveLength(4);
+    // Nothing of another word comes after the clash, so the last step moves back.
+    expect(spreadWords([step(1), step(2), step(2, 'en_jp')])).toEqual([step(2, 'en_jp'), step(1), step(2)]);
     expect(spreadWords([step(1), step(1, 'en_jp')])).toEqual([step(1), step(1, 'en_jp')]);
+  });
+
+  it('a miss at the end of the drill moves back rather than land next to its other direction', () => {
+    let d = startDrill([1, 2, 3, 4, 5], 'ordered');
+    for (let i = 0; i < 4; i++) d = answerStep(d, true);
+    d = answerStep(d, false); // 5 jp_en; queue: 1–5 en
+    expect(neighbours(d.queue)).toBe(0);
+    expect(d.queue.findIndex((s) => s.wordId === 5 && s.direction === 'jp_en')).toBeLessThan(d.queue.length - 1);
+  });
+
+  it('fillers never put a word next to itself', () => {
+    const step = (wordId: number, direction: 'jp_en' | 'en_jp'): DrillStep => ({ wordId, direction });
+    for (let seed0 = 1; seed0 <= 300; seed0++) {
+      let seed = seed0;
+      const random = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+      const done = [step(1, 'jp_en'), step(2, 'jp_en'), step(2, 'en_jp'), step(3, 'jp_en'), step(3, 'en_jp')];
+      const d = answerStep({ queue: [step(1, 'en_jp')], completed: 5, total: 6, misses: {}, done }, false, random);
+      expect(d.queue.filter((s) => s.filler)).toHaveLength(4);
+      expect(neighbours(d.queue)).toBe(0);
+    }
   });
 
   it("a miss doesn't come back right next to its other direction", () => {

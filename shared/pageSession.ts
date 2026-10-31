@@ -69,10 +69,25 @@ export function spreadWords(steps: DrillStep[]): DrillStep[] {
     }
     // Nothing of another word ahead: put this step back between two others.
     const [step] = out.splice(i, 1);
-    const at = out.findIndex((s, j) => j > 0 && j < i && !sameWord(out[j - 1], step) && !sameWord(s, step));
+    const at = out.findIndex((s, j) => j < i && !sameWord(out[j - 1], step) && !sameWord(s, step));
     out.splice(at === -1 ? i : at, 0, step);
     if (at === -1) break;
     i = at;
+  }
+  return out;
+}
+
+/** Steps put in an order where none sits next to one of the same word, after `last`, where they allow it. */
+function followOn(last: DrillStep | undefined, steps: DrillStep[]): DrillStep[] {
+  const left = steps.slice();
+  const out: DrillStep[] = [];
+  let prev = last;
+  while (left.length > 0) {
+    // A word with both directions left goes first, so the pair can be split.
+    const pick = left.findIndex((s) => !sameWord(prev, s) && left.filter((o) => o.wordId === s.wordId).length > 1);
+    const i = pick !== -1 ? pick : Math.max(0, left.findIndex((s) => !sameWord(prev, s)));
+    prev = left.splice(i, 1)[0];
+    out.push(prev);
   }
   return out;
 }
@@ -116,10 +131,18 @@ export function answerStep(state: DrillState, correct: boolean, random: Random =
   const fillers = shuffle(pool, random)
     .slice(0, Math.max(0, MISS_GAP - rest.length))
     .map((s) => ({ ...s, filler: true }));
-  const before = [...rest, ...fillers];
-  // At least MISS_GAP cards later, and not next to the word's other direction.
-  let at = Math.min(MISS_GAP, before.length);
-  while (at < before.length && (sameWord(before[at - 1], step) || sameWord(before[at], step))) at++;
+  const before = [...rest, ...followOn(rest[rest.length - 1], fillers)];
+  // At least MISS_GAP cards later and not next to the word's other direction;
+  // if no spot that late fits, the latest one that does.
+  const fits = (i: number) => !sameWord(before[i - 1], step) && !sameWord(before[i], step);
+  const gap = Math.min(MISS_GAP, before.length);
+  let at = gap;
+  while (at <= before.length && !fits(at)) at++;
+  if (at > before.length) {
+    at = gap;
+    while (at > 1 && !fits(at)) at--;
+    if (!fits(at)) at = gap;
+  }
   return { ...state, queue: [...before.slice(0, at), step, ...before.slice(at)], misses };
 }
 

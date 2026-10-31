@@ -141,36 +141,43 @@ export interface ImportResult {
 export class ApiError extends Error {
   constructor(
     message: string,
-    /** The HTTP status, or null when no answer came. */
+    /** The HTTP status, when it's known. */
     readonly status: number | null = null,
   ) {
     super(message);
+  }
+
+  /** The server turned the request down (a 4xx): sending it again won't help. */
+  get refused() {
+    return this.status !== null && this.status >= 400 && this.status < 500;
   }
 }
 
 /** How long a request may take before it gives up, so a stalled one doesn't look like a frozen app. */
 export const REQUEST_TIMEOUT_MS = 15_000;
 
-async function call<T>(method: string, path: string, body?: unknown): Promise<T> {
+async function call<T>(method: string, path: string, body?: unknown, timeoutMs = REQUEST_TIMEOUT_MS): Promise<T> {
   const abort = new AbortController();
-  const timer = setTimeout(() => abort.abort(), REQUEST_TIMEOUT_MS);
-  let res: Response;
+  const timer = setTimeout(() => abort.abort(), timeoutMs);
   try {
-    res = await fetch(`/api${path}`, {
-      method,
-      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
-      body: body === undefined ? undefined : JSON.stringify(body),
-      signal: abort.signal,
-    });
-  } catch {
-    if (abort.signal.aborted) throw new ApiError(`the server didn't answer in ${REQUEST_TIMEOUT_MS / 1000} seconds`);
-    throw new ApiError('the server could not be reached');
+    let res: Response;
+    try {
+      res = await fetch(`/api${path}`, {
+        method,
+        headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+        body: body === undefined ? undefined : JSON.stringify(body),
+        signal: abort.signal,
+      });
+    } catch {
+      throw new ApiError(abort.signal.aborted ? `the server didn't answer in ${timeoutMs / 1000} seconds` : 'the server could not be reached');
+    }
+    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    if (abort.signal.aborted) throw new ApiError(`the server didn't answer in ${timeoutMs / 1000} seconds`);
+    if (!res.ok) throw new ApiError(data.error ?? `Request failed (${res.status})`, res.status);
+    return data as T;
   } finally {
     clearTimeout(timer);
   }
-  const data = (await res.json().catch(() => ({}))) as { error?: string };
-  if (!res.ok) throw new ApiError(data.error ?? `Request failed (${res.status})`, res.status);
-  return data as T;
 }
 
 /** The study day starts at 04:00 local time, like Anki, so late-night sessions count for "today". */
@@ -190,7 +197,8 @@ const dayQuery = () => {
 
 export const api = {
   stats: () => call<Stats>('GET', `/stats?${dayQuery()}`),
-  importText: (text: string, listId: number) => call<ImportResult>('POST', '/import', { text, listId }),
+  // A big import runs in many batches on the server: give it longer.
+  importText: (text: string, listId: number) => call<ImportResult>('POST', '/import', { text, listId }, 120_000),
   /** listId null: all lists, in priority order. */
   triage: (listId: number | null) => call<{ words: Word[]; remaining: number }>('GET', listId === null ? '/triage' : `/triage?list=${listId}`),
   triageAnswer: (id: number, result: 'known' | 'unknown' | 'ignore') => call<{ ok: true }>('POST', `/triage/${id}`, { result }),
@@ -247,7 +255,7 @@ export const api = {
       throw new ApiError('the server could not be reached. If the app has been open a long time, reload it to sign in again.');
     }
     const text = await res.text();
-    if (!res.ok) throw new ApiError(`the server answered ${res.status}`);
+    if (!res.ok) throw new ApiError(`the server answered ${res.status}`, res.status);
     return { backup: parseBackup(text), text };
   },
   /** `due`: the card's due date as it was shown, so a retried answer that already got through isn't counted twice. */

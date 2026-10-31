@@ -75,6 +75,16 @@ describe('triage', () => {
     expect((await repo.getWord(db, list[1].id)).status).toBe('ignored');
     await expect(repo.triageAnswer(db, list[0].id, 'known', now)).rejects.toMatchObject({ status: 409 });
   });
+
+  it('two answers racing for one word: one counts, and an inbox word gets no cards', async () => {
+    await repo.importWords(db, words, MANGA, now);
+    const { words: list } = await repo.triageNext(db, 1);
+    const results = await Promise.allSettled([repo.triageAnswer(db, list[0].id, 'unknown', now), repo.triageAnswer(db, list[0].id, 'known', now)]);
+    expect(results.map((r) => r.status).sort()).toEqual(['fulfilled', 'rejected']);
+    const word = await repo.getWord(db, list[0].id);
+    const cards = await db.prepare('SELECT COUNT(*) AS n FROM cards WHERE word_id = ?').bind(list[0].id).first<{ n: number }>();
+    expect(cards!.n).toBe(word.status === 'graduated' ? 2 : 0);
+  });
 });
 
 describe('pages', () => {
@@ -304,6 +314,20 @@ describe('review', () => {
     const first = await repo.submitReview(db, input, t);
     const again = await repo.submitReview(db, input, new Date(t.getTime() + 20_000));
     expect(again.due).toBe(first.due);
+    const logs = await db.prepare(`SELECT COUNT(*) AS n FROM review_log WHERE card_id = ? AND kind = 'review'`).bind(item.cardId).first<{ n: number }>();
+    expect(logs!.n).toBe(1);
+  });
+
+  it('two grades racing for one card count once', async () => {
+    await importAndSort(0, 1);
+    const page = await repo.createPage(db, 10, null, now);
+    await repo.completeStage(db, page.id, 'ordered', dayEnd, now);
+    await repo.completeStage(db, page.id, 'shuffled', dayEnd, now);
+    const t = new Date('2026-10-26T19:00:00Z');
+    const [item] = (await repo.reviewQueue(db, dayEnd, nextDay(dayEnd, 1), 50)).items;
+    const input = { cardId: item.cardId, rating: Rating.Good as const, hintUsed: false, answer: null, correct: null, durationMs: null };
+    const [a, b] = await Promise.all([repo.submitReview(db, input, t), repo.submitReview(db, input, t)]);
+    expect(a.due).toBe(b.due);
     const logs = await db.prepare(`SELECT COUNT(*) AS n FROM review_log WHERE card_id = ? AND kind = 'review'`).bind(item.cardId).first<{ n: number }>();
     expect(logs!.n).toBe(1);
   });

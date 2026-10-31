@@ -26,7 +26,7 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   in `.wrangler/state`, separate from the cloud one. An old database holding
   only test data is kept in `.wrangler/state-test-backup-20261025` and can be
   deleted.
-- Tests: 184 unit tests, 76 end-to-end runs (38 tests at iPhone and laptop
+- Tests: 188 unit tests, 76 end-to-end runs (38 tests at iPhone and laptop
   sizes), and `tsc -b` all pass.
 - **Backup and export** (26 Oct): Settings › Backup downloads all study data as
   one JSON file, a nightly cron saves the same file to the private R2 bucket
@@ -110,8 +110,9 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   two directions back to back, and a missed step isn't put back next to
   its other direction. After a wrong answer the only button is Continue,
   "Counted as Again", and a line explains Don't know against Show answer.
-  Requests give up after 15 seconds; a slow save shows "Saving…", a failed
-  one keeps the answer to send again, and a grade sent twice counts once.
+  API calls give up after 15 seconds (an import after 2 minutes); a slow
+  save shows "Saving…", one lost on the way keeps the answer to send
+  again, and a grade or check answer sent twice counts once.
   No migration.
 - First iPhone feedback (25 Oct) is in: "Don't know" on review and drill
   cards, next words hidden in the in-order drill, "Study the page again",

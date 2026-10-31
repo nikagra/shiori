@@ -141,7 +141,7 @@ test('a slow save says so, and a failed one keeps the answer to send again', asy
   await page.route('**/api/review/*', async (route) => {
     tries++;
     if (tries > 1) return route.continue();
-    await new Promise((r) => setTimeout(r, 1500));
+    await new Promise((r) => setTimeout(r, 3000));
     await route.abort('connectionreset');
   });
   await page.getByRole('button', { name: 'Good' }).click();

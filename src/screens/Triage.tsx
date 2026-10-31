@@ -17,6 +17,8 @@ export function Triage() {
   const [moved, setMoved] = useState('');
   const sending = useRef(false);
   const [saving, setSaving] = useState(false);
+  /** The answer whose save was lost, if any. */
+  const lost = useRef<{ wordId: number; result: 'known' | 'unknown' | 'ignore' } | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [counts, setCounts] = useState({ known: 0, unknown: 0, ignore: 0 });
   const [error, setError] = useState<string | null>(null);
@@ -64,13 +66,18 @@ export function Triage() {
     setSaving(true);
     setSaveError(null);
     try {
+      let counted = true;
       try {
         await api.triageAnswer(word.id, result);
       } catch (e) {
-        // Already checked: a retry whose first try got through, or another device.
         if (!(e instanceof ApiError && e.status === 409)) throw e;
+        // Already checked. The same answer sent again after a lost save most
+        // likely got through the first time; anything else (another answer,
+        // another device) moves on without counting.
+        counted = lost.current?.wordId === word.id && lost.current.result === result;
       }
-      setCounts((c) => ({ ...c, [result]: c[result] + 1 }));
+      lost.current = null;
+      if (counted) setCounts((c) => ({ ...c, [result]: c[result] + 1 }));
       setRemaining((r) => r - 1);
       if (index + 1 < (batch?.length ?? 0)) {
         setIndex(index + 1);
@@ -80,7 +87,10 @@ export function Triage() {
         load();
       }
     } catch (e) {
-      // The card stays, so answering again sends it again.
+      // Turned down: sending it again won't help.
+      if (e instanceof ApiError && e.refused) return setError(e.message);
+      // Lost on the way: the card stays, so answering again sends it again.
+      lost.current = { wordId: word.id, result };
       setSaveError((e as Error).message);
     } finally {
       sending.current = false;

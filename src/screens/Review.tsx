@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api, shortPos, type PageDetail, type QueueItem } from '../api';
+import { api, ApiError, shortPos, type PageDetail, type QueueItem } from '../api';
 import { PageGrid } from '../components/PageGrid';
 import { Hook, JapaneseWord, KanaInput, Meaning, Notice, Progress, SaveStatus, SpeakButton, useKeys } from '../components/ui';
 import { checkReading } from '../../shared/kana';
@@ -177,7 +177,9 @@ function ReviewCard({
       });
       onGraded(result.leech);
     } catch (e) {
-      // The answer stays on screen, so tapping the grade again sends it again.
+      // Turned down (the card is gone, say): sending it again won't help.
+      if (e instanceof ApiError && e.refused) return onError(e.message);
+      // Lost on the way: the answer stays on screen, and tapping the grade sends it again.
       setSaveError((e as Error).message);
       setSending(false);
     }

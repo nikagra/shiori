@@ -197,7 +197,8 @@ Each list opens to its words (`#/lists/<id>`), in the order they came in (a word
   meaning→Japanese.
 - Stage `shuffled`: the same steps mixed together, with only grid positions
   shown. A word's two directions never come one right after the other
-  (`spreadWords`; Mikita, 27 Oct), except on a one-word page.
+  (`spreadWords`; Mikita, 27 Oct), except on a one-word page. Fillers near
+  the end are put in the same kind of order.
 - **A miss** (Missed, Don't know yet, or a wrong typed answer) shows the
   word in its spot on the grid, even in step 2, and you type its kana once
   while you look before going on: effort at the moment it isn't sticking.
@@ -295,9 +296,13 @@ Each list opens to its words (`#/lists/<id>`), in the order they came in (a word
   "Buttons and what they do" below; change both together.
 - A peek at the word's page caps the grade at Hard.
 - A grade carries the card's due date as it was shown; if the card has
-  moved on since, the server changes nothing. So a grade sent again after a
-  lost answer counts once (the check pass gets the same from its status
-  guard: a 409 on a retry means the first try got through).
+  moved on since, the server changes nothing. Its writes also hold only
+  while the card's due date is the one it read, so two tries racing each
+  other grade once. Either way the answer is the card as it is now, leech
+  included. The check pass gets the same from its status guard, inside the
+  batch too, so a late "didn't know" can't leave an inbox word with cards.
+  A 409 counts on screen only when it answers the same answer sent again
+  after a lost save; any other 409 moves on without counting.
 - The core meaning can be edited from the answer. `senses` keeps the full
   dictionary list.
 - Optional listening practice: Japanese→meaning cards are heard before they're
@@ -463,7 +468,7 @@ again (its deletes come first), or rewind with Time Travel.
 
 | Part | Where | Notes |
 |---|---|---|
-| UI | `src/` (React 19, Vite) | Screens: Home, Triage (Check), Pages, PagePicker, PageView, Lists (with ListWords under it), AddWord, Review, Settings (with Import under it). Every request gives up after `REQUEST_TIMEOUT_MS` (15 s); answers show "Saving…" after half a second and, if a save fails, keep the answer on screen to send again (`SaveStatus`) |
+| UI | `src/` (React 19, Vite) | Screens: Home, Triage (Check), Pages, PagePicker, PageView, Lists (with ListWords under it), AddWord, Review, Settings (with Import under it). API calls (`call()` in `src/api.ts`) give up after `REQUEST_TIMEOUT_MS` (15 s; an import gets 2 minutes, the backup download has no limit). Answers show "Saving…" after half a second; if a save is lost on the way the answer stays on screen to send again (`SaveStatus`), while one the server turns down (a 4xx) shows its error as before |
 | Shared logic | `shared/` | Pure TypeScript used by both UI and worker; unit tested |
 | API | `worker/index.ts` (Hono on Cloudflare Workers) | Under `/api/*`; the rest is the single-page app. Also the nightly cron (`scheduled`) |
 | Data access | `worker/db.ts` | Multi-row changes run as one D1 batch, so a failed or repeated request can't leave half-done state |
