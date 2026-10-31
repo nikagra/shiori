@@ -3,7 +3,7 @@
 Where the project stands and what comes next. Start here when picking the work
 back up. For how the app works, see [DESIGN.md](DESIGN.md).
 
-## Status (2026-10-27)
+## Status (2026-10-31)
 
 - **v0.1 is merged into `main`** (PR #1, squashed as 6dd130e; history on
   `main` was rewritten on 25 Oct so every commit is Mikita's with an emoji
@@ -26,7 +26,7 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   in `.wrangler/state`, separate from the cloud one. An old database holding
   only test data is kept in `.wrangler/state-test-backup-20261025` and can be
   deleted.
-- Tests: 180 unit tests, 74 end-to-end runs (37 tests at iPhone and laptop
+- Tests: 184 unit tests, 76 end-to-end runs (38 tests at iPhone and laptop
   sizes), and `tsc -b` all pass.
 - **Backup and export** (26 Oct): Settings › Backup downloads all study data as
   one JSON file, a nightly cron saves the same file to the private R2 bucket
@@ -103,6 +103,16 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   hook lets it back in. Any word can have a memory hook, shown with the
   answer. Migration `0006_leeches` also
   flags words that already had 4 lapses: run `npm run db:migrate:local`.
+- **Real use started** (27 Oct, step 6). Mikita's notes are collected in
+  the project's feedback log; fixes were agreed on 31 Oct in the
+  [fix plan](https://claude.ai/artifact/H46NxyUcsjqTXagLjNcf7k), three PRs.
+- **Step 6 fixes, part 1** (31 Oct): the shuffled step never asks a word's
+  two directions back to back, and a missed step isn't put back next to
+  its other direction. After a wrong answer the only button is Continue,
+  "Counted as Again", and a line explains Don't know against Show answer.
+  Requests give up after 15 seconds; a slow save shows "Saving…", a failed
+  one keeps the answer to send again, and a grade sent twice counts once.
+  No migration.
 - First iPhone feedback (25 Oct) is in: "Don't know" on review and drill
   cards, next words hidden in the in-order drill, "Study the page again",
   whole words on the grid, safer iOS speech. Sound on the iPhone still needs
@@ -182,7 +192,23 @@ finish review (27 Oct; try a page with a miss, and check Home for leeches).
 6. **Use it for real.** Study only in Shiori for about two weeks, add words
    from reading with the dictionary, and fix what gets in the way. Then
    decide how much care study data needs once you rely on it (for example
-   checking a restore now and then) before moving on.
+   checking a restore now and then) before moving on. Fixes from the first
+   three days, agreed with Mikita on 31 Oct
+   ([fix plan](https://claude.ai/artifact/H46NxyUcsjqTXagLjNcf7k)):
+   - ~~Quick fixes: drill order, clearer review buttons, slow saves.~~ Done
+     (31 Oct).
+   - Words that stick (Mikita, 30 Oct: words known on the page are gone
+     the next evening, and Again changes nothing). A missed review card
+     comes back in the same session after about 5 others, after typing its
+     kana once, until it's right once; only the first answer is graded.
+     While a word is young its next gap is at most double the last
+     (1, 2, 4, 8 days), then FSRS takes over.
+   - Practice that doesn't count: test yourself on a page's first view
+     (meanings hidden, tap to flip), practise one or several learned pages
+     you pick (nothing saved), and write a memory hook right on the page or
+     after a miss, with a compound shown in its parts.
+   - Maybe after these: a Dictionary screen of its own, look up first and
+     add second (Mikita, 28 Oct).
 
 ### v0.3: deeper word knowledge
 
@@ -211,6 +237,9 @@ finish review (27 Oct; try a page with a miss, and check Home for leeches).
 
 ### Later
 
+- **Jidoushi/tadoushi pairs** (Mikita, 28 Oct): help learning
+  intransitive/transitive verb pairs (開く/開ける). Needs its own design: how
+  a pair is linked and what a pair card asks. Fits next to v0.3's cards.
 - **Listening** from YouTube clips, if feasible; otherwise keep it separate.
 - **Grammar map**: one structure that ties grammar points together. It needs
   its own design pass before any code.

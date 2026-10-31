@@ -7,6 +7,9 @@ import type { WordState } from './wordSearch';
 //                   then meaning→Japanese, again in grid order.
 // Stage "shuffled": the same steps, shuffled, with both directions mixed.
 //
+// In the shuffled stage a word's two directions are never asked one right
+// after the other, unless the page is too small to put anything between them.
+//
 // A missed step comes back after at least MISS_GAP other cards, so the retry
 // isn't answered from the last few seconds of memory. Near the end of a
 // drill, steps already answered fill the gap ("fillers": asked again, but
@@ -48,6 +51,32 @@ export function shuffle<T>(items: T[], random: Random): T[] {
   return out;
 }
 
+const sameWord = (a: DrillStep | undefined, b: DrillStep | undefined) => a !== undefined && b !== undefined && a.wordId === b.wordId;
+
+/**
+ * Moves steps so no two of the same word sit side by side, where the steps
+ * allow it. Each clash takes the next step of another word ahead; at the end,
+ * where nothing is left ahead, the step moves back into a gap that fits.
+ */
+export function spreadWords(steps: DrillStep[]): DrillStep[] {
+  const out = steps.slice();
+  for (let i = 1; i < out.length; i++) {
+    if (!sameWord(out[i - 1], out[i])) continue;
+    const k = out.findIndex((s, j) => j > i && s.wordId !== out[i].wordId);
+    if (k !== -1) {
+      [out[i], out[k]] = [out[k], out[i]];
+      continue;
+    }
+    // Nothing of another word ahead: put this step back between two others.
+    const [step] = out.splice(i, 1);
+    const at = out.findIndex((s, j) => j > 0 && j < i && !sameWord(out[j - 1], step) && !sameWord(s, step));
+    out.splice(at === -1 ? i : at, 0, step);
+    if (at === -1) break;
+    i = at;
+  }
+  return out;
+}
+
 export function startDrill(wordIdsInGridOrder: number[], stage: 'ordered' | 'shuffled', random: Random = Math.random): DrillState {
   const steps: DrillStep[] =
     stage === 'ordered'
@@ -55,12 +84,14 @@ export function startDrill(wordIdsInGridOrder: number[], stage: 'ordered' | 'shu
           ...wordIdsInGridOrder.map((wordId) => ({ wordId, direction: 'jp_en' as const })),
           ...wordIdsInGridOrder.map((wordId) => ({ wordId, direction: 'en_jp' as const })),
         ]
-      : shuffle(
-          wordIdsInGridOrder.flatMap((wordId) => [
-            { wordId, direction: 'jp_en' as const },
-            { wordId, direction: 'en_jp' as const },
-          ]),
-          random,
+      : spreadWords(
+          shuffle(
+            wordIdsInGridOrder.flatMap((wordId) => [
+              { wordId, direction: 'jp_en' as const },
+              { wordId, direction: 'en_jp' as const },
+            ]),
+            random,
+          ),
         );
   return { queue: steps, completed: 0, total: steps.length, misses: {}, done: [] };
 }
@@ -86,7 +117,9 @@ export function answerStep(state: DrillState, correct: boolean, random: Random =
     .slice(0, Math.max(0, MISS_GAP - rest.length))
     .map((s) => ({ ...s, filler: true }));
   const before = [...rest, ...fillers];
-  const at = Math.min(MISS_GAP, before.length);
+  // At least MISS_GAP cards later, and not next to the word's other direction.
+  let at = Math.min(MISS_GAP, before.length);
+  while (at < before.length && (sameWord(before[at - 1], step) || sameWord(before[at], step))) at++;
   return { ...state, queue: [...before.slice(0, at), step, ...before.slice(at)], misses };
 }
 

@@ -138,16 +138,38 @@ export interface ImportResult {
   issues: { line: number; text: string; reason: string }[];
 }
 
-export class ApiError extends Error {}
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    /** The HTTP status, or null when no answer came. */
+    readonly status: number | null = null,
+  ) {
+    super(message);
+  }
+}
+
+/** How long a request may take before it gives up, so a stalled one doesn't look like a frozen app. */
+export const REQUEST_TIMEOUT_MS = 15_000;
 
 async function call<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const res = await fetch(`/api${path}`, {
-    method,
-    headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+  const abort = new AbortController();
+  const timer = setTimeout(() => abort.abort(), REQUEST_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(`/api${path}`, {
+      method,
+      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal: abort.signal,
+    });
+  } catch {
+    if (abort.signal.aborted) throw new ApiError(`the server didn't answer in ${REQUEST_TIMEOUT_MS / 1000} seconds`);
+    throw new ApiError('the server could not be reached');
+  } finally {
+    clearTimeout(timer);
+  }
   const data = (await res.json().catch(() => ({}))) as { error?: string };
-  if (!res.ok) throw new ApiError(data.error ?? `Request failed (${res.status})`);
+  if (!res.ok) throw new ApiError(data.error ?? `Request failed (${res.status})`, res.status);
   return data as T;
 }
 
@@ -228,7 +250,8 @@ export const api = {
     if (!res.ok) throw new ApiError(`the server answered ${res.status}`);
     return { backup: parseBackup(text), text };
   },
-  submitReview: (cardId: number, body: { rating: number; hintUsed: boolean; answer?: string; correct?: boolean; durationMs: number }) =>
+  /** `due`: the card's due date as it was shown, so a retried answer that already got through isn't counted twice. */
+  submitReview: (cardId: number, body: { rating: number; hintUsed: boolean; answer?: string; correct?: boolean; durationMs: number; due: string }) =>
     call<{ due: string; rating: number; leech: boolean }>('POST', `/review/${cardId}`, body),
 };
 

@@ -116,11 +116,13 @@ test.describe('review', () => {
   test("don't know on a reading card goes straight to Again", async ({ page, request }, testInfo) => {
     await request.post('/api/test/make-due?direction=jp_en');
     await page.goto('/#/review');
+    await expect(page.getByTestId('dont-know-hint')).toHaveText('Don’t know counts as Again. Show answer lets you grade yourself.');
     await page.getByRole('button', { name: 'Don’t know' }).click();
     await expect(page.getByTestId('review-card').locator('.meaning__core')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Good' })).toHaveCount(0);
+    await expect(page.getByTestId('again-note')).toContainText('Counted as Again');
     await shot(page, testInfo, '43-review-dont-know');
-    await page.getByRole('button', { name: 'Again' }).click();
+    await page.getByRole('button', { name: 'Continue' }).click();
     await expect(page.getByText('2 / 2')).toBeVisible();
   });
 
@@ -131,7 +133,7 @@ test.describe('review', () => {
     await page.getByRole('button', { name: 'Don’t know' }).click();
     await expect(page.getByTestId('typed-result')).toHaveText('Here it is');
     await expect(page.getByRole('button', { name: /typo/ })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Again' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Continue' })).toBeVisible();
   });
 });
 

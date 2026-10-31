@@ -198,6 +198,10 @@ function Grading() {
         <dd>Instant and effortless. Use it rarely: it pushes the word far away.</dd>
       </dl>
       <p className="small">
+        Don't know counts as Again, and so does a wrong typed answer: the only button left then is Continue. Show answer is for when you think you know it,
+        and you grade yourself.
+      </p>
+      <p className="small">
         Be honest rather than kind. Good on a guess hides the word for weeks; Again only brings it back sooner. On a word you know well, Again drops months to
         days, so an honest Again early on is the cheap one.
       </p>

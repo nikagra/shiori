@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, shortPos, type PageDetail, type QueueItem } from '../api';
 import { PageGrid } from '../components/PageGrid';
-import { Hook, JapaneseWord, KanaInput, Meaning, Notice, Progress, SpeakButton, useKeys } from '../components/ui';
+import { Hook, JapaneseWord, KanaInput, Meaning, Notice, Progress, SaveStatus, SpeakButton, useKeys } from '../components/ui';
 import { checkReading } from '../../shared/kana';
 import { formatInterval } from '../../shared/study';
 import { useSettings } from '../settings';
@@ -134,6 +134,7 @@ function ReviewCard({
   const [moved, setMoved] = useState('');
   const [hintPage, setHintPage] = useState<PageDetail | null>(null);
   const [sending, setSending] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const started = useRef(Date.now());
   const reading = item.direction === 'jp_en';
   const listening = reading && settings.listenFirst;
@@ -163,6 +164,7 @@ function ReviewCard({
     if (sending) return;
     if (hintUsed && rating > HARD) return;
     setSending(true);
+    setSaveError(null);
     try {
       const result = await api.submitReview(item.cardId, {
         rating,
@@ -171,10 +173,12 @@ function ReviewCard({
         answer: gaveUp ? undefined : typed?.value,
         correct: typed ? typed.correct || typed.typo : undefined,
         durationMs: Date.now() - started.current,
+        due: item.due,
       });
       onGraded(result.leech);
     } catch (e) {
-      onError((e as Error).message);
+      // The answer stays on screen, so tapping the grade again sends it again.
+      setSaveError((e as Error).message);
       setSending(false);
     }
   };
@@ -282,6 +286,11 @@ function ReviewCard({
           </button>
         </div>
       )}
+      {reading && !revealed && (
+        <p className="muted small grade-hint" data-testid="dont-know-hint">
+          Don’t know counts as Again. Show answer lets you grade yourself.
+        </p>
+      )}
       {!reading && !typed && (
         <div className="stack stack--tight">
           <KanaInput
@@ -334,13 +343,11 @@ function ReviewCard({
           ) : (
             <>
               <button className="button button--again button--wide" onClick={() => grade(AGAIN)} disabled={sending}>
-                Again
+                Continue
               </button>
-              {showIntervals && (
-                <p className="muted small grade-hint" data-testid="grade-intervals">
-                  Back in ~{formatInterval(item.intervals.again)}
-                </p>
-              )}
+              <p className="muted small grade-hint" data-testid="again-note">
+                Counted as Again{showIntervals && <span data-testid="grade-intervals">: back in ~{formatInterval(item.intervals.again)}</span>}
+              </p>
               {!reading && !gaveUp && (
                 <button className="link-button" onClick={() => setTyped({ ...typed!, typo: true })}>
                   It was a typo — count it as correct
@@ -348,6 +355,7 @@ function ReviewCard({
               )}
             </>
           )}
+          <SaveStatus sending={sending} error={saveError} />
         </div>
       )}
 

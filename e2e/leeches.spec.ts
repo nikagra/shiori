@@ -28,7 +28,7 @@ test('a leech leaves review, then gets a hook and a fresh page', async ({ page, 
       await page.getByLabel('Answer in kana').fill(isLeech ? 'ちがう' : words[1].kana);
       await page.getByRole('button', { name: 'Check' }).click();
     }
-    await page.getByRole('button', { name: isLeech ? 'Again' : 'Good' }).click();
+    await page.getByRole('button', { name: !isLeech ? 'Good' : direction === 'jp_en' ? 'Again' : 'Continue' }).click();
   }
   await expect(page.getByTestId('leech-notice')).toContainText('keeps slipping, so it leaves review for now');
   await expectNoHorizontalScroll(page);

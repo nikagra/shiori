@@ -1163,6 +1163,8 @@ export interface ReviewInput {
   answer: string | null;
   correct: boolean | null;
   durationMs: number | null;
+  /** The card's due date when it was shown. Set, it makes a retried answer that already got through change nothing. */
+  due?: string | null;
 }
 
 /**
@@ -1172,12 +1174,14 @@ export interface ReviewInput {
  */
 export async function submitReview(db: D1Database, input: ReviewInput, now: Date): Promise<{ due: string; rating: Grade; leech: boolean }> {
   const row = await db
-    .prepare('SELECT id, word_id, fsrs, lapse_base FROM cards WHERE id = ?')
+    .prepare('SELECT id, word_id, due, fsrs, lapse_base FROM cards WHERE id = ?')
     .bind(input.cardId)
-    .first<{ id: number; word_id: number; fsrs: string; lapse_base: number }>();
+    .first<{ id: number; word_id: number; due: string; fsrs: string; lapse_base: number }>();
   if (!row) throw new AppError(404, 'card not found');
   const before = JSON.parse(row.fsrs) as StoredCard;
   const rating = capForHint(input.rating, input.hintUsed);
+  // Already graded since it was shown: the first try got through but its answer was lost.
+  if (input.due && row.due !== input.due) return { due: row.due, rating, leech: false };
   const after = review(before, rating, now);
   const leech = rating === Rating.Again && after.lapses - row.lapse_base >= LEECH_LAPSES;
   const results = await db.batch([

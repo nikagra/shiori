@@ -230,6 +230,33 @@ export function Notice({ kind = 'info', children }: { kind?: 'info' | 'error' | 
   return <div className={`notice notice--${kind}`}>{children}</div>;
 }
 
+/**
+ * "Saving…" once an answer has been on its way for half a second, so a slow
+ * save doesn't look like a frozen app; a failed one says so and can be sent
+ * again.
+ */
+export function SaveStatus({ sending, error }: { sending: boolean; error: string | null }) {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    if (!sending) return setSlow(false);
+    const timer = setTimeout(() => setSlow(true), 500);
+    return () => clearTimeout(timer);
+  }, [sending]);
+  if (sending && slow)
+    return (
+      <p className="muted small grade-hint" role="status" data-testid="saving">
+        Saving…
+      </p>
+    );
+  if (!sending && error)
+    return (
+      <Notice kind="error">
+        <p data-testid="save-error">Couldn't save this answer: {error}. Your answer is still here: tap again to send it.</p>
+      </Notice>
+    );
+  return null;
+}
+
 /** Keyboard shortcuts for desktop: active only while mounted. */
 export function useKeys(handlers: Record<string, () => void>, active = true) {
   const ref = useRef(handlers);

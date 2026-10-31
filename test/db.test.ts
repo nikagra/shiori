@@ -293,6 +293,21 @@ describe('review', () => {
     expect((await repo.reviewQueue(db, dayEnd, nextDay(dayEnd, 1), 50)).total).toBe(0);
   });
 
+  it('a retried answer that already got through is counted once', async () => {
+    await importAndSort(0, 1);
+    const page = await repo.createPage(db, 10, null, now);
+    await repo.completeStage(db, page.id, 'ordered', dayEnd, now);
+    await repo.completeStage(db, page.id, 'shuffled', dayEnd, now);
+    const t = new Date('2026-10-26T19:00:00Z');
+    const [item] = (await repo.reviewQueue(db, dayEnd, nextDay(dayEnd, 1), 50)).items;
+    const input = { cardId: item.cardId, rating: Rating.Good as const, hintUsed: false, answer: null, correct: null, durationMs: 4000, due: item.due };
+    const first = await repo.submitReview(db, input, t);
+    const again = await repo.submitReview(db, input, new Date(t.getTime() + 20_000));
+    expect(again.due).toBe(first.due);
+    const logs = await db.prepare(`SELECT COUNT(*) AS n FROM review_log WHERE card_id = ? AND kind = 'review'`).bind(item.cardId).first<{ n: number }>();
+    expect(logs!.n).toBe(1);
+  });
+
   it('a hint caps the stored rating at Hard', async () => {
     await importAndSort(0, 1);
     const page = await repo.createPage(db, 10, null, now);

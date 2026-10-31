@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { coreMeaning, splitGlosses, stripTags } from '../shared/meaning';
 import { checkReading, normalizeKana } from '../shared/kana';
 import { capForHint, graduate, newCard, Rating, review, State } from '../shared/scheduler';
-import { answerStep, currentStep, drillFits, graduationGrade, isDrillDone, MISS_GAP, missesByCard, startDrill, stepKey } from '../shared/pageSession';
+import { answerStep, currentStep, drillFits, graduationGrade, isDrillDone, MISS_GAP, missesByCard, spreadWords, startDrill, stepKey, type DrillStep } from '../shared/pageSession';
 import { buildQueue, triageOrder, type QueueCandidate } from '../shared/queue';
 import { meaningWords, similarPairs } from '../shared/similar';
 import { formatInterval, newWordsReached } from '../shared/study';
@@ -77,13 +77,13 @@ describe('page drill', () => {
   });
 
   it('a miss comes back after MISS_GAP other cards, and the retry keeps the miss', () => {
-    let d = startDrill([1, 2, 3, 4, 5, 6], 'ordered');
+    let d = startDrill([1, 2, 3, 4, 5, 6, 7], 'ordered');
     d = answerStep(d, false); // miss 1 jp_en
     expect(currentStep(d)).toEqual({ wordId: 2, direction: 'jp_en' });
     expect(d.queue.findIndex((s) => s.wordId === 1 && s.direction === 'jp_en')).toBe(MISS_GAP);
     expect(d.misses).toEqual({ '1:jp_en': 1 });
     while (!isDrillDone(d)) d = answerStep(d, true);
-    expect(d.completed).toBe(12);
+    expect(d.completed).toBe(14);
     expect(d.misses).toEqual({ '1:jp_en': 1 });
     expect(missesByCard(d)).toEqual([{ wordId: 1, direction: 'jp_en', misses: 1 }]);
   });
@@ -136,6 +136,40 @@ describe('page drill', () => {
     expect(d.queue).toHaveLength(10);
     expect(new Set(d.queue.map((s) => `${s.wordId}${s.direction}`)).size).toBe(10);
     expect(d.queue.map((s) => s.wordId)).not.toEqual([1, 2, 3, 4, 5, 1, 2, 3, 4, 5]);
+  });
+
+  const neighbours = (steps: DrillStep[]) => steps.filter((s, i) => i > 0 && s.wordId === steps[i - 1].wordId).length;
+
+  it('shuffled stage never asks a word twice in a row (Mikita, 27 Oct)', () => {
+    for (const size of [2, 3, 5, 12]) {
+      for (let seed0 = 1; seed0 <= 300; seed0++) {
+        let seed = seed0;
+        const random = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+        const d = startDrill(Array.from({ length: size }, (_, i) => i + 1), 'shuffled', random);
+        expect(d.queue).toHaveLength(size * 2);
+        expect(new Set(d.queue.map(stepKey)).size).toBe(size * 2);
+        expect(neighbours(d.queue)).toBe(0);
+      }
+    }
+  });
+
+  it('spreads clashes at the end back into the drill, and leaves one word as it is', () => {
+    const step = (wordId: number, direction: 'jp_en' | 'en_jp' = 'jp_en'): DrillStep => ({ wordId, direction });
+    const spread = spreadWords([step(2), step(2, 'en_jp'), step(1), step(1, 'en_jp')]);
+    expect(neighbours(spread)).toBe(0);
+    expect(spread).toHaveLength(4);
+    expect(spreadWords([step(1), step(1, 'en_jp')])).toEqual([step(1), step(1, 'en_jp')]);
+  });
+
+  it("a miss doesn't come back right next to its other direction", () => {
+    // Missing word 1's reading on a page of six: 5 cards on sits next to 1 en, so the
+    // retry goes past it.
+    let d = startDrill([1, 2, 3, 4, 5, 6], 'ordered');
+    d = answerStep(d, false); // queue: 2–6 jp, 1 en, 2 en, ...
+    const at = d.queue.findIndex((s) => s.wordId === 1 && s.direction === 'jp_en');
+    expect(at).toBe(MISS_GAP + 2);
+    expect(d.queue[at - 1].wordId).not.toBe(1);
+    expect(d.queue[at + 1].wordId).not.toBe(1);
   });
 });
 
