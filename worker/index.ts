@@ -139,7 +139,7 @@ app.get('/review', async (c) => {
 });
 
 app.post('/review/:cardId', async (c) => {
-  const body = await c.req.json<{ rating: number; hintUsed?: boolean; answer?: string; correct?: boolean; durationMs?: number }>();
+  const body = await c.req.json<{ rating: number; hintUsed?: boolean; answer?: string; correct?: boolean; durationMs?: number; due?: string }>();
   const grades: number[] = [Rating.Again, Rating.Hard, Rating.Good, Rating.Easy];
   if (!grades.includes(body.rating)) throw new db.AppError(400, 'rating must be 1–4');
   const result = await db.submitReview(
@@ -151,6 +151,7 @@ app.post('/review/:cardId', async (c) => {
       answer: body.answer ?? null,
       correct: body.correct ?? null,
       durationMs: typeof body.durationMs === 'number' ? Math.round(body.durationMs) : null,
+      due: typeof body.due === 'string' ? body.due : null,
     },
     new Date(),
   );

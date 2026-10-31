@@ -196,7 +196,9 @@ Each list opens to its words (`#/lists/<id>`), in the order they came in (a word
 - Stage `ordered`: every word in grid order, Japanese→meaning, then
   meaning→Japanese.
 - Stage `shuffled`: the same steps mixed together, with only grid positions
-  shown.
+  shown. A word's two directions never come one right after the other
+  (`spreadWords`; Mikita, 27 Oct), except on a one-word page. Fillers near
+  the end are put in the same kind of order.
 - **A miss** (Missed, Don't know yet, or a wrong typed answer) shows the
   word in its spot on the grid, even in step 2, and you type its kana once
   while you look before going on: effort at the moment it isn't sticking.
@@ -293,6 +295,14 @@ Each list opens to its words (`#/lists/<id>`), in the order they came in (a word
   grading works" opens Settings › How grading works, a short copy of
   "Buttons and what they do" below; change both together.
 - A peek at the word's page caps the grade at Hard.
+- A grade carries the card's due date as it was shown; if the card has
+  moved on since, the server changes nothing. Its writes also hold only
+  while the card's due date is the one it read, so two tries racing each
+  other grade once. Either way the answer is the card as it is now, leech
+  included. The check pass gets the same from its status guard, inside the
+  batch too, so a late "didn't know" can't leave an inbox word with cards.
+  A 409 counts on screen only when it answers the same answer sent again
+  after a lost save; any other 409 moves on without counting.
 - The core meaning can be edited from the answer. `senses` keeps the full
   dictionary list.
 - Optional listening practice: Japanese→meaning cards are heard before they're
@@ -342,7 +352,7 @@ falsely "known" word fails in review, and that does more harm.
 |---|---|
 | Show answer (Space) | Reveals the meaning or reading |
 | Don't know yet (1) | Shows the answer and counts the step as missed |
-| Missed (1) / Got it (2) | Missed shows the word in its spot; type it once to go on, and it comes back after `MISS_GAP` (5) other cards. Got it removes it. |
+| Missed (1) / Got it (2) | Missed shows the word in its spot; type it once to go on, and it comes back after `MISS_GAP` (5) other cards, never right next to the word's other direction. Got it removes it. |
 | Study the page again | Counts the current step as missed and goes back to the full page; the drill continues afterwards |
 
 When both steps are done, the page graduates. Each card counts as one review
@@ -370,8 +380,11 @@ it off in Settings:
 
 The app limits some choices:
 
-- **Don't know (1):** shows the answer and leaves only Again.
-- **Wrong typed answer:** leaves only Again. "It was a typo — count it as correct" unlocks the other grades.
+- **Don't know (1):** shows the answer and counts as Again. The only
+  button left is **Continue**, with "Counted as Again" (and when it comes
+  back) under it, so it doesn't read as "try again now" (Mikita, 28 Oct). A
+  quiet line under Don't know / Show answer says the difference.
+- **Wrong typed answer:** the same, Continue counted as Again. "It was a typo — count it as correct" unlocks the other grades.
 - **"Where did I learn this?" (page hint):** caps the grade at Hard.
 - **"Show furigana" (F):** doesn't limit the grade. The peek counts against the kanji instead.
 
@@ -455,7 +468,7 @@ again (its deletes come first), or rewind with Time Travel.
 
 | Part | Where | Notes |
 |---|---|---|
-| UI | `src/` (React 19, Vite) | Screens: Home, Triage (Check), Pages, PagePicker, PageView, Lists (with ListWords under it), AddWord, Review, Settings (with Import under it) |
+| UI | `src/` (React 19, Vite) | Screens: Home, Triage (Check), Pages, PagePicker, PageView, Lists (with ListWords under it), AddWord, Review, Settings (with Import under it). API calls (`call()` in `src/api.ts`) give up after `REQUEST_TIMEOUT_MS` (15 s; an import gets 2 minutes, the backup download has no limit). Answers show "Saving…" after half a second; if a save is lost on the way the answer stays on screen to send again (`SaveStatus`), while one the server turns down (a 4xx) shows its error as before |
 | Shared logic | `shared/` | Pure TypeScript used by both UI and worker; unit tested |
 | API | `worker/index.ts` (Hono on Cloudflare Workers) | Under `/api/*`; the rest is the single-page app. Also the nightly cron (`scheduled`) |
 | Data access | `worker/db.ts` | Multi-row changes run as one D1 batch, so a failed or repeated request can't leave half-done state |
