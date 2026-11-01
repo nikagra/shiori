@@ -123,7 +123,11 @@ test.describe('review', () => {
     await expect(page.getByTestId('again-note')).toContainText('Counted as Again');
     await shot(page, testInfo, '43-review-dont-know');
     await page.getByRole('button', { name: 'Continue' }).click();
-    await expect(page.getByText('2 / 2')).toBeVisible();
+    // Type it once while looking at it, and it comes back at the end of this short session.
+    const kana = await page.getByTestId('encode-prompt').locator('[lang="ja"]').innerText();
+    await expect(page.getByTestId('encode-prompt')).toContainText('It comes back after 1 other card.');
+    await typeItOnce(page, kana);
+    await expect(page.getByText('2 / 3')).toBeVisible();
   });
 
   test("don't know on a typing card shows the word, no typo override", async ({ page, request }) => {

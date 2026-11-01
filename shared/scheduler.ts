@@ -61,15 +61,43 @@ export function newCard(now: Date): StoredCard {
 }
 
 export function review(card: StoredCard, rating: Grade, now: Date): StoredCard {
-  return toStored(scheduler.next(fromStored(card), now, rating).card);
+  return capYoung(card, toStored(scheduler.next(fromStored(card), now, rating).card), rating, now);
 }
 
 const DAY_MS = 86_400_000;
 
+/**
+ * Reviews (graduation included) during which a word counts as young. Its
+ * next gap after Good is at most double the last one, so a new word comes
+ * back after 1, 2, 4 and 8 days before FSRS takes over (Mikita, 30 Oct:
+ * multi-day gaps came too soon for words not yet solid). Hard keeps the last
+ * gap; Again and Easy are left to FSRS, Easy being the way out for a word
+ * you already know. FSRS still learns from each answer; an early review
+ * only raises stability less.
+ */
+export const YOUNG_REVIEWS = 4;
+
+const YOUNG_GROWTH: Partial<Record<Grade, number>> = { [Rating.Hard]: 1, [Rating.Good]: 2 };
+
+export function capYoung(before: StoredCard, after: StoredCard, rating: Grade, now: Date): StoredCard {
+  const growth = YOUNG_GROWTH[rating];
+  if (growth === undefined || before.state === State.New || !before.last_review || after.reps > YOUNG_REVIEWS) return after;
+  // The gap it was given, or the one you actually left if longer: a card due
+  // "today" can be reviewed any time of day, so the hours since the last
+  // review alone would round the planned 2 days down to 1 or up to 3.
+  const last = new Date(before.last_review).getTime();
+  const planned = Math.round((new Date(before.due).getTime() - last) / DAY_MS);
+  const taken = Math.floor((now.getTime() - last) / DAY_MS);
+  const lastGap = Math.max(1, planned, taken);
+  const cap = new Date(now.getTime() + growth * lastGap * DAY_MS);
+  if (new Date(after.due) <= cap) return after;
+  return { ...after, due: cap.toISOString(), scheduled_days: growth * lastGap };
+}
+
 /** Days from now until the card is due again after each grade (no jitter). */
 export function intervals(card: StoredCard, now: Date): GradeIntervals {
   const preview = previewer.repeat(fromStored(card), now);
-  const days = (rating: Grade) => (preview[rating].card.due.getTime() - now.getTime()) / DAY_MS;
+  const days = (rating: Grade) => (new Date(capYoung(card, toStored(preview[rating].card), rating, now).due).getTime() - now.getTime()) / DAY_MS;
   return { again: days(Rating.Again), hard: days(Rating.Hard), good: days(Rating.Good), easy: days(Rating.Easy) };
 }
 

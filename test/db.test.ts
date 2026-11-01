@@ -351,7 +351,8 @@ describe('review', () => {
     const q = await repo.reviewQueue(db, dayEnd, nextDay(dayEnd, 1), 50, t);
     const { again, hard, good, easy } = q.items[0].intervals;
     expect(again).toBeGreaterThan(0);
-    expect(again).toBeLessThan(hard);
+    // A young word: Hard keeps the last gap (a day, like Again), Good doubles it.
+    expect(again).toBeLessThanOrEqual(hard);
     expect(hard).toBeLessThan(good);
     expect(good).toBeLessThan(easy);
     // No jitter: the jitter's seed changes with the time, the preview doesn't.

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { coreMeaning, splitGlosses, stripTags } from '../shared/meaning';
 import { checkReading, normalizeKana } from '../shared/kana';
-import { capForHint, graduate, newCard, Rating, review, State } from '../shared/scheduler';
+import { capForHint, graduate, intervals, newCard, Rating, review, State, YOUNG_REVIEWS } from '../shared/scheduler';
 import { answerStep, currentStep, drillFits, graduationGrade, isDrillDone, MISS_GAP, missesByCard, spreadWords, startDrill, stepKey, type DrillStep } from '../shared/pageSession';
 import { buildQueue, triageOrder, type QueueCandidate } from '../shared/queue';
 import { meaningWords, similarPairs } from '../shared/similar';
@@ -67,6 +67,62 @@ describe('scheduler', () => {
 
   it('new cards start in the New state', () => {
     expect(newCard(now).state).toBe(State.New);
+  });
+});
+
+describe('young words', () => {
+  const day = (n: number, base: Date) => new Date(base.getTime() + n * 86_400_000);
+  const gap = (card: { due: string }, at: Date) => Math.round((new Date(card.due).getTime() - at.getTime()) / 86_400_000);
+
+  it('Good doubles the gap, 1, 2, 4, 8 days, then FSRS takes over (Mikita, 30 Oct)', () => {
+    const start = new Date('2026-11-01T19:00:00Z');
+    let card = graduate(start, day(1, start), Rating.Good); // first review the next day
+    let at = new Date(card.due);
+    const gaps: number[] = [];
+    for (let i = 0; i < YOUNG_REVIEWS; i++) {
+      card = review(card, Rating.Good, at);
+      gaps.push(gap(card, at));
+      at = new Date(card.due);
+    }
+    expect(gaps.slice(0, YOUNG_REVIEWS - 1)).toEqual([2, 4, 8]);
+    // Graduation counts as the first young review, so the fourth after it is FSRS's own.
+    expect(gaps[YOUNG_REVIEWS - 1]).toBeGreaterThan(8);
+  });
+
+  it('Hard keeps the gap, Easy is left to FSRS, and the buttons show the capped gaps', () => {
+    const start = new Date('2026-11-01T19:00:00Z');
+    const card = graduate(start, day(1, start), Rating.Good);
+    const at = new Date(card.due);
+    expect(gap(review(card, Rating.Hard, at), at)).toBe(1);
+    expect(gap(review(card, Rating.Easy, at), at)).toBeGreaterThan(2);
+    const shown = intervals(card, at);
+    expect(Math.round(shown.good)).toBe(2);
+    expect(Math.round(shown.hard)).toBe(1);
+  });
+
+  it('a late review grows from the gap you actually left', () => {
+    const start = new Date('2026-11-01T19:00:00Z');
+    const card = graduate(start, day(1, start), Rating.Good);
+    const late = day(3, start);
+    // Left 3 days instead of 1: Good grows from 3, not from the planned 1.
+    const next = gap(review(card, Rating.Good, late), late);
+    expect(next).toBeGreaterThan(2);
+    expect(next).toBeLessThanOrEqual(6);
+  });
+
+  it('the time of day you review does not change the planned gaps', () => {
+    // Good at 22:00, due two days later; the queue offers it all that day.
+    const start = new Date('2026-11-01T22:00:00Z');
+    const graduated = graduate(start, day(1, start), Rating.Good);
+    const at = new Date(graduated.due);
+    const twoDays = review(graduated, Rating.Good, at);
+    expect(gap(twoDays, at)).toBe(2);
+    // Next review the morning it falls due (1.5 days on): still 4, not 2.
+    const morning = new Date(new Date(twoDays.due).getTime() - 13 * 3_600_000);
+    expect(gap(review(twoDays, Rating.Good, morning), morning)).toBe(4);
+    // And late that evening (2.5 days on): 4, not 6.
+    const evening = new Date(new Date(twoDays.due).getTime() + 11 * 3_600_000);
+    expect(gap(review(twoDays, Rating.Good, evening), evening)).toBe(4);
   });
 });
 

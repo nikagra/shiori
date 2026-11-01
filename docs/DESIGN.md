@@ -251,7 +251,27 @@ Each list opens to its words (`#/lists/<id>`), in the order they came in (a word
 ### Review (`shared/scheduler.ts`, `shared/queue.ts`)
 
 - FSRS via ts-fsrs with desired retention 0.9. Short-term steps are off,
-  because same-day practice happens on pages. Fuzz is on.
+  because same-day practice happens on pages and in relearning (below). Fuzz is on.
+- **Young words** (`capYoung`): for a card's first `YOUNG_REVIEWS` (4)
+  reviews, graduation included, Good gives at most double the last gap
+  and Hard at most the same gap, so a new word comes back after 1, 2, 4
+  and 8 days before FSRS takes over (Mikita, 30 Oct: words known on the
+  page were gone the next evening, and the next gap was already days).
+  Again and Easy are FSRS's own; Easy is the way out for a word you
+  already know. The last gap is the one planned, or the whole days
+  you actually left if more, so a late review grows from what you left and
+  the time of day you review doesn't round 2 days to 1 or 3. Words marked
+  known at check skip this: their first gap is FSRS's own. The grade line shows the
+  capped gaps. FSRS still updates stability from each answer.
+- **Relearning the same day**: Again (a wrong answer, Don't know, or the
+  Again button) is graded as usual, then you type the kana once while
+  looking at the word, and the card comes back in the same session after
+  `MISS_GAP` (5) other cards (sooner if fewer are left), marked "Again
+  today: practice, not graded". It comes back until it's right once:
+  "Missed" (or a wrong typed answer) means type it once more and go round
+  again; "Got it" ends it. Retries send nothing, so the schedule only sees
+  the first answer, and a leech skips them (it has left review). They live
+  in the page's memory only: leaving review drops them.
 - Each word has two cards: `jp_en` (recognise) and `en_jp` (produce, answered
   by typing kana; on a laptop, romaji is turned into kana with WanaKana).
 - Only one card per word per day, so answering one direction never gives away
@@ -383,7 +403,10 @@ The app limits some choices:
 - **Don't know (1):** shows the answer and counts as Again. The only
   button left is **Continue**, with "Counted as Again" (and when it comes
   back) under it, so it doesn't read as "try again now" (Mikita, 28 Oct). A
-  quiet line under Don't know / Show answer says the difference.
+  quiet line under Don't know / Show answer says the difference. After
+  an Again you type the word once, and it comes back later in the same
+  session as practice until you get it right once (unless that Again made
+  it a leech: it leaves review instead).
 - **Wrong typed answer:** the same, Continue counted as Again. "It was a typo — count it as correct" unlocks the other grades.
 - **"Where did I learn this?" (page hint):** caps the grade at Hard.
 - **"Show furigana" (F):** doesn't limit the grade. The peek counts against the kanji instead.
