@@ -26,7 +26,7 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   in `.wrangler/state`, separate from the cloud one. An old database holding
   only test data is kept in `.wrangler/state-test-backup-20261025` and can be
   deleted.
-- Tests: 200 unit tests, 86 end-to-end runs (43 tests at iPhone and laptop
+- Tests: 201 unit tests, 86 end-to-end runs (43 tests at iPhone and laptop
   sizes), and `tsc -b` all pass.
 - **Backup and export** (26 Oct): Settings › Backup downloads all study data as
   one JSON file, a nightly cron saves the same file to the private R2 bucket
@@ -125,11 +125,12 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   them, as often as you like, before step 1 (or any time). Practise
   (`#/practise`, from Pages › Learned) drills the words of one or more
   learned pages you pick, shuffled, with "Where is it on the page?" a tap
-  away, and a learned page has "Practise this page"; nothing is sent.
+  away, and a learned page has "Practise this page"; it sends no grades,
+  misses or schedule changes (only a furigana peek's kanji hint).
   Tapping a word on a page opens its memory hook, and a missed review card
   offers "Write a memory hook"; both show a compound in its dictionary
   parts (夜明け: 夜 "night" + 明け "dawn"; a verb at the end in its
-  dictionary form, 入れず as 入れる). No migration.
+  dictionary form, 入れず as 入れる, 利かず as 利く). No migration.
 - First iPhone feedback (25 Oct) is in: "Don't know" on review and drill
   cards, next words hidden in the in-order drill, "Study the page again",
   whole words on the grid, safer iOS speech. Sound on the iPhone still needs

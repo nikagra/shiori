@@ -120,11 +120,17 @@ export async function lookUpWords(db: D1Database, dict: D1Database, id?: number)
   return { looked: words.length, matched: matches.filter(Boolean).length, remaining: remaining - words.length };
 }
 
+/**
+ * Entries a word-parts lookup reads. A 12-character word has at most 66
+ * pieces, each matching a few entries (common words first), so this is ample.
+ */
+const PART_ENTRIES = 500;
+
 /** The dictionary words a long word is made of ([] when it isn't made of two or more). */
 export async function wordParts(dict: D1Database, written: string): Promise<WordPart[]> {
-  const word = written.normalize('NFKC').trim();
+  const word = lookupForm(written);
   const candidates = partCandidates(word);
   if (candidates.length === 0) return [];
-  const entries = await entriesFor(dict, formsMatch(candidates), 500);
+  const entries = await entriesFor(dict, formsMatch(candidates), PART_ENTRIES);
   return splitParts(word, partInfo(entries, word));
 }

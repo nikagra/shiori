@@ -7,7 +7,7 @@ import type { DictEntry } from './dictEntry';
 
 export interface WordPart {
   text: string;
-  /** The dictionary form, when the part is a conjugated verb at the end (入れず → 入れる). */
+  /** The dictionary form, when the part is a verb at the end in another form (入れず → 入れる, 利かず → 利く). */
   base?: string;
   /** Null for a piece that isn't a dictionary word itself (okurigana, a particle, a conjugated ending). */
   reading: string | null;
@@ -16,22 +16,33 @@ export interface WordPart {
 
 const HAN = /\p{Script=Han}/u;
 const KANA = /^[\p{Script=Hiragana}]+$/u;
-/** A conjugated ending at the end of a word, up to this many kana, may stand for る (入れず is 入れる). */
+/** Endings of a verb's negative or stem form read back to its dictionary form, at most this many kana. */
 const MAX_ENDING = 3;
+const NEGATIVE = ['ず', 'ない', 'なかった'];
+/** Godan negative stems: 書か(ず) is 書く. */
+const A_TO_U: Record<string, string> = { か: 'く', が: 'ぐ', さ: 'す', た: 'つ', な: 'ぬ', ば: 'ぶ', ま: 'む', ら: 'る', わ: 'う' };
 
-/** Dictionary forms an ending-final piece may stand for: 入れず → 入れる. */
+/**
+ * Dictionary forms a verb ending the word may stand for: an ichidan stem
+ * with its okurigana plus る (入れず → 入れる), or a godan negative
+ * (利かず → 利く). A bare kanji plus る is never tried: 目覚まし is not 覚る.
+ */
 function verbForms(chars: string[], from: number): { at: number; form: string }[] {
   const out: { at: number; form: string }[] = [];
-  for (let k = 1; k <= MAX_ENDING && chars.length - k > from; k++) {
-    const stem = chars.slice(from, chars.length - k).join('');
-    if (KANA.test(chars.slice(chars.length - k).join('')) && HAN.test(stem)) out.push({ at: chars.length - k, form: `${stem}る` });
+  for (let k = 1; k <= MAX_ENDING && chars.length - k > from + 1; k++) {
+    const ending = chars.slice(chars.length - k).join('');
+    const stem = chars.slice(from, chars.length - k);
+    const last = stem[stem.length - 1];
+    if (!KANA.test(ending) || !HAN.test(stem.join('')) || !KANA.test(last)) continue;
+    out.push({ at: chars.length - k, form: `${stem.join('')}る` });
+    if (NEGATIVE.includes(ending) && A_TO_U[last]) out.push({ at: chars.length - k, form: `${stem.slice(0, -1).join('')}${A_TO_U[last]}` });
   }
   return out;
 }
 /** Longer words aren't split: they'd make the lookup big and they're rare. */
 export const MAX_SPLIT = 12;
 
-/** The pieces of `written` worth looking up: every shorter run with a kanji in it. */
+/** What to look up for `written`: every shorter run with a kanji in it, and the dictionary forms a verb ending it may have. */
 export function partCandidates(written: string): string[] {
   const chars = [...written];
   if (chars.length < 2 || chars.length > MAX_SPLIT) return [];
@@ -70,7 +81,7 @@ export function partInfo(entries: DictEntry[], whole = ''): Map<string, { readin
 
 /**
  * Splits from the left, taking the longest dictionary word at each point
- * (and a verb at the end in its dictionary form, so 入れず is 入れる).
+ * (and a verb at the end in its dictionary form: 入れず is 入れる).
  * Pieces that aren't words are joined into one part with no meaning. Returns
  * [] unless at least two parts are words: otherwise there's nothing to learn
  * from the split.

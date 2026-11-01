@@ -1,5 +1,5 @@
 import { expect, test, type APIRequestContext } from '@playwright/test';
-import { expectNoHorizontalScroll, graduatePage, resetDb, seedWords, shot, typeItOnce, type PageWord } from './helpers';
+import { expectNoHorizontalScroll, graduatePage, listId, resetDb, seedWords, shot, typeItOnce, type PageWord } from './helpers';
 
 let words: PageWord[] = [];
 
@@ -161,8 +161,7 @@ test('a missed card comes back today until it is right once, without more grades
   await page.getByRole('button', { name: 'Write a memory hook' }).click();
   const hook = page.getByRole('region', { name: 'Memory hook' });
   await hook.getByLabel(/Memory hook for/).fill('a story that sounds like it');
-  await hook.getByRole('button', { name: 'Save hook' }).click();
-  await expect(hook.getByRole('status')).toContainText('Saved');
+  // Not saved by hand: finishing the typing saves it, so it isn't lost.
   await typeItOnce(page, kana);
   // Again, straight away (nothing else is left): practice, so no grades or intervals.
   await expect(page.getByTestId('retry-badge')).toBeVisible();
@@ -180,6 +179,8 @@ test('a missed card comes back today until it is right once, without more grades
   await page.getByRole('button', { name: 'Got it' }).click();
   await expect(page.getByTestId('review-done')).toHaveText('Done: 1 reviewed.');
   expect(posts).toBe(1);
+  const words = (await (await request.get(`/api/lists/${await listId(request, 'Manga')}/words`)).json()) as { hook: string | null }[];
+  expect(words.map((w) => w.hook)).toContain('a story that sounds like it');
 });
 
 test('a missed card does not use up the cards still to load', async ({ page, request }) => {

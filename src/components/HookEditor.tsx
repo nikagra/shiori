@@ -8,7 +8,7 @@ import { Notice } from './ui';
 // had a sound-alike story (ほる and a HOLE); the ones that faded had none,
 // or were long compounds not seen as parts (30 Oct).
 
-type HookWord = Pick<Word, 'id' | 'kanji' | 'kana' | 'hook'>;
+type HookWord = Pick<Word, 'id' | 'kanji' | 'kana' | 'hook'> & Partial<Pick<Word, 'leechAt'>>;
 
 /** The dictionary words a compound is made of: nothing for a short or plain word. */
 export function WordParts({ word }: { word: Pick<Word, 'kanji'> }) {
@@ -50,19 +50,30 @@ export function WordParts({ word }: { word: Pick<Word, 'kanji'> }) {
   );
 }
 
-export function HookEditor({ word, onSaved }: { word: HookWord; onSaved: (word: ListWord) => void }) {
+export function HookEditor({
+  word,
+  onSaved,
+  onDraft,
+}: {
+  word: HookWord;
+  onSaved: (word: ListWord) => void;
+  /** Each change to the text, saved or not. */
+  onDraft?: (text: string) => void;
+}) {
   const [text, setText] = useState(word.hook ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
+  /** What saving did: a leech with a new hook is back in review. */
+  const [saved, setSaved] = useState<'saved' | 'back' | null>(null);
   const changed = text.trim() !== (word.hook ?? '');
 
   const save = async () => {
     setBusy(true);
     setError(null);
     try {
-      onSaved(await api.updateWord(word.id, { hook: text.trim() || null }));
-      setSaved(true);
+      const updated = await api.updateWord(word.id, { hook: text.trim() || null });
+      onSaved(updated);
+      setSaved(word.leechAt && !updated.leechAt ? 'back' : 'saved');
     } catch (e) {
       setError((e as Error).message);
     }
@@ -82,7 +93,8 @@ export function HookEditor({ word, onSaved }: { word: HookWord; onSaved: (word: 
           value={text}
           onChange={(e) => {
             setText(e.target.value);
-            setSaved(false);
+            onDraft?.(e.target.value);
+            setSaved(null);
           }}
           placeholder={`A story with a word it sounds like: ほる, dig a HOLE`}
         />
@@ -93,7 +105,7 @@ export function HookEditor({ word, onSaved }: { word: HookWord; onSaved: (word: 
         </button>
         {saved && !changed && (
           <span className="muted small" role="status">
-            Saved: it shows with the answer.
+            {saved === 'back' ? 'Saved. It is back in review, and the hook shows with the answer.' : 'Saved: it shows with the answer.'}
           </span>
         )}
       </div>

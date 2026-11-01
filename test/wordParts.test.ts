@@ -21,6 +21,11 @@ const known = partInfo([
   entry(8, '掻く', 'かく', 'to scratch'),
   entry(9, '入れる', 'いれる', 'to put in'),
   entry(10, '入れ', 'いれ', 'container'),
+  entry(12, '口', 'くち', 'mouth'),
+  entry(13, '利く', 'きく', 'to be effective'),
+  entry(14, '利', 'り', 'advantage'),
+  entry(15, '目', 'め', 'eye'),
+  entry(16, '覚る', 'さとる', 'to understand'),
 ]);
 
 describe('word parts', () => {
@@ -55,6 +60,12 @@ describe('word parts', () => {
       { text: '間髪', reading: 'かんはつ', gloss: "a hair's breadth" },
       { text: '入れず', base: '入れる', reading: 'いれる', gloss: 'to put in' },
     ]);
+  });
+
+  it('reads a godan negative back to its dictionary form, and never a bare kanji plus る', () => {
+    expect(splitParts('口を利かず', known).map((p) => p.base ?? p.text)).toEqual(['口', 'を', '利く']);
+    // 覚 + る would be 覚る "to understand": not what 目覚まし is made of.
+    expect(partCandidates('目覚まし')).not.toContain('覚る');
   });
 
   it('gives nothing when fewer than two parts are words', () => {

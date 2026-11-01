@@ -1094,10 +1094,12 @@ rt {
 }
 
 /* Tapping a card on the full page: to turn it over, or to pick its word. */
-.page-cell--tappable {
+/* Stronger than .page-grid--full .page-cell: the tap button has the padding. */
+.page-grid--full .page-cell--tappable {
   padding: 0;
 }
 
+/* The same layout as .page-cell, which it fills: keep the two in step. */
 .page-cell__tap {
   appearance: none;
   border: none;

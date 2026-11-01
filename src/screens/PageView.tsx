@@ -122,7 +122,7 @@ export function PageView({ id }: { id: number }) {
           <a className="button button--wide" href={`#/practise/${page.id}`}>
             Practise this page
           </a>
-          <StepTwoMisses page={page} />
+          {!cover && <StepTwoMisses page={page} />}
         </>
       ) : (
         <section className="stack stack--tight">
@@ -131,7 +131,7 @@ export function PageView({ id }: { id: number }) {
         </section>
       )}
 
-      {page.stage === 'ordered' && !editing && <SimilarNotice words={page.words} action="Change words below to swap one for another word." />}
+      {page.stage === 'ordered' && !editing && !cover && <SimilarNotice words={page.words} action="Change words below to swap one for another word." />}
 
       {!editing && (
         <SelfTest
@@ -140,7 +140,7 @@ export function PageView({ id }: { id: number }) {
             setCover(c);
             setFlipped(new Set());
           }}
-          allFlipped={flipped.size === page.words.length}
+          allFlipped={page.words.every((w) => flipped.has(w.id))}
           onCoverAll={() => setFlipped(new Set())}
         />
       )}
@@ -171,7 +171,7 @@ export function PageView({ id }: { id: number }) {
               <HookEditor
                 key={w.id}
                 word={w}
-                onSaved={(saved) => setPage({ ...page, words: page.words.map((x) => (x.id === saved.id ? { ...x, hook: saved.hook } : x)) })}
+                onSaved={(saved) => setPage({ ...page, words: page.words.map((x) => (x.id === saved.id ? { ...x, hook: saved.hook, leechAt: saved.leechAt } : x)) })}
               />
             </section>
           )
@@ -195,7 +195,16 @@ export function PageView({ id }: { id: number }) {
               {saved ? `Continue ${STEP_TEXT[page.stage].short} (${saved.completed} of ${saved.total} done)` : STEP_TEXT[page.stage].start}
             </button>
             {page.stage === 'ordered' && (
-              <button className="button button--wide" onClick={() => setEditing(true)}>
+              <button
+                className="button button--wide"
+                onClick={() => {
+                  // Changing words shows the page as it is: nothing covered or picked.
+                  setCover(null);
+                  setFlipped(new Set());
+                  setPicked(null);
+                  setEditing(true);
+                }}
+              >
                 Change words
               </button>
             )}
@@ -437,8 +446,9 @@ interface Copying {
 /**
  * A drill over a page's words, or for practice over the words of one or more
  * learned pages. Practice is the shuffled drill without the page on screen:
- * "Where is it on the page?" shows it. The drill itself saves nothing; the
- * page screen sends a finished step, practice sends nothing at all.
+ * "Where is it on the page?" shows it (and a miss shows the word in its
+ * spot). The drill itself saves nothing; the page screen sends a finished
+ * step, and practice sends nothing but a furigana peek's kanji hint.
  */
 export function Drill({
   pages,

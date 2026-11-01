@@ -7,7 +7,8 @@ import { Drill } from './PageView';
 
 // Practice that doesn't count (Mikita, 27 and 30 Oct): pick one or more
 // learned pages and drill their words, shuffled, both directions mixed.
-// Nothing is sent: no grades, no misses, no change to when words come back.
+// Nothing is sent: no grades, no misses, no change to when words come back
+// (only a furigana peek's kanji hint, as everywhere).
 // #/practise picks the pages; #/practise/3,5 practises pages 3 and 5 (by id).
 
 export function Practice({ ids }: { ids: number[] }) {
@@ -100,17 +101,26 @@ function PracticeDrill({ ids }: { ids: number[] }) {
   };
 
   useEffect(() => {
-    Promise.all(ids.map((id) => api.page(id))).then(
-      (loaded) => {
-        const p = loaded.sort((a, b) => a.number - b.number);
-        setPages(p);
-        start(p);
-      },
-      (e: Error) => setError(e.message),
-    );
+    // Learned pages only, each once; a page deleted since the link was made is left out.
+    Promise.allSettled([...new Set(ids)].map((id) => api.page(id))).then((results) => {
+      const p = results
+        .flatMap((r) => (r.status === 'fulfilled' && r.value.stage === 'graduated' ? [r.value] : []))
+        .sort((a, b) => a.number - b.number);
+      if (p.length === 0) return setError('None of these pages is learned (or they were deleted). Pick learned pages to practise.');
+      setPages(p);
+      start(p);
+    });
   }, [ids.join(',')]);
 
-  if (error) return <Notice kind="error">{error}</Notice>;
+  if (error)
+    return (
+      <div className="stack">
+        <Notice kind="error">{error}</Notice>
+        <a className="button" href="#/practise">
+          Pick pages to practise
+        </a>
+      </div>
+    );
   if (!pages || !drill) return <p className="muted">Loading…</p>;
 
   const which = pages.length === 1 ? `Page ${pages[0].number}` : `Pages ${pages.map((p) => p.number).join(', ')}`;

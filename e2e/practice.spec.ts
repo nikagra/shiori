@@ -30,6 +30,7 @@ test('test yourself on a new page by turning cards over, without counting anythi
   await expect(cells.first().locator('.page-cell__meaning')).toHaveText('?');
   // The Japanese stays, and so does its sound.
   await expect(cells.first().locator('.page-cell__word')).not.toHaveText('?');
+  await expect(cells.first().getByRole('button', { name: /^Play/ })).toBeVisible();
   await cells.nth(0).getByRole('button', { name: /turn over/ }).click();
   await cells.nth(2).getByRole('button', { name: /turn over/ }).click();
   await expect(page.locator('.page-cell[data-covered]')).toHaveCount(4);
@@ -80,8 +81,10 @@ test('write a memory hook on a page, with the word split into its parts', async 
   await page.reload();
   await page.getByRole('button', { name: '夜明け: memory hook and parts' }).click();
   await expect(page.getByRole('region', { name: 'Memory hook' }).getByLabel(/Memory hook for/)).toHaveValue('YO! A KEttle at dawn');
-  // A word that isn't made of two dictionary words shows no parts.
+  // A word that isn't made of two dictionary words shows no parts (once the lookup is back).
+  const lookup = page.waitForResponse((r) => r.url().includes('/api/dict/parts') && decodeURIComponent(r.url()).includes('残酷'));
   await page.getByRole('button', { name: '残酷: memory hook and parts' }).click();
+  await lookup;
   await expect(page.getByRole('region', { name: 'Memory hook' }).getByLabel(/Memory hook for/)).toHaveValue('');
   await expect(page.getByTestId('word-parts')).toHaveCount(0);
 });
@@ -106,7 +109,12 @@ test('practise one or more learned pages: shuffled, with the page one tap away, 
 
   const writes = countWrites(page);
   const card = page.getByTestId('drill-card');
-  for (let i = 0; i < 12; i++) {
+  // One miss, typed once with the page showing, and one look at the whole page: still nothing sent.
+  let missed = false;
+  // 12 cards, the missed ones again, and maybe a few fillers before them.
+  for (let i = 0; i < 30 && !(await page.getByTestId('practice-done').isVisible()); i++) {
+    await expect(card.or(page.getByTestId('practice-done'))).toBeVisible();
+    if (await page.getByTestId('practice-done').isVisible()) break;
     const direction = await card.getAttribute('data-direction');
     // The page stays out of sight until you ask where the word is.
     await expect(page.locator('.page-grid')).toHaveCount(0);
@@ -117,6 +125,18 @@ test('practise one or more learned pages: shuffled, with the page one tap away, 
       await expectNoHorizontalScroll(page);
       await shot(page, testInfo, '98-practise-peek');
     }
+    if (direction === 'jp_en' && !missed) {
+      missed = true;
+      await page.getByRole('button', { name: 'Show answer' }).click();
+      await page.getByRole('button', { name: 'Missed' }).click();
+      await expect(page.locator('.page-grid')).toBeVisible();
+      const kana = await page.getByTestId('encode-prompt').locator('[lang="ja"]').innerText();
+      await page.getByRole('region', { name: 'Type it once' }).getByLabel('Type the word').fill(kana);
+      await page.getByRole('region', { name: 'Type it once' }).getByRole('button', { name: 'Check' }).click();
+      await page.getByRole('button', { name: 'Study its page again' }).click();
+      await page.getByRole('button', { name: 'Back to the drill' }).click();
+      continue;
+    }
     if (direction === 'jp_en') {
       await page.getByRole('button', { name: 'Show answer' }).click();
       await page.getByRole('button', { name: 'Got it' }).click();
@@ -126,7 +146,7 @@ test('practise one or more learned pages: shuffled, with the page one tap away, 
       await page.getByRole('button', { name: 'Continue' }).click();
     }
   }
-  await expect(page.getByTestId('practice-done')).toHaveText('Done: 12 cards, all right first time. Nothing was counted.');
+  await expect(page.getByTestId('practice-done')).toHaveText('Done: 12 cards, 2 cards needed another go. Nothing was counted.');
   expect(writes).toEqual([]);
 
   // A single learned page has its own button.
@@ -135,4 +155,8 @@ test('practise one or more learned pages: shuffled, with the page one tap away, 
   await expect(page.getByRole('heading', { name: 'Practise · Page 1' })).toBeVisible();
   await page.getByRole('button', { name: 'Stop' }).click();
   await expect(page).toHaveURL(new RegExp(`#/pages/${first.id}$`));
+
+  // A link with a page that's gone (or repeated) practises the rest.
+  await page.goto(`/#/practise/${second.id},99999,${second.id}`);
+  await expect(page.getByRole('heading', { name: 'Practise · Page 2' })).toBeVisible();
 });
