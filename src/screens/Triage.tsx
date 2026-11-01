@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api, type ListSummary, type Word } from '../api';
-import { JapaneseWord, Meaning, Notice, SpeakButton, useKeys } from '../components/ui';
+import { api, ApiError, type ListSummary, type Word } from '../api';
+import { JapaneseWord, Meaning, Notice, SaveStatus, SpeakButton, useKeys } from '../components/ui';
 import { useSettings } from '../settings';
 import { speak } from '../speech';
 import { useDictStatus } from '../components/DictSearch';
@@ -16,6 +16,10 @@ export function Triage() {
   const [revealed, setRevealed] = useState(false);
   const [moved, setMoved] = useState('');
   const sending = useRef(false);
+  const [saving, setSaving] = useState(false);
+  /** The answer whose save was lost, if any. */
+  const lost = useRef<{ wordId: number; result: 'known' | 'unknown' | 'ignore' } | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [counts, setCounts] = useState({ known: 0, unknown: 0, ignore: 0 });
   const [error, setError] = useState<string | null>(null);
   const [settings, update] = useSettings();
@@ -59,9 +63,21 @@ export function Triage() {
     // One answer per word: a double tap or a repeated key does nothing.
     if (!word || !revealed || sending.current) return;
     sending.current = true;
+    setSaving(true);
+    setSaveError(null);
     try {
-      await api.triageAnswer(word.id, result);
-      setCounts((c) => ({ ...c, [result]: c[result] + 1 }));
+      let counted = true;
+      try {
+        await api.triageAnswer(word.id, result);
+      } catch (e) {
+        if (!(e instanceof ApiError && e.status === 409)) throw e;
+        // Already checked. The same answer sent again after a lost save most
+        // likely got through the first time; anything else (another answer,
+        // another device) moves on without counting.
+        counted = lost.current?.wordId === word.id && lost.current.result === result;
+      }
+      lost.current = null;
+      if (counted) setCounts((c) => ({ ...c, [result]: c[result] + 1 }));
       setRemaining((r) => r - 1);
       if (index + 1 < (batch?.length ?? 0)) {
         setIndex(index + 1);
@@ -71,9 +87,14 @@ export function Triage() {
         load();
       }
     } catch (e) {
-      setError((e as Error).message);
+      // Turned down: sending it again won't help.
+      if (e instanceof ApiError && e.refused) return setError(e.message);
+      // Lost on the way: the card stays, so answering again sends it again.
+      lost.current = { wordId: word.id, result };
+      setSaveError((e as Error).message);
     } finally {
       sending.current = false;
+      setSaving(false);
     }
   };
 
@@ -157,16 +178,17 @@ export function Triage() {
       ) : (
         <div className="stack stack--tight">
           <div className="grade-row grade-row--two">
-            <button className="button button--again" onClick={() => answer('unknown')}>
+            <button className="button button--again" onClick={() => answer('unknown')} disabled={saving}>
               I didn’t know
             </button>
-            <button className="button button--good" onClick={() => answer('known')}>
+            <button className="button button--good" onClick={() => answer('known')} disabled={saving}>
               I knew it
             </button>
           </div>
-          <button className="link-button" onClick={() => answer('ignore')}>
+          <button className="link-button" onClick={() => answer('ignore')} disabled={saving}>
             Not worth learning — remove it
           </button>
+          <SaveStatus sending={saving} error={saveError} />
         </div>
       )}
     </div>

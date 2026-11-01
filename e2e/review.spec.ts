@@ -60,8 +60,9 @@ test('review both directions with honest grading', async ({ page, request }, tes
         // A wrong answer can only be graded Again (unless it was a typo).
         await expect(page.getByRole('button', { name: 'Good' })).toHaveCount(0);
         await expectNoHorizontalScroll(page);
+        await expect(page.getByTestId('again-note')).toContainText(/^Counted as Again: back in ~\d/);
         await shot(page, testInfo, '22-review-typed-wrong');
-        await page.getByRole('button', { name: 'Again' }).click();
+        await page.getByRole('button', { name: 'Continue' }).click();
         graded.push('wrong');
         continue;
       }
@@ -129,6 +130,31 @@ test('a typo can be counted as correct', async ({ page, request }) => {
   await page.getByRole('button', { name: /It was a typo/ }).click();
   await expect(page.getByTestId('typed-result')).toHaveText('Counted as correct');
   await expect(page.getByRole('button', { name: 'Good' })).toBeEnabled();
+});
+
+test('a slow save says so, and a failed one keeps the answer to send again', async ({ page, request }, testInfo) => {
+  await makeDue(request, 'jp_en');
+  await page.goto('/#/review');
+  await page.getByRole('button', { name: 'Show answer' }).click();
+  // First try: slow, then the connection drops.
+  let tries = 0;
+  await page.route('**/api/review/*', async (route) => {
+    tries++;
+    if (tries > 1) return route.continue();
+    await new Promise((r) => setTimeout(r, 3000));
+    await route.abort('connectionreset');
+  });
+  await page.getByRole('button', { name: 'Good' }).click();
+  await expect(page.getByTestId('saving')).toHaveText('Saving…');
+  await expect(page.getByRole('button', { name: 'Good' })).toBeDisabled();
+  await expect(page.getByTestId('save-error')).toContainText('the server could not be reached');
+  await expect(page.getByTestId('saving')).toHaveCount(0);
+  await expectNoHorizontalScroll(page);
+  await shot(page, testInfo, '25-review-save-failed');
+  // The answer is still there: tapping the grade again sends it.
+  await page.getByRole('button', { name: 'Good' }).click();
+  await expect(page.getByText('2 / 4')).toBeVisible();
+  expect(tries).toBe(2);
 });
 
 test('edit a core meaning from the answer', async ({ page, request }) => {

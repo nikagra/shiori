@@ -7,6 +7,9 @@ import type { WordState } from './wordSearch';
 //                   then meaning→Japanese, again in grid order.
 // Stage "shuffled": the same steps, shuffled, with both directions mixed.
 //
+// In the shuffled stage a word's two directions are never asked one right
+// after the other, unless the page is too small to put anything between them.
+//
 // A missed step comes back after at least MISS_GAP other cards, so the retry
 // isn't answered from the last few seconds of memory. Near the end of a
 // drill, steps already answered fill the gap ("fillers": asked again, but
@@ -48,6 +51,47 @@ export function shuffle<T>(items: T[], random: Random): T[] {
   return out;
 }
 
+const sameWord = (a: DrillStep | undefined, b: DrillStep | undefined) => a !== undefined && b !== undefined && a.wordId === b.wordId;
+
+/**
+ * Moves steps so no two of the same word sit side by side, where the steps
+ * allow it. Each clash takes the next step of another word ahead; at the end,
+ * where nothing is left ahead, the step moves back into a gap that fits.
+ */
+export function spreadWords(steps: DrillStep[]): DrillStep[] {
+  const out = steps.slice();
+  for (let i = 1; i < out.length; i++) {
+    if (!sameWord(out[i - 1], out[i])) continue;
+    const k = out.findIndex((s, j) => j > i && s.wordId !== out[i].wordId);
+    if (k !== -1) {
+      [out[i], out[k]] = [out[k], out[i]];
+      continue;
+    }
+    // Nothing of another word ahead: put this step back between two others.
+    const [step] = out.splice(i, 1);
+    const at = out.findIndex((s, j) => j < i && !sameWord(out[j - 1], step) && !sameWord(s, step));
+    out.splice(at === -1 ? i : at, 0, step);
+    if (at === -1) break;
+    i = at;
+  }
+  return out;
+}
+
+/** Steps put in an order where none sits next to one of the same word, after `last`, where they allow it. */
+function followOn(last: DrillStep | undefined, steps: DrillStep[]): DrillStep[] {
+  const left = steps.slice();
+  const out: DrillStep[] = [];
+  let prev = last;
+  while (left.length > 0) {
+    // A word with both directions left goes first, so the pair can be split.
+    const pick = left.findIndex((s) => !sameWord(prev, s) && left.filter((o) => o.wordId === s.wordId).length > 1);
+    const i = pick !== -1 ? pick : Math.max(0, left.findIndex((s) => !sameWord(prev, s)));
+    prev = left.splice(i, 1)[0];
+    out.push(prev);
+  }
+  return out;
+}
+
 export function startDrill(wordIdsInGridOrder: number[], stage: 'ordered' | 'shuffled', random: Random = Math.random): DrillState {
   const steps: DrillStep[] =
     stage === 'ordered'
@@ -55,12 +99,14 @@ export function startDrill(wordIdsInGridOrder: number[], stage: 'ordered' | 'shu
           ...wordIdsInGridOrder.map((wordId) => ({ wordId, direction: 'jp_en' as const })),
           ...wordIdsInGridOrder.map((wordId) => ({ wordId, direction: 'en_jp' as const })),
         ]
-      : shuffle(
-          wordIdsInGridOrder.flatMap((wordId) => [
-            { wordId, direction: 'jp_en' as const },
-            { wordId, direction: 'en_jp' as const },
-          ]),
-          random,
+      : spreadWords(
+          shuffle(
+            wordIdsInGridOrder.flatMap((wordId) => [
+              { wordId, direction: 'jp_en' as const },
+              { wordId, direction: 'en_jp' as const },
+            ]),
+            random,
+          ),
         );
   return { queue: steps, completed: 0, total: steps.length, misses: {}, done: [] };
 }
@@ -85,8 +131,18 @@ export function answerStep(state: DrillState, correct: boolean, random: Random =
   const fillers = shuffle(pool, random)
     .slice(0, Math.max(0, MISS_GAP - rest.length))
     .map((s) => ({ ...s, filler: true }));
-  const before = [...rest, ...fillers];
-  const at = Math.min(MISS_GAP, before.length);
+  const before = [...rest, ...followOn(rest[rest.length - 1], fillers)];
+  // At least MISS_GAP cards later and not next to the word's other direction;
+  // if no spot that late fits, the latest one that does.
+  const fits = (i: number) => !sameWord(before[i - 1], step) && !sameWord(before[i], step);
+  const gap = Math.min(MISS_GAP, before.length);
+  let at = gap;
+  while (at <= before.length && !fits(at)) at++;
+  if (at > before.length) {
+    at = gap;
+    while (at > 1 && !fits(at)) at--;
+    if (!fits(at)) at = gap;
+  }
   return { ...state, queue: [...before.slice(0, at), step, ...before.slice(at)], misses };
 }
 

@@ -423,10 +423,10 @@ export async function deleteWord(db: D1Database, id: number): Promise<void> {
 
 // ---------------------------------------------------------------- cards
 
-const insertCard = (db: D1Database, wordId: number, direction: Direction, card: StoredCard, now: Date) =>
+const insertCard = (db: D1Database, wordId: number, direction: Direction, card: StoredCard, now: Date, onlyIf?: { sql: string; bind: unknown[] }) =>
   db
-    .prepare('INSERT INTO cards (word_id, direction, due, state, lapses, fsrs, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
-    .bind(wordId, direction, card.due, card.state, card.lapses, JSON.stringify(card), iso(now));
+    .prepare(`INSERT INTO cards (word_id, direction, due, state, lapses, fsrs, created_at) SELECT ?, ?, ?, ?, ?, ?, ? WHERE ${onlyIf?.sql ?? '1'}`)
+    .bind(wordId, direction, card.due, card.state, card.lapses, JSON.stringify(card), iso(now), ...(onlyIf?.bind ?? []));
 
 /**
  * A graduating card. A word that was on an earlier page (a leech put on a
@@ -460,12 +460,15 @@ function logReview(
     durationMs?: number | null;
   },
   now: Date,
+  /** Written only while this SQL condition holds, checked inside the batch. */
+  onlyIf?: { sql: string; bind: unknown[] },
 ) {
   const byDirection = typeof entry.card === 'string';
   return db
     .prepare(
       `INSERT INTO review_log (card_id, word_id, kind, rating, state_before, hint_used, answer, correct, duration_ms, reviewed_at)
-       VALUES (${byDirection ? '(SELECT id FROM cards WHERE word_id = ? AND direction = ?)' : '?'}, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       SELECT ${byDirection ? '(SELECT id FROM cards WHERE word_id = ? AND direction = ?)' : '?'}, ?, ?, ?, ?, ?, ?, ?, ?, ?
+       WHERE ${onlyIf?.sql ?? '1'}`,
     )
     .bind(
       ...(byDirection ? [entry.wordId, entry.card] : [entry.card]),
@@ -478,6 +481,7 @@ function logReview(
       entry.correct === undefined || entry.correct === null ? null : entry.correct ? 1 : 0,
       entry.durationMs ?? null,
       iso(now),
+      ...(onlyIf?.bind ?? []),
     );
 }
 
@@ -674,19 +678,25 @@ export async function triageAnswer(db: D1Database, wordId: number, result: Triag
   if (result === 'known') {
     // Recalled Japanese→meaning now: that card starts as reviewed.
     // Meaning→Japanese is untested, so it starts as a new card.
+    // Only if this answer is the one that counted: a late "didn't know"
+    // that got in first leaves the word in the inbox, without cards.
+    const counted = { sql: `(SELECT status FROM words WHERE id = ?) = 'graduated'`, bind: [wordId] };
     const reading = review(newCard(now), Rating.Good, now);
     stmts.push(
-      insertCard(db, wordId, 'jp_en', reading, now),
-      insertCard(db, wordId, 'en_jp', newCard(now), now),
-      logReview(db, { card: 'jp_en', wordId, kind: 'triage', rating: Rating.Good, stateBefore: State.New, correct: true }, now),
+      insertCard(db, wordId, 'jp_en', reading, now, counted),
+      insertCard(db, wordId, 'en_jp', newCard(now), now, counted),
+      logReview(db, { card: 'jp_en', wordId, kind: 'triage', rating: Rating.Good, stateBefore: State.New, correct: true }, now, counted),
     );
   }
+  let results: D1Result[];
   try {
-    await db.batch(stmts);
+    results = await db.batch(stmts);
   } catch (e) {
     if (isUniqueViolation(e)) throw new AppError(409, 'word was already checked');
     throw e;
   }
+  // Another answer got in between the read and this batch.
+  if (!results[0].meta.changes) throw new AppError(409, 'word was already checked');
 }
 
 // ---------------------------------------------------------------- pages
@@ -1163,6 +1173,8 @@ export interface ReviewInput {
   answer: string | null;
   correct: boolean | null;
   durationMs: number | null;
+  /** The card's due date when it was shown. Set, it makes a retried answer that already got through change nothing. */
+  due?: string | null;
 }
 
 /**
@@ -1172,25 +1184,20 @@ export interface ReviewInput {
  */
 export async function submitReview(db: D1Database, input: ReviewInput, now: Date): Promise<{ due: string; rating: Grade; leech: boolean }> {
   const row = await db
-    .prepare('SELECT id, word_id, fsrs, lapse_base FROM cards WHERE id = ?')
+    .prepare('SELECT id, word_id, due, fsrs, lapse_base FROM cards WHERE id = ?')
     .bind(input.cardId)
-    .first<{ id: number; word_id: number; fsrs: string; lapse_base: number }>();
+    .first<{ id: number; word_id: number; due: string; fsrs: string; lapse_base: number }>();
   if (!row) throw new AppError(404, 'card not found');
   const before = JSON.parse(row.fsrs) as StoredCard;
   const rating = capForHint(input.rating, input.hintUsed);
+  // Already graded since it was shown: the first try got through but its answer was lost.
+  if (input.due && row.due !== input.due) return repeated(db, row, rating);
   const after = review(before, rating, now);
   const leech = rating === Rating.Again && after.lapses - row.lapse_base >= LEECH_LAPSES;
+  // Every write holds only while the card is as read above, so two tries
+  // racing each other (a retry while the first is still running) grade once.
+  const unchanged = { sql: 'EXISTS (SELECT 1 FROM cards WHERE id = ? AND due = ?)', bind: [row.id, row.due] };
   const results = await db.batch([
-    ...(leech
-      ? [
-          db
-            .prepare(`UPDATE words SET leech_at = ?, updated_at = ? WHERE id = ? AND leech_at IS NULL AND status = 'graduated'`)
-            .bind(iso(now), iso(now), row.word_id),
-        ]
-      : []),
-    db
-      .prepare('UPDATE cards SET due = ?, state = ?, lapses = ?, fsrs = ? WHERE id = ?')
-      .bind(after.due, after.state, after.lapses, JSON.stringify(after), row.id),
     logReview(
       db,
       {
@@ -1205,9 +1212,30 @@ export async function submitReview(db: D1Database, input: ReviewInput, now: Date
         durationMs: input.durationMs,
       },
       now,
+      unchanged,
     ),
+    ...(leech
+      ? [
+          db
+            .prepare(`UPDATE words SET leech_at = ?, updated_at = ? WHERE id = ? AND leech_at IS NULL AND status = 'graduated' AND ${unchanged.sql}`)
+            .bind(iso(now), iso(now), row.word_id, ...unchanged.bind),
+        ]
+      : []),
+    db
+      .prepare('UPDATE cards SET due = ?, state = ?, lapses = ?, fsrs = ? WHERE id = ? AND due = ?')
+      .bind(after.due, after.state, after.lapses, JSON.stringify(after), row.id, row.due),
   ]);
-  return { due: after.due, rating, leech: leech && Boolean(results[0].meta.changes) };
+  if (!results[0].meta.changes) return repeated(db, row, rating);
+  return { due: after.due, rating, leech: leech && Boolean(results[1].meta.changes) };
+}
+
+/** The answer to a grade that was already counted: the card as it is now, and whether its word left review as a leech. */
+async function repeated(db: D1Database, row: { id: number; word_id: number }, rating: Grade): Promise<{ due: string; rating: Grade; leech: boolean }> {
+  const now = await db
+    .prepare('SELECT c.due, w.leech_at FROM cards c JOIN words w ON w.id = c.word_id WHERE c.id = ?')
+    .bind(row.id)
+    .first<{ due: string; leech_at: string | null }>();
+  return { due: now!.due, rating, leech: rating === Rating.Again && now!.leech_at !== null };
 }
 
 // ---------------------------------------------------------------- stats
