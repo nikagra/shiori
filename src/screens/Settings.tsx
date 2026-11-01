@@ -202,6 +202,10 @@ function Grading() {
         it, and you grade yourself.
       </p>
       <p className="small">
+        After an Again you type the word once, and it comes back later in the same session until you get it right: practice that isn't graded. A new word
+        comes back after 1, 2, 4 and 8 days when you answer Good (Hard keeps the last gap) before the usual schedule takes over.
+      </p>
+      <p className="small">
         Be honest rather than kind. Good on a guess hides the word for weeks; Again only brings it back sooner. On a word you know well, Again drops months to
         days, so an honest Again early on is the cheap one.
       </p>

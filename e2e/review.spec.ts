@@ -1,5 +1,5 @@
 import { expect, test, type APIRequestContext } from '@playwright/test';
-import { expectNoHorizontalScroll, graduatePage, resetDb, seedWords, shot, type PageWord } from './helpers';
+import { expectNoHorizontalScroll, graduatePage, resetDb, seedWords, shot, typeItOnce, type PageWord } from './helpers';
 
 let words: PageWord[] = [];
 
@@ -23,11 +23,23 @@ test('review both directions with honest grading', async ({ page, request }, tes
   await page.getByTestId('tile-review').click();
 
   const graded: string[] = [];
-  for (let i = 0; i < 4; i++) {
+  // Four cards, plus the missed one again today: five in all.
+  for (let i = 0; i < 5; i++) {
     const card = page.getByTestId('review-card');
     // Wait for the next card before reading it.
-    await expect(page.getByText(`${i + 1} / 4`)).toBeVisible();
+    await expect(page.getByText(new RegExp(`^${i + 1} / ${graded.includes('wrong') ? 5 : 4}$`))).toBeVisible();
     const direction = (await card.getAttribute('data-direction'))!;
+    if (await page.getByTestId('retry-badge').isVisible()) {
+      // The missed card, again today: right this time, and that's all it asks.
+      await expect(page.getByTestId('grade-intervals')).toHaveCount(0);
+      await page.getByLabel('Answer in kana').fill(byPrompt(await card.locator('.prompt-meaning').innerText()).kana);
+      await page.getByRole('button', { name: 'Check' }).click();
+      await expectNoHorizontalScroll(page);
+      await shot(page, testInfo, '26-review-retry');
+      await page.getByRole('button', { name: 'Got it' }).click();
+      graded.push('retry');
+      continue;
+    }
     if (direction === 'jp_en') {
       const word = byPrompt((await card.locator('.jp-word__written').getAttribute('data-written'))!);
       // Grades stay hidden until the answer is revealed.
@@ -63,6 +75,10 @@ test('review both directions with honest grading', async ({ page, request }, tes
         await expect(page.getByTestId('again-note')).toContainText(/^Counted as Again: back in ~\d/);
         await shot(page, testInfo, '22-review-typed-wrong');
         await page.getByRole('button', { name: 'Continue' }).click();
+        // Type it once while looking at it; it comes back later in this session.
+        await expect(page.getByTestId('encode-prompt')).toContainText(/comes back after|Then it comes back/);
+        await shot(page, testInfo, '23-review-type-it-once');
+        await typeItOnce(page, word.kana);
         graded.push('wrong');
         continue;
       }
@@ -119,6 +135,35 @@ test('peeking at the page caps the grade at Hard', async ({ page, request }, tes
   }
   await expect(page.getByRole('button', { name: 'Good' })).toBeVisible();
   await expect(page.getByTestId('grade-intervals')).toHaveCount(0);
+});
+
+test('a missed card comes back today until it is right once, without more grades', async ({ page, request }) => {
+  await resetDb(request);
+  await seedWords(request, { unknown: 1 });
+  await graduatePage(request, 1);
+  await makeDue(request, 'jp_en');
+  await page.goto('/#/review');
+  let posts = 0;
+  page.on('request', (r) => {
+    if (r.method() === 'POST' && /\/api\/review\//.test(r.url())) posts++;
+  });
+  await page.getByRole('button', { name: 'Don’t know' }).click();
+  await page.getByRole('button', { name: 'Continue' }).click();
+  const kana = await page.getByTestId('encode-prompt').locator('[lang="ja"]').innerText();
+  await expect(page.getByTestId('encode-prompt')).toContainText('Then it comes back.');
+  await typeItOnce(page, kana);
+  // Again, straight away (nothing else is left): practice, so no grades or intervals.
+  await expect(page.getByTestId('retry-badge')).toBeVisible();
+  await expect(page.getByTestId('dont-know-hint')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Show answer' }).click();
+  await expect(page.getByRole('button', { name: 'Good' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Missed' }).click();
+  await typeItOnce(page, kana);
+  await expect(page.getByText('3 / 3')).toBeVisible();
+  await page.getByRole('button', { name: 'Show answer' }).click();
+  await page.getByRole('button', { name: 'Got it' }).click();
+  await expect(page.getByTestId('review-done')).toHaveText('Done: 1 reviewed.');
+  expect(posts).toBe(1);
 });
 
 test('a typo can be counted as correct', async ({ page, request }) => {

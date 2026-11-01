@@ -3,7 +3,7 @@
 Where the project stands and what comes next. Start here when picking the work
 back up. For how the app works, see [DESIGN.md](DESIGN.md).
 
-## Status (2026-10-31)
+## Status (2026-11-01)
 
 - **v0.1 is merged into `main`** (PR #1, squashed as 6dd130e; history on
   `main` was rewritten on 25 Oct so every commit is Mikita's with an emoji
@@ -26,7 +26,7 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   in `.wrangler/state`, separate from the cloud one. An old database holding
   only test data is kept in `.wrangler/state-test-backup-20261025` and can be
   deleted.
-- Tests: 188 unit tests, 76 end-to-end runs (38 tests at iPhone and laptop
+- Tests: 191 unit tests, 78 end-to-end runs (39 tests at iPhone and laptop
   sizes), and `tsc -b` all pass.
 - **Backup and export** (26 Oct): Settings › Backup downloads all study data as
   one JSON file, a nightly cron saves the same file to the private R2 bucket
@@ -114,6 +114,12 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   save shows "Saving…", one lost on the way keeps the answer to send
   again, and a grade or check answer sent twice counts once.
   No migration.
+- **Step 6 fixes, part 2** (1 Nov): words that stick. A card graded
+  Again is typed once and comes back in the same review session until
+  it's right once (practice, not graded). A young word's Good gap is at
+  most double the last one (1, 2, 4, 8 days), Hard keeps the last gap,
+  then FSRS takes over. No migration; cards already in review get the cap
+  from their next review on.
 - First iPhone feedback (25 Oct) is in: "Don't know" on review and drill
   cards, next words hidden in the in-order drill, "Study the page again",
   whole words on the grid, safer iOS speech. Sound on the iPhone still needs
@@ -198,18 +204,17 @@ finish review (27 Oct; try a page with a miss, and check Home for leeches).
    ([fix plan](https://claude.ai/artifact/H46NxyUcsjqTXagLjNcf7k)):
    - ~~Quick fixes: drill order, clearer review buttons, slow saves.~~ Done
      (31 Oct).
-   - Words that stick (Mikita, 30 Oct: words known on the page are gone
-     the next evening, and Again changes nothing). A missed review card
-     comes back in the same session after about 5 others, after typing its
-     kana once, until it's right once; only the first answer is graded.
-     While a word is young its next gap is at most double the last
-     (1, 2, 4, 8 days), then FSRS takes over.
+   - ~~Words that stick: same-day relearning and gentler first gaps.~~
+     Done (1 Nov).
    - Practice that doesn't count: test yourself on a page's first view
      (meanings hidden, tap to flip), practise one or several learned pages
      you pick (nothing saved), and write a memory hook right on the page or
      after a miss, with a compound shown in its parts.
    - Maybe after these: a Dictionary screen of its own, look up first and
-     add second (Mikita, 28 Oct).
+     add second (Mikita, 28 Oct). One search box for words and kanji like
+     jisho (`#kanji` for the kanji itself), and any word or kanji you tap
+     opens its entry, as in Renshuu (Mikita, 31 Oct). Kanji entries need
+     KANJIDIC2.
 
 ### v0.3: deeper word knowledge
 

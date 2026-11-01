@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError, shortPos, type PageDetail, type QueueItem } from '../api';
 import { PageGrid } from '../components/PageGrid';
-import { Hook, JapaneseWord, KanaInput, Meaning, Notice, Progress, SaveStatus, SpeakButton, useKeys } from '../components/ui';
+import { Hook, JapaneseWord, KanaInput, Meaning, Notice, plural, Progress, SaveStatus, SpeakButton, useKeys } from '../components/ui';
 import { checkReading } from '../../shared/kana';
+import { MISS_GAP } from '../../shared/pageSession';
 import { formatInterval } from '../../shared/study';
 import { useSettings } from '../settings';
 import { speak } from '../speech';
@@ -13,11 +14,19 @@ const HARD = 2;
 const GOOD = 3;
 const EASY = 4;
 
+/**
+ * A card in this session. `retry`: a card graded Again earlier today, asked
+ * again until it's right once. Retries are practice: nothing is sent.
+ */
+type SessionItem = QueueItem & { retry?: number };
+
 export function Review() {
-  const [items, setItems] = useState<QueueItem[] | null>(null);
+  const [items, setItems] = useState<SessionItem[] | null>(null);
   const [total, setTotal] = useState(0);
   const [index, setIndex] = useState(0);
   const [done, setDone] = useState(0);
+  /** Cards graded this session (retries are practice, not grades). */
+  const [graded, setGraded] = useState(0);
   const [error, setError] = useState<string | null>(null);
   // Shown until you turn it off in Settings; a failed load keeps it shown.
   const [showIntervals, setShowIntervals] = useState(true);
@@ -70,7 +79,7 @@ export function Review() {
         <h1>Review</h1>
         {leechNotice}
         <Notice kind="success">
-          <p data-testid="review-done">{done > 0 ? `Done: ${done} reviewed.` : 'Nothing to review right now.'}</p>
+          <p data-testid="review-done">{graded > 0 ? `Done: ${graded} reviewed.` : 'Nothing to review right now.'}</p>
         </Notice>
         {more ? (
           <button className="button button--primary" onClick={load}>
@@ -89,14 +98,22 @@ export function Review() {
     <div className="stack">
       {leechNotice}
       <ReviewCard
-        key={item.cardId}
+        key={`${item.cardId}:${item.retry ?? 0}`}
         item={item}
         position={done}
         total={done + (items.length - index)}
+        comesBackAfter={Math.min(MISS_GAP, items.length - index - 1)}
         showIntervals={showIntervals}
         onError={setError}
-        onGraded={(leech) => {
+        onGraded={(leech, again) => {
           if (leech) setLeeches((all) => [...all, item.word]);
+          // Missed: back in this session after a few other cards (Mikita, 30 Oct:
+          // a word missed today and only seen again tomorrow is missed again).
+          if (again) {
+            const at = Math.min(index + 1 + MISS_GAP, items.length);
+            setItems([...items.slice(0, at), { ...item, retry: (item.retry ?? 0) + 1 }, ...items.slice(at)]);
+          }
+          if (!item.retry) setGraded((g) => g + 1);
           setDone((d) => d + 1);
           setIndex((i) => i + 1);
         }}
@@ -109,19 +126,26 @@ function ReviewCard({
   item,
   position,
   total,
+  comesBackAfter,
   showIntervals,
   onGraded,
   onError,
 }: {
-  item: QueueItem;
+  item: SessionItem;
   position: number;
   total: number;
+  /** Other cards before a missed card comes back. */
+  comesBackAfter: number;
   /** A line under the grade buttons with when each grade brings the word back. */
   showIntervals: boolean;
-  /** leech: this answer made the word a leech, so it leaves review. */
-  onGraded: (leech: boolean) => void;
+  /** leech: this answer made the word a leech, so it leaves review. again: missed, so it comes back today. */
+  onGraded: (leech: boolean, again: boolean) => void;
   onError: (message: string) => void;
 }) {
+  const retry = Boolean(item.retry);
+  // After a miss: type the word once while looking at it, then it comes back.
+  const [copying, setCopying] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
   const [settings] = useSettings();
   const [word, setWord] = useState(item.word);
   const [revealed, setRevealed] = useState(false);
@@ -161,7 +185,9 @@ function ReviewCard({
   };
 
   const grade = async (rating: number) => {
-    if (sending) return;
+    if (sending || copying) return;
+    // A retry is practice: only whether it's right now matters.
+    if (retry) return rating === AGAIN ? setCopying(true) : onGraded(false, false);
     if (hintUsed && rating > HARD) return;
     setSending(true);
     setSaveError(null);
@@ -175,7 +201,9 @@ function ReviewCard({
         durationMs: Date.now() - started.current,
         due: item.due,
       });
-      onGraded(result.leech);
+      // A leech leaves review: another look the same way isn't what it needs.
+      if (rating === AGAIN && !result.leech) setCopying(true);
+      else onGraded(result.leech, false);
     } catch (e) {
       // Turned down (the card is gone, say): sending it again won't help.
       if (e instanceof ApiError && e.refused) return onError(e.message);
@@ -205,11 +233,11 @@ function ReviewCard({
       Space: () => (reading && !revealed ? reveal() : undefined),
       Enter: () => (reading && !revealed ? reveal() : undefined),
       '1': () => (answered ? grade(AGAIN) : reading ? dontKnow() : undefined),
-      '2': () => (answered && passed ? grade(HARD) : undefined),
-      '3': () => (answered && passed ? grade(GOOD) : undefined),
-      '4': () => (answered && passed ? grade(EASY) : undefined),
+      '2': () => (answered && passed ? grade(retry ? GOOD : HARD) : undefined),
+      '3': () => (answered && passed && !retry ? grade(GOOD) : undefined),
+      '4': () => (answered && passed && !retry ? grade(EASY) : undefined),
     },
-    true,
+    !copying,
   );
 
   return (
@@ -223,6 +251,11 @@ function ReviewCard({
       <Progress done={position} total={total} />
 
       <article className="card flash" data-testid="review-card" data-direction={item.direction}>
+        {retry && (
+          <span className="flash__retry" data-testid="retry-badge">
+            Again today: practice, not graded
+          </span>
+        )}
         <span className="flash__kind">{reading ? 'What does it mean?' : 'How do you say it?'}</span>
         {reading ? (
           <>
@@ -288,7 +321,7 @@ function ReviewCard({
           </button>
         </div>
       )}
-      {reading && !revealed && (
+      {reading && !revealed && !retry && (
         <p className="muted small grade-hint" data-testid="dont-know-hint">
           Don’t know counts as Again. Show answer lets you grade yourself.
         </p>
@@ -308,7 +341,30 @@ function ReviewCard({
         </div>
       )}
 
-      {answered && (
+      {answered && !copying && retry && (
+        <div className="stack stack--tight">
+          {passed && reading ? (
+            <div className="grade-row grade-row--two" data-testid="retry-row">
+              <button className="button button--again" onClick={() => grade(AGAIN)}>
+                Missed
+              </button>
+              <button className="button button--good" onClick={() => grade(GOOD)}>
+                Got it
+              </button>
+            </div>
+          ) : (
+            <button className={`button button--wide ${passed ? 'button--good' : 'button--again'}`} onClick={() => grade(passed ? GOOD : AGAIN)}>
+              {passed ? 'Got it' : 'Continue'}
+            </button>
+          )}
+          {!passed && !reading && !gaveUp && (
+            <button className="link-button" onClick={() => setTyped({ ...typed!, typo: true })}>
+              It was a typo — count it as correct
+            </button>
+          )}
+        </div>
+      )}
+      {answered && !copying && !retry && (
         <div className="stack stack--tight">
           {passed ? (
             <>
@@ -359,6 +415,26 @@ function ReviewCard({
           )}
           <SaveStatus sending={sending} error={saveError} />
         </div>
+      )}
+
+      {copying && (
+        <section className="stack stack--tight" aria-label="Type it once">
+          <p className="small" data-testid="encode-prompt">
+            Type <span lang="ja">{word.kana}</span> once while you look at it.{' '}
+            {comesBackAfter > 0 ? `It comes back after ${plural(comesBackAfter, 'other card')}.` : 'Then it comes back.'}
+          </p>
+          <KanaInput
+            key="copy"
+            label="Type the word"
+            placeholder="type it while you look (romaji works)"
+            onSubmit={(value) => (checkReading(value, word).correct ? onGraded(false, true) : setCopied(value))}
+          />
+          {copied !== null && (
+            <p className="result result--wrong" data-testid="copy-result">
+              Not quite: you typed “{copied || '—'}”. Type <span lang="ja">{word.kana}</span>.
+            </p>
+          )}
+        </section>
       )}
 
       {item.page && !hintPage && !answered && (
