@@ -222,6 +222,36 @@ Each list opens to its words (`#/lists/<id>`), in the order they came in (a word
   ("Continue step 1"). Changing the page's words or deleting the page drops
   it, and the next Start is fresh.
 
+### Practice that doesn't count (PageView, Practice, `shared/wordParts.ts`)
+
+Mikita, 27 to 30 Oct: a word learned on a page was often gone the next
+evening, and the only ways back were counted. These add effort without
+touching misses, grades or the schedule.
+
+- **Test yourself on a page** (any stage; meant for the first view, before
+  step 1): "Hide meanings" or "Hide Japanese" covers that side of every
+  card, and tapping a card turns it over (tap again to cover it). Hiding
+  the Japanese hides its sound too. Nothing is sent or kept.
+- **Practise** (`#/practise`, Pages › Learned › Practise): tick one or more
+  learned pages; `#/practise/3,5` drills their words as the shuffled step
+  does (both directions, a word's two directions apart, misses typed once
+  and back after `MISS_GAP` cards), but the page is hidden until "Where is
+  it on the page?" shows it. A learned page has "Practise this page". It
+  sends nothing: no grades, no misses, no change to when words come back.
+  A furigana peek still moves a kanji to Still learning, as everywhere.
+- **Memory hooks where a word is hard**: tap a word on a page (with nothing
+  covered) to write its hook, and a missed review card offers "Write a
+  memory hook" while you type it once. Mikita's words that stuck all had a
+  sound-alike story (ほる and a HOLE); the ones that faded had none, or were
+  long compounds.
+- **Word parts** (`wordParts`, `GET /api/dict/parts`): the hook editor
+  shows a compound split into dictionary words, the longest first from the
+  left (夜明け: 夜 "night" + 明け "dawn"). A verb ending the word is read in
+  its dictionary form (入れず as 入れる); other spellings of the word itself
+  aren't parts (夜明 of 夜明け); pieces that aren't words (を) stay as plain
+  text. Parts show only when at least two of them are words. Kanji
+  meanings need KANJIDIC2 (v0.3).
+
 ### Pages you shape (PagePicker, PageView, `shared/similar.ts`)
 
 - **Pick the words** (`#/pages/new`, or `#/pages/new/<list>`): the list's

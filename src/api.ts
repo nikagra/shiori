@@ -3,10 +3,12 @@
 import { parseBackup, type Backup, type NightlyStatus } from '../shared/backup';
 import type { FuriganaPrefs, Ruby } from '../shared/furigana';
 import type { DictEntry } from '../shared/dictionary';
+import type { WordPart } from '../shared/wordParts';
 import type { GradeIntervals, StudyPrefs } from '../shared/study';
 
 export type Direction = 'jp_en' | 'en_jp';
 export type { WordState as WordStatus } from '../shared/wordSearch';
+export type { WordPart } from '../shared/wordParts';
 import type { WordState as WordStatus } from '../shared/wordSearch';
 export type PageStage = 'ordered' | 'shuffled' | 'graduated';
 
@@ -209,6 +211,7 @@ export const api = {
   dictStatus: () => call<DictStatus>('GET', '/dict/status'),
   dictSearch: (q: string) => call<{ entries: DictEntry[]; mine: MyEntryWord[] }>('GET', `/dict/search?q=${encodeURIComponent(q)}`),
   dictEntry: (seq: number) => call<DictEntry>('GET', `/dict/entries/${seq}`),
+  wordParts: (written: string) => call<WordPart[]>('GET', `/dict/parts?w=${encodeURIComponent(written)}`),
   /** Looks up the next batch of your words with no entry yet. */
   dictLookUp: () => call<{ looked: number; matched: number; remaining: number }>('POST', '/dict/look-up'),
   addFromDict: (listId: number, word: { dictSeq: number; kanji: string | null; kana: string; coreMeaning?: string }) =>

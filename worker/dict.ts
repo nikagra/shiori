@@ -1,6 +1,7 @@
 import { toHiragana, toKatakana } from 'wanakana';
 import { dictInfo, formsMatch, lookupForm, matchWord, searchRank, searchSteps, type DictEntry, type Match, type WordToMatch } from '../shared/dictionary';
 import { saveDictInfo, wordsToLookUp } from './db';
+import { partCandidates, partInfo, splitParts, type WordPart } from '../shared/wordParts';
 
 // Reading the dictionary database (DICT). It only holds JMdict, so nothing
 // here writes to it; scripts/dict-load.ts fills it.
@@ -117,4 +118,13 @@ export async function lookUpWords(db: D1Database, dict: D1Database, id?: number)
     words.map((w, i) => ({ word: w, info: dictInfo(w, matches[i]), checked: status.loaded })),
   );
   return { looked: words.length, matched: matches.filter(Boolean).length, remaining: remaining - words.length };
+}
+
+/** The dictionary words a long word is made of ([] when it isn't made of two or more). */
+export async function wordParts(dict: D1Database, written: string): Promise<WordPart[]> {
+  const word = written.normalize('NFKC').trim();
+  const candidates = partCandidates(word);
+  if (candidates.length === 0) return [];
+  const entries = await entriesFor(dict, formsMatch(candidates), 500);
+  return splitParts(word, partInfo(entries, word));
 }

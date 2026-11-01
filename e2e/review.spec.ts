@@ -157,6 +157,12 @@ test('a missed card comes back today until it is right once, without more grades
   await page.getByRole('button', { name: 'Continue' }).click();
   const kana = await page.getByTestId('encode-prompt').locator('[lang="ja"]').innerText();
   await expect(page.getByTestId('encode-prompt')).toContainText('Then it comes back.');
+  // A missed word may need a new way in: a memory hook, written right here.
+  await page.getByRole('button', { name: 'Write a memory hook' }).click();
+  const hook = page.getByRole('region', { name: 'Memory hook' });
+  await hook.getByLabel(/Memory hook for/).fill('a story that sounds like it');
+  await hook.getByRole('button', { name: 'Save hook' }).click();
+  await expect(hook.getByRole('status')).toContainText('Saved');
   await typeItOnce(page, kana);
   // Again, straight away (nothing else is left): practice, so no grades or intervals.
   await expect(page.getByTestId('retry-badge')).toBeVisible();
@@ -165,6 +171,7 @@ test('a missed card comes back today until it is right once, without more grades
   await expect(page.getByRole('button', { name: /Where did I learn this/ })).toHaveCount(0);
   await page.getByRole('button', { name: 'Show answer' }).click();
   await expect(card.locator('.meaning__core')).toContainText('my own meaning');
+  await expect(card.getByTestId('hook')).toContainText('a story that sounds like it');
   await expect(page.getByRole('button', { name: 'Good' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Missed' }).click();
   await typeItOnce(page, kana);

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api, shortPos, writtenForm, type ListWord, type PageDetail } from '../api';
-import { PageGrid } from '../components/PageGrid';
+import { PageGrid, type Cover } from '../components/PageGrid';
+import { HookEditor } from '../components/HookEditor';
 import { SimilarNotice } from '../components/SimilarNotice';
 import { Hook, JapaneseWord, KanaInput, Meaning, Notice, plural, Progress, SpeakButton, TypeItOnce, useKeys } from '../components/ui';
 import { pickable, WordPicker } from '../components/WordPicker';
@@ -59,6 +60,11 @@ export function PageView({ id }: { id: number }) {
     if (next && page && page.stage !== 'graduated') saveDrill(page, page.stage, next);
   };
   const [editing, setEditing] = useState(false);
+  /** Testing yourself on the page: nothing here is counted or saved. */
+  const [cover, setCover] = useState<Cover | null>(null);
+  const [flipped, setFlipped] = useState<Set<number>>(new Set());
+  /** The word whose memory hook and parts show under the page. */
+  const [picked, setPicked] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -73,7 +79,8 @@ export function PageView({ id }: { id: number }) {
     const stage = page.stage;
     return (
       <Drill
-        page={page}
+        pages={[page]}
+        title={`Page ${page.number} · ${stage === 'ordered' ? 'in order' : 'shuffled'}`}
         stage={stage}
         state={drill}
         onChange={setDrill}
@@ -112,6 +119,9 @@ export function PageView({ id }: { id: number }) {
           <Notice kind="success">
             <p data-testid="page-learned">Learned. These words are now in spaced review; the first check comes tomorrow.</p>
           </Notice>
+          <a className="button button--wide" href={`#/practise/${page.id}`}>
+            Practise this page
+          </a>
           <StepTwoMisses page={page} />
         </>
       ) : (
@@ -123,7 +133,50 @@ export function PageView({ id }: { id: number }) {
 
       {page.stage === 'ordered' && !editing && <SimilarNotice words={page.words} action="Change words below to swap one for another word." />}
 
-      <PageGrid page={page} mode="full" />
+      {!editing && (
+        <SelfTest
+          cover={cover}
+          onCover={(c) => {
+            setCover(c);
+            setFlipped(new Set());
+          }}
+          allFlipped={flipped.size === page.words.length}
+          onCoverAll={() => setFlipped(new Set())}
+        />
+      )}
+
+      <PageGrid
+        page={page}
+        mode="full"
+        cover={cover ?? undefined}
+        flipped={flipped}
+        selected={cover ? undefined : (picked ?? undefined)}
+        onTap={
+          editing
+            ? undefined
+            : (wordId) => {
+                if (!cover) return setPicked(picked === wordId ? null : wordId);
+                const next = new Set(flipped);
+                if (!next.delete(wordId)) next.add(wordId);
+                setFlipped(next);
+              }
+        }
+      />
+
+      {!editing && !cover && picked !== null && (() => {
+        const w = page.words.find((x) => x.id === picked);
+        return (
+          w && (
+            <section className="card stack stack--tight" aria-label="Memory hook">
+              <HookEditor
+                key={w.id}
+                word={w}
+                onSaved={(saved) => setPage({ ...page, words: page.words.map((x) => (x.id === saved.id ? { ...x, hook: saved.hook } : x)) })}
+              />
+            </section>
+          )
+        );
+      })()}
 
       {editing && page.stage === 'ordered' ? (
         <PageEditor
@@ -173,6 +226,54 @@ export function PageView({ id }: { id: number }) {
         </button>
       </div>
     </div>
+  );
+}
+
+/**
+ * Test yourself on the page before the counted steps (Mikita, 28 Oct): cover
+ * the meanings or the Japanese and turn cards over one by one, as often as
+ * you like. Nothing is counted or saved.
+ */
+function SelfTest({
+  cover,
+  onCover,
+  allFlipped,
+  onCoverAll,
+}: {
+  cover: Cover | null;
+  onCover: (cover: Cover | null) => void;
+  allFlipped: boolean;
+  onCoverAll: () => void;
+}) {
+  const options: [Cover | null, string][] = [
+    [null, 'Show all'],
+    ['meaning', 'Hide meanings'],
+    ['japanese', 'Hide Japanese'],
+  ];
+  return (
+    <section className="stack stack--tight" aria-label="Test yourself">
+      <div className="segmented segmented--wide" role="group" aria-label="Test yourself">
+        {options.map(([value, label]) => (
+          <button key={label} type="button" className={cover === value ? 'is-active' : ''} aria-pressed={cover === value} onClick={() => onCover(value)}>
+            {label}
+          </button>
+        ))}
+      </div>
+      <p className="muted small" data-testid="self-test-hint">
+        {cover ? (
+          <>
+            Tap a card to turn it over. Not counted: go round as often as you like.{' '}
+            {allFlipped && (
+              <button type="button" className="link-button" onClick={onCoverAll}>
+                Cover them all again
+              </button>
+            )}
+          </>
+        ) : (
+          'Tap a word to write a memory hook and see its parts.'
+        )}
+      </p>
+    </section>
   );
 }
 
@@ -316,9 +417,11 @@ interface StepView {
   moved: string;
   /** What was typed when copying the missed word, when it wasn't the word. */
   copied: string | null;
+  /** Practice: the page was shown, to see where the word is. */
+  peek: boolean;
 }
 
-const freshView = (of: DrillState): StepView => ({ of, revealed: false, typed: null, gaveUp: false, moved: '', copied: null });
+const freshView = (of: DrillState): StepView => ({ of, revealed: false, typed: null, gaveUp: false, moved: '', copied: null, peek: false });
 
 /**
  * A missed card while you type it once. The miss is already counted and the
@@ -331,15 +434,25 @@ interface Copying {
   back: number;
 }
 
-function Drill({
-  page,
+/**
+ * A drill over a page's words, or for practice over the words of one or more
+ * learned pages. Practice is the shuffled drill without the page on screen:
+ * "Where is it on the page?" shows it. The drill itself saves nothing; the
+ * page screen sends a finished step, practice sends nothing at all.
+ */
+export function Drill({
+  pages,
+  title,
+  practice = false,
   stage,
   state,
   onChange,
   onDone,
   onQuit,
 }: {
-  page: PageDetail;
+  pages: PageDetail[];
+  title: string;
+  practice?: boolean;
   stage: 'ordered' | 'shuffled';
   state: DrillState;
   onChange: (s: DrillState) => void;
@@ -350,6 +463,7 @@ function Drill({
   const encoding = copying !== null;
   const step = copying?.step ?? currentStep(state);
   const jpPrompt = step?.direction === 'jp_en';
+  const page = useMemo(() => pages.find((p) => p.words.some((w) => w.id === step?.wordId)) ?? pages[0], [pages, step]);
   const word = useMemo(() => page.words.find((w) => w.id === step?.wordId), [page, step]);
   const [settings] = useSettings();
   // What happened on this step. Tagged with the step's state, so the next
@@ -357,7 +471,9 @@ function Drill({
   // and no key press can grade it unseen.
   const [stepView, setStepView] = useState<StepView>(() => freshView(state));
   const view = copying?.view ?? (stepView.of === state ? stepView : freshView(state));
-  const { revealed, typed, gaveUp, moved, copied } = view;
+  const { revealed, typed, gaveUp, moved, copied, peek } = view;
+  // Practice keeps the page out of sight until you ask for it.
+  const showGrid = !practice || peek || encoding;
   const update = (patch: Partial<Omit<StepView, 'of'>>) =>
     copying ? setCopying({ ...copying, view: { ...view, ...patch } }) : setStepView({ ...view, ...patch });
   const setTyped = (value: StepView['typed']) => update({ typed: value });
@@ -439,23 +555,24 @@ function Drill({
   return (
     <div className="stack">
       <div className="row row--between">
-        <h1>
-          Page {page.number} · {stage === 'ordered' ? 'in order' : 'shuffled'}
-        </h1>
+        <h1>{title}</h1>
         <button className="link-button" onClick={onQuit}>
           Stop
         </button>
       </div>
       <Progress done={state.completed} total={state.total} />
 
-      <PageGrid
-        page={page}
-        mode={stage === 'ordered' ? 'written' : 'blank'}
-        highlight={word.position}
-        hideHighlighted={!jpPrompt}
-        hiddenIds={hidden}
-        revealHighlighted={encoding}
-      />
+      {practice && showGrid && <p className="muted small">Page {page.number}, position {word.position + 1}</p>}
+      {showGrid && (
+        <PageGrid
+          page={page}
+          mode={stage === 'ordered' ? 'written' : practice ? 'written' : 'blank'}
+          highlight={word.position}
+          hideHighlighted={practice || !jpPrompt}
+          hiddenIds={hidden}
+          revealHighlighted={encoding}
+        />
+      )}
 
       <article className="card flash" data-testid="drill-card" data-direction={step.direction}>
         {jpPrompt ? (
@@ -547,16 +664,21 @@ function Drill({
         <TypeItOnce
           word={word}
           back={copying.back}
-          where=" in its spot"
+          where={showGrid ? ' in its spot' : ''}
           inputKey={`copy-${step.wordId}-${step.direction}`}
           copied={copied}
           onMiss={(value) => update({ copied: value })}
           onDone={() => setCopying(null)}
         />
       )}
+      {practice && !showGrid && !encoding && (
+        <button className="link-button" onClick={() => update({ peek: true })}>
+          Where is it on the page?
+        </button>
+      )}
       {!encoding && (
         <button className="link-button" onClick={studyAgain}>
-          Study the page again
+          {practice ? 'Study its page again' : 'Study the page again'}
         </button>
       )}
     </div>
