@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError, shortPos, type PageDetail, type QueueItem } from '../api';
 import { PageGrid } from '../components/PageGrid';
+import { HookEditor } from '../components/HookEditor';
 import { Hook, JapaneseWord, KanaInput, Meaning, Notice, Progress, SaveStatus, SpeakButton, TypeItOnce, useKeys } from '../components/ui';
 import { checkReading } from '../../shared/kana';
 import { MISS_GAP } from '../../shared/pageSession';
@@ -156,6 +157,19 @@ function ReviewCard({
   // After a miss: type the word once while looking at it, then it comes back.
   const [copying, setCopying] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+  const [writingHook, setWritingHook] = useState(false);
+  // A hook written but not saved yet is saved when the typing is done, so it isn't lost.
+  const hookDraft = useRef<string | null>(null);
+  const finishCopying = async () => {
+    const draft = hookDraft.current?.trim();
+    if (draft === undefined || draft === (word.hook ?? '')) return onGraded(false, true, word);
+    try {
+      const saved = await api.updateWord(word.id, { hook: draft || null });
+      onGraded(false, true, { ...word, hook: saved.hook });
+    } catch (e) {
+      setSaveError(`the memory hook wasn't saved (${(e as Error).message})`);
+    }
+  };
   const [settings] = useSettings();
   const [word, setWord] = useState(item.word);
   const [revealed, setRevealed] = useState(false);
@@ -429,14 +443,34 @@ function ReviewCard({
       )}
 
       {copying && (
-        <TypeItOnce
-          word={word}
-          back={comesBackAfter}
-          inputKey="copy"
-          copied={copied}
-          onMiss={setCopied}
-          onDone={() => onGraded(false, true, word)}
-        />
+        <>
+          <TypeItOnce
+            word={word}
+            back={comesBackAfter}
+            inputKey="copy"
+            copied={copied}
+            onMiss={setCopied}
+            onDone={finishCopying}
+          />
+          {saveError && <Notice kind="error">{saveError}</Notice>}
+          {/* A missed word may need a new way in: a story it sounds like, or its parts. */}
+          {writingHook ? (
+            <section className="card stack stack--tight" aria-label="Memory hook">
+              <HookEditor
+                word={word}
+                onDraft={(text) => (hookDraft.current = text)}
+                onSaved={(saved) => {
+                  hookDraft.current = null;
+                  setWord({ ...word, hook: saved.hook });
+                }}
+              />
+            </section>
+          ) : (
+            <button className="link-button" onClick={() => setWritingHook(true)}>
+              {word.hook ? 'Change its memory hook' : 'Write a memory hook'}
+            </button>
+          )}
+        </>
       )}
 
       {item.page && !hintPage && !answered && !retry && (

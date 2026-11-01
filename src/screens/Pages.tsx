@@ -142,7 +142,12 @@ export function Pages() {
       )}
       {learned.length > 0 && (
         <section className="stack stack--tight">
-          <h2>Learned</h2>
+          <div className="row row--between">
+            <h2>Learned</h2>
+            <a href="#/practise" className="link-button">
+              Practise
+            </a>
+          </div>
           {learned.map((p) => (
             <PageLink key={p.id} page={p} />
           ))}

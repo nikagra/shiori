@@ -26,7 +26,7 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   in `.wrangler/state`, separate from the cloud one. An old database holding
   only test data is kept in `.wrangler/state-test-backup-20261025` and can be
   deleted.
-- Tests: 192 unit tests, 80 end-to-end runs (40 tests at iPhone and laptop
+- Tests: 201 unit tests, 86 end-to-end runs (43 tests at iPhone and laptop
   sizes), and `tsc -b` all pass.
 - **Backup and export** (26 Oct): Settings › Backup downloads all study data as
   one JSON file, a nightly cron saves the same file to the private R2 bucket
@@ -120,6 +120,17 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   most double the last one (1, 2, 4, 8 days), Hard keeps the last gap,
   then FSRS takes over. No migration; cards already in review get the cap
   from their next review on.
+- **Step 6 fixes, part 3** (1 Nov): practice that doesn't count. A page
+  can hide its meanings or its Japanese and you turn cards over by tapping
+  them, as often as you like, before step 1 (or any time). Practise
+  (`#/practise`, from Pages › Learned) drills the words of one or more
+  learned pages you pick, shuffled, with "Where is it on the page?" a tap
+  away, and a learned page has "Practise this page"; it sends no grades,
+  misses or schedule changes (only a furigana peek's kanji hint).
+  Tapping a word on a page opens its memory hook, and a missed review card
+  offers "Write a memory hook"; both show a compound in its dictionary
+  parts (夜明け: 夜 "night" + 明け "dawn"; a verb at the end in its
+  dictionary form, 入れず as 入れる, 利かず as 利く). No migration.
 - First iPhone feedback (25 Oct) is in: "Don't know" on review and drill
   cards, next words hidden in the in-order drill, "Study the page again",
   whole words on the grid, safer iOS speech. Sound on the iPhone still needs
@@ -206,10 +217,10 @@ finish review (27 Oct; try a page with a miss, and check Home for leeches).
      (31 Oct).
    - ~~Words that stick: same-day relearning and gentler first gaps.~~
      Done (1 Nov).
-   - Practice that doesn't count: test yourself on a page's first view
+   - ~~Practice that doesn't count: test yourself on a page's first view
      (meanings hidden, tap to flip), practise one or several learned pages
      you pick (nothing saved), and write a memory hook right on the page or
-     after a miss, with a compound shown in its parts.
+     after a miss, with a compound shown in its parts.~~ Done (1 Nov).
    - Maybe after these: a Dictionary screen of its own, look up first and
      add second (Mikita, 28 Oct). One search box for words and kanji like
      jisho (`#kanji` for the kanji itself), and any word or kanji you tap

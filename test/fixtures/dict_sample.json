@@ -5589,6 +5589,43 @@
      ]
     ]
    }
+  },
+  {
+   "seq": 2860001,
+   "common": false,
+   "kanji": [
+    {
+     "text": "明け"
+    }
+   ],
+   "kana": [
+    {
+     "text": "あけ"
+    }
+   ],
+   "senses": [
+    {
+     "pos": [
+      "n"
+     ],
+     "gloss": [
+      "dawn",
+      "daybreak",
+      "end (of a period)"
+     ]
+    }
+   ],
+   "furigana": {
+    "明け|あけ": [
+     [
+      "明",
+      "あ"
+     ],
+     [
+      "け"
+     ]
+    ]
+   }
   }
  ]
 }

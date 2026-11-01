@@ -1,5 +1,5 @@
 import { expect, test, type APIRequestContext } from '@playwright/test';
-import { expectNoHorizontalScroll, graduatePage, resetDb, seedWords, shot, typeItOnce, type PageWord } from './helpers';
+import { expectNoHorizontalScroll, graduatePage, listId, resetDb, seedWords, shot, typeItOnce, type PageWord } from './helpers';
 
 let words: PageWord[] = [];
 
@@ -157,6 +157,11 @@ test('a missed card comes back today until it is right once, without more grades
   await page.getByRole('button', { name: 'Continue' }).click();
   const kana = await page.getByTestId('encode-prompt').locator('[lang="ja"]').innerText();
   await expect(page.getByTestId('encode-prompt')).toContainText('Then it comes back.');
+  // A missed word may need a new way in: a memory hook, written right here.
+  await page.getByRole('button', { name: 'Write a memory hook' }).click();
+  const hook = page.getByRole('region', { name: 'Memory hook' });
+  await hook.getByLabel(/Memory hook for/).fill('a story that sounds like it');
+  // Not saved by hand: finishing the typing saves it, so it isn't lost.
   await typeItOnce(page, kana);
   // Again, straight away (nothing else is left): practice, so no grades or intervals.
   await expect(page.getByTestId('retry-badge')).toBeVisible();
@@ -165,6 +170,7 @@ test('a missed card comes back today until it is right once, without more grades
   await expect(page.getByRole('button', { name: /Where did I learn this/ })).toHaveCount(0);
   await page.getByRole('button', { name: 'Show answer' }).click();
   await expect(card.locator('.meaning__core')).toContainText('my own meaning');
+  await expect(card.getByTestId('hook')).toContainText('a story that sounds like it');
   await expect(page.getByRole('button', { name: 'Good' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Missed' }).click();
   await typeItOnce(page, kana);
@@ -173,6 +179,8 @@ test('a missed card comes back today until it is right once, without more grades
   await page.getByRole('button', { name: 'Got it' }).click();
   await expect(page.getByTestId('review-done')).toHaveText('Done: 1 reviewed.');
   expect(posts).toBe(1);
+  const words = (await (await request.get(`/api/lists/${await listId(request, 'Manga')}/words`)).json()) as { hook: string | null }[];
+  expect(words.map((w) => w.hook)).toContain('a story that sounds like it');
 });
 
 test('a missed card does not use up the cards still to load', async ({ page, request }) => {

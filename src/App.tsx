@@ -10,8 +10,10 @@ import { Lists } from './screens/Lists';
 import { ListWords } from './screens/ListWords';
 import { Settings } from './screens/Settings';
 import { AddWord } from './screens/AddWord';
+import { Practice } from './screens/Practice';
 
 // Hash routes: #/, #/review, #/pages, #/pages/3, #/pages/new (pick the words; #/pages/new/2 from list 2), #/lists, #/lists/2 (its words; #/lists/2/leeches its leeches), #/check, #/settings,
+// #/practise (pick learned pages to practise; #/practise/3,5 practises those pages),
 // #/settings/backup, #/settings/grading (scrolled to that section), #/settings/import, #/add (a word from the dictionary; #/add/2 into list 2)
 
 function useHashRoute(): string[] {
@@ -51,6 +53,17 @@ export function App() {
       screen =
         id === 'new' ? <PagePicker key={sub} listId={sub ? Number(sub) : null} /> : id ? <PageView key={id} id={Number(id)} /> : <Pages />;
       break;
+    case 'practise':
+      screen = (
+        <Practice
+          key={id ?? ''}
+          ids={(id ?? '')
+            .split(',')
+            .map(Number)
+            .filter((n) => Number.isInteger(n) && n > 0)}
+        />
+      );
+      break;
     case 'lists':
       screen = id ? <ListWords key={`${id}/${sub ?? ''}`} id={Number(id)} leeches={sub === 'leeches'} /> : <Lists />;
       break;
@@ -80,7 +93,7 @@ export function App() {
       <main className="main">{screen}</main>
       <nav className="tabbar" aria-label="Main">
         {NAV.map((n) => (
-          <a key={n.href} href={n.href} className={`tabbar__item${(section ?? '') === n.match ? ' tabbar__item--active' : ''}`}>
+          <a key={n.href} href={n.href} className={`tabbar__item${(section === 'practise' ? 'pages' : (section ?? '')) === n.match ? ' tabbar__item--active' : ''}`}>
             {n.label}
           </a>
         ))}

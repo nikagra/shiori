@@ -4,7 +4,7 @@ import { parseRenshuuExport } from '../shared/renshuu';
 import { Rating, type Grade } from '../shared/scheduler';
 import { clearNightly, nightlyStatus, saveNightly } from './backup';
 import * as db from './db';
-import { dictStatus, entryBySeq, lookUpWords, searchDict } from './dict';
+import { dictStatus, entryBySeq, lookUpWords, searchDict, wordParts } from './dict';
 
 export interface Env {
   DB: D1Database;
@@ -209,6 +209,9 @@ app.get('/dict/entries/:seq', async (c) => {
   if (!entry) throw new db.AppError(404, 'dictionary entry not found');
   return c.json(entry);
 });
+
+// The dictionary words a long word is made of, e.g. 行方不明 → 行方 + 不明.
+app.get('/dict/parts', async (c) => c.json(await wordParts(c.env.DICT, c.req.query('w') ?? '')));
 
 // Looks up the next batch of words that have no entry yet; call until remaining is 0.
 app.post('/dict/look-up', async (c) => c.json(await lookUpWords(c.env.DB, c.env.DICT)));
