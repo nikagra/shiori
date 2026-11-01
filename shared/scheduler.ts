@@ -82,7 +82,13 @@ const YOUNG_GROWTH: Partial<Record<Grade, number>> = { [Rating.Hard]: 1, [Rating
 export function capYoung(before: StoredCard, after: StoredCard, rating: Grade, now: Date): StoredCard {
   const growth = YOUNG_GROWTH[rating];
   if (growth === undefined || before.state === State.New || !before.last_review || after.reps > YOUNG_REVIEWS) return after;
-  const lastGap = Math.max(1, Math.round((now.getTime() - new Date(before.last_review).getTime()) / DAY_MS));
+  // The gap it was given, or the one you actually left if longer: a card due
+  // "today" can be reviewed any time of day, so the hours since the last
+  // review alone would round the planned 2 days down to 1 or up to 3.
+  const last = new Date(before.last_review).getTime();
+  const planned = Math.round((new Date(before.due).getTime() - last) / DAY_MS);
+  const taken = Math.floor((now.getTime() - last) / DAY_MS);
+  const lastGap = Math.max(1, planned, taken);
   const cap = new Date(now.getTime() + growth * lastGap * DAY_MS);
   if (new Date(after.due) <= cap) return after;
   return { ...after, due: cap.toISOString(), scheduled_days: growth * lastGap };

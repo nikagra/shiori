@@ -77,7 +77,7 @@ test('review both directions with honest grading', async ({ page, request }, tes
         await page.getByRole('button', { name: 'Continue' }).click();
         // Type it once while looking at it; it comes back later in this session.
         await expect(page.getByTestId('encode-prompt')).toContainText(/comes back after|Then it comes back/);
-        await shot(page, testInfo, '23-review-type-it-once');
+        await shot(page, testInfo, '27-review-type-it-once');
         await typeItOnce(page, word.kana);
         graded.push('wrong');
         continue;
@@ -148,6 +148,12 @@ test('a missed card comes back today until it is right once, without more grades
     if (r.method() === 'POST' && /\/api\/review\//.test(r.url())) posts++;
   });
   await page.getByRole('button', { name: 'Don’t know' }).click();
+  // A meaning edited on the answer is the one the card comes back with.
+  const card = page.getByTestId('review-card');
+  await card.getByRole('button', { name: 'Edit' }).click();
+  await page.getByLabel('Core meaning').fill('my own meaning');
+  await card.getByRole('button', { name: 'Save' }).click();
+  await expect(card.locator('.meaning__core')).toContainText('my own meaning');
   await page.getByRole('button', { name: 'Continue' }).click();
   const kana = await page.getByTestId('encode-prompt').locator('[lang="ja"]').innerText();
   await expect(page.getByTestId('encode-prompt')).toContainText('Then it comes back.');
@@ -155,7 +161,10 @@ test('a missed card comes back today until it is right once, without more grades
   // Again, straight away (nothing else is left): practice, so no grades or intervals.
   await expect(page.getByTestId('retry-badge')).toBeVisible();
   await expect(page.getByTestId('dont-know-hint')).toHaveCount(0);
+  // Nothing is graded, so the page hint (which caps the grade) isn't offered.
+  await expect(page.getByRole('button', { name: /Where did I learn this/ })).toHaveCount(0);
   await page.getByRole('button', { name: 'Show answer' }).click();
+  await expect(card.locator('.meaning__core')).toContainText('my own meaning');
   await expect(page.getByRole('button', { name: 'Good' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Missed' }).click();
   await typeItOnce(page, kana);
@@ -164,6 +173,27 @@ test('a missed card comes back today until it is right once, without more grades
   await page.getByRole('button', { name: 'Got it' }).click();
   await expect(page.getByTestId('review-done')).toHaveText('Done: 1 reviewed.');
   expect(posts).toBe(1);
+});
+
+test('a missed card does not use up the cards still to load', async ({ page, request }) => {
+  await makeDue(request, 'jp_en');
+  // As if the queue held 2 more cards than this first batch.
+  await page.route('**/api/review?*', async (route) => {
+    const response = await route.fetch();
+    const body = await response.json();
+    await route.fulfill({ response, json: { ...body, total: body.total + 2 } });
+  });
+  await page.goto('/#/review');
+  await page.getByRole('button', { name: 'Don’t know' }).click();
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await typeItOnce(page, await page.getByTestId('encode-prompt').locator('[lang="ja"]').innerText());
+  for (let i = 0; i < 4; i++) {
+    await expect(page.getByText(new RegExp(`^${i + 2} / 5$`))).toBeVisible();
+    await page.getByRole('button', { name: 'Show answer' }).click();
+    await page.getByRole('button', { name: i === 3 ? 'Got it' : 'Good' }).click();
+  }
+  await expect(page.getByTestId('review-done')).toHaveText('Done: 4 reviewed.');
+  await expect(page.getByRole('button', { name: 'Continue with the next 2' })).toBeVisible();
 });
 
 test('a typo can be counted as correct', async ({ page, request }) => {

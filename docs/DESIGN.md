@@ -258,8 +258,10 @@ Each list opens to its words (`#/lists/<id>`), in the order they came in (a word
   and 8 days before FSRS takes over (Mikita, 30 Oct: words known on the
   page were gone the next evening, and the next gap was already days).
   Again and Easy are FSRS's own; Easy is the way out for a word you
-  already know. The gap is the time since the last review, so a late
-  review grows from what you actually left. The grade line shows the
+  already know. The last gap is the one planned, or the whole days
+  you actually left if more, so a late review grows from what you left and
+  the time of day you review doesn't round 2 days to 1 or 3. Words marked
+  known at check skip this: their first gap is FSRS's own. The grade line shows the
   capped gaps. FSRS still updates stability from each answer.
 - **Relearning the same day**: Again (a wrong answer, Don't know, or the
   Again button) is graded as usual, then you type the kana once while
@@ -402,8 +404,9 @@ The app limits some choices:
   button left is **Continue**, with "Counted as Again" (and when it comes
   back) under it, so it doesn't read as "try again now" (Mikita, 28 Oct). A
   quiet line under Don't know / Show answer says the difference. After
-  any Again you type the word once, and it comes back later in the same
-  session as practice until you get it right once.
+  an Again you type the word once, and it comes back later in the same
+  session as practice until you get it right once (unless that Again made
+  it a leech: it leaves review instead).
 - **Wrong typed answer:** the same, Continue counted as Again. "It was a typo — count it as correct" unlocks the other grades.
 - **"Where did I learn this?" (page hint):** caps the grade at Hard.
 - **"Show furigana" (F):** doesn't limit the grade. The peek counts against the kanji instead.

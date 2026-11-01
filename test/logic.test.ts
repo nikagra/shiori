@@ -85,7 +85,7 @@ describe('young words', () => {
       at = new Date(card.due);
     }
     expect(gaps.slice(0, YOUNG_REVIEWS - 1)).toEqual([2, 4, 8]);
-    // The fourth review is FSRS's own, and it grows on from there.
+    // Graduation counts as the first young review, so the fourth after it is FSRS's own.
     expect(gaps[YOUNG_REVIEWS - 1]).toBeGreaterThan(8);
   });
 
@@ -104,7 +104,25 @@ describe('young words', () => {
     const start = new Date('2026-11-01T19:00:00Z');
     const card = graduate(start, day(1, start), Rating.Good);
     const late = day(3, start);
-    expect(gap(review(card, Rating.Good, late), late)).toBeLessThanOrEqual(6);
+    // Left 3 days instead of 1: Good grows from 3, not from the planned 1.
+    const next = gap(review(card, Rating.Good, late), late);
+    expect(next).toBeGreaterThan(2);
+    expect(next).toBeLessThanOrEqual(6);
+  });
+
+  it('the time of day you review does not change the planned gaps', () => {
+    // Good at 22:00, due two days later; the queue offers it all that day.
+    const start = new Date('2026-11-01T22:00:00Z');
+    const graduated = graduate(start, day(1, start), Rating.Good);
+    const at = new Date(graduated.due);
+    const twoDays = review(graduated, Rating.Good, at);
+    expect(gap(twoDays, at)).toBe(2);
+    // Next review the morning it falls due (1.5 days on): still 4, not 2.
+    const morning = new Date(new Date(twoDays.due).getTime() - 13 * 3_600_000);
+    expect(gap(review(twoDays, Rating.Good, morning), morning)).toBe(4);
+    // And late that evening (2.5 days on): 4, not 6.
+    const evening = new Date(new Date(twoDays.due).getTime() + 11 * 3_600_000);
+    expect(gap(review(twoDays, Rating.Good, evening), evening)).toBe(4);
   });
 });
 

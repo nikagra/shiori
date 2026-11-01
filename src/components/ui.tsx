@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { bind, unbind } from 'wanakana';
 import { shortPos, writtenForm, type Word } from '../api';
+import { checkReading } from '../../shared/kana';
 import { furigana as furiganaSegments, hiddenKanji } from '../../shared/furigana';
 import { useFurigana } from '../furigana';
 import { speak } from '../speech';
@@ -276,4 +277,48 @@ export function useKeys(handlers: Record<string, () => void>, active = true) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [active]);
+}
+
+/**
+ * After a miss: type the word once while looking at it, then it comes back
+ * after `back` other cards. Shared by the page drill and review.
+ */
+export function TypeItOnce({
+  word,
+  back,
+  where = '',
+  inputKey,
+  copied,
+  onMiss,
+  onDone,
+}: {
+  word: Pick<Word, 'kanji' | 'kana'>;
+  back: number;
+  /** Where to look, e.g. " in its spot" on the page. */
+  where?: string;
+  inputKey: string;
+  /** What was typed last, when it wasn't the word. */
+  copied: string | null;
+  onMiss: (typed: string) => void;
+  onDone: () => void;
+}) {
+  return (
+    <section className="stack stack--tight" aria-label="Type it once">
+      <p className="small" data-testid="encode-prompt">
+        Type <span lang="ja">{word.kana}</span> once while you look at it{where}.{' '}
+        {back > 0 ? `It comes back after ${plural(back, 'other card')}.` : 'Then it comes back.'}
+      </p>
+      <KanaInput
+        key={inputKey}
+        label="Type the word"
+        placeholder="type it while you look (romaji works)"
+        onSubmit={(value) => (checkReading(value, word).correct ? onDone() : onMiss(value))}
+      />
+      {copied !== null && (
+        <p className="result result--wrong" data-testid="copy-result">
+          Not quite: you typed “{copied || '—'}”. Type <span lang="ja">{word.kana}</span>.
+        </p>
+      )}
+    </section>
+  );
 }

@@ -202,7 +202,8 @@ function Grading() {
         it, and you grade yourself.
       </p>
       <p className="small">
-        After an Again you type the word once, and it comes back later in the same session until you get it right: practice that isn't graded. A new word
+        After an Again you type the word once, and it comes back later in the same session until you get it right: practice that isn't graded (a word
+        that keeps slipping leaves review instead). A new word
         comes back after 1, 2, 4 and 8 days when you answer Good (Hard keeps the last gap) before the usual schedule takes over.
       </p>
       <p className="small">
