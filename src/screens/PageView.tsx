@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api, shortPos, writtenForm, type ListWord, type PageDetail } from '../api';
-import { PageGrid, type Cover } from '../components/PageGrid';
+import { PageGrid } from '../components/PageGrid';
+import { StudyPage } from '../components/StudyPage';
 import { HookEditor } from '../components/HookEditor';
 import { SimilarNotice } from '../components/SimilarNotice';
 import { Hook, JapaneseWord, KanaInput, Meaning, Notice, plural, Progress, SpeakButton, TypeItOnce, useKeys } from '../components/ui';
@@ -60,9 +61,8 @@ export function PageView({ id }: { id: number }) {
     if (next && page && page.stage !== 'graduated') saveDrill(page, page.stage, next);
   };
   const [editing, setEditing] = useState(false);
-  /** Testing yourself on the page: nothing here is counted or saved. */
-  const [cover, setCover] = useState<Cover | null>(null);
-  const [flipped, setFlipped] = useState<Set<number>>(new Set());
+  /** Testing yourself on the page: notes outside the cards would give answers away. */
+  const [testing, setTesting] = useState(false);
   /** The word whose memory hook and parts show under the page. */
   const [picked, setPicked] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -122,7 +122,7 @@ export function PageView({ id }: { id: number }) {
           <a className="button button--wide" href={`#/practise/${page.id}`}>
             Practise this page
           </a>
-          {!cover && <StepTwoMisses page={page} />}
+          {!testing && <StepTwoMisses page={page} />}
         </>
       ) : (
         <section className="stack stack--tight">
@@ -131,39 +131,15 @@ export function PageView({ id }: { id: number }) {
         </section>
       )}
 
-      {page.stage === 'ordered' && !editing && !cover && <SimilarNotice words={page.words} action="Change words below to swap one for another word." />}
+      {page.stage === 'ordered' && !editing && !testing && <SimilarNotice words={page.words} action="Change words below to swap one for another word." />}
 
-      {!editing && (
-        <SelfTest
-          cover={cover}
-          onCover={(c) => {
-            setCover(c);
-            setFlipped(new Set());
-          }}
-          allFlipped={page.words.every((w) => flipped.has(w.id))}
-          onCoverAll={() => setFlipped(new Set())}
-        />
+      {editing ? (
+        <PageGrid page={page} mode="full" />
+      ) : (
+        <StudyPage page={page} onTesting={setTesting} picked={picked} onPick={setPicked} />
       )}
 
-      <PageGrid
-        page={page}
-        mode="full"
-        cover={cover ?? undefined}
-        flipped={flipped}
-        selected={cover ? undefined : (picked ?? undefined)}
-        onTap={
-          editing
-            ? undefined
-            : (wordId) => {
-                if (!cover) return setPicked(picked === wordId ? null : wordId);
-                const next = new Set(flipped);
-                if (!next.delete(wordId)) next.add(wordId);
-                setFlipped(next);
-              }
-        }
-      />
-
-      {!editing && !cover && picked !== null && (() => {
+      {!editing && !testing && picked !== null && (() => {
         const w = page.words.find((x) => x.id === picked);
         return (
           w && (
@@ -199,8 +175,7 @@ export function PageView({ id }: { id: number }) {
                 className="button button--wide"
                 onClick={() => {
                   // Changing words shows the page as it is: nothing covered or picked.
-                  setCover(null);
-                  setFlipped(new Set());
+                  setTesting(false);
                   setPicked(null);
                   setEditing(true);
                 }}
@@ -235,54 +210,6 @@ export function PageView({ id }: { id: number }) {
         </button>
       </div>
     </div>
-  );
-}
-
-/**
- * Test yourself on the page before the counted steps (Mikita, 28 Oct): cover
- * the meanings or the Japanese and turn cards over one by one, as often as
- * you like. Nothing is counted or saved.
- */
-function SelfTest({
-  cover,
-  onCover,
-  allFlipped,
-  onCoverAll,
-}: {
-  cover: Cover | null;
-  onCover: (cover: Cover | null) => void;
-  allFlipped: boolean;
-  onCoverAll: () => void;
-}) {
-  const options: [Cover | null, string][] = [
-    [null, 'Show all'],
-    ['meaning', 'Hide meanings'],
-    ['japanese', 'Hide Japanese'],
-  ];
-  return (
-    <section className="stack stack--tight" aria-label="Test yourself">
-      <div className="segmented segmented--wide" role="group" aria-label="Test yourself">
-        {options.map(([value, label]) => (
-          <button key={label} type="button" className={cover === value ? 'is-active' : ''} aria-pressed={cover === value} onClick={() => onCover(value)}>
-            {label}
-          </button>
-        ))}
-      </div>
-      <p className="muted small" data-testid="self-test-hint">
-        {cover ? (
-          <>
-            Tap a card to turn it over. Not counted: go round as often as you like.{' '}
-            {allFlipped && (
-              <button type="button" className="link-button" onClick={onCoverAll}>
-                Cover them all again
-              </button>
-            )}
-          </>
-        ) : (
-          'Tap a word to write a memory hook and see its parts.'
-        )}
-      </p>
-    </section>
   );
 }
 
@@ -549,7 +476,7 @@ export function Drill({
           <h1>Page {page.number} · study</h1>
         </div>
         <p className="muted">Take your time. The word you were on counts as missed and comes back after a few other cards.</p>
-        <PageGrid page={page} mode="full" />
+        <StudyPage page={page} />
         <button className="button button--primary button--wide" onClick={() => setStudying(false)}>
           Back to the drill
         </button>
