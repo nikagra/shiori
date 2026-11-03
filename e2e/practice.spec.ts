@@ -134,6 +134,13 @@ test('practise one or more learned pages: shuffled, with the page one tap away, 
       await page.getByRole('region', { name: 'Type it once' }).getByLabel('Type the word').fill(kana);
       await page.getByRole('region', { name: 'Type it once' }).getByRole('button', { name: 'Check' }).click();
       await page.getByRole('button', { name: 'Study its page again' }).click();
+      // The same "Test yourself" as on the page (Mikita, 3 Nov).
+      await page.getByRole('button', { name: 'Hide meanings' }).click();
+      await expect(page.locator('.page-cell[data-covered]')).toHaveCount(3);
+      await page.locator('.page-cell').first().getByRole('button', { name: /turn over/ }).click();
+      await expect(page.locator('.page-cell[data-covered]')).toHaveCount(2);
+      await expectNoHorizontalScroll(page);
+      await shot(page, testInfo, '99-practise-study-again');
       await page.getByRole('button', { name: 'Back to the drill' }).click();
       continue;
     }
