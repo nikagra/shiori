@@ -56,7 +56,7 @@ export function Home() {
         </a>
       </section>
 
-      <a href="#/add" className="button button--wide">
+      <a href="#/dict" className="button button--wide">
         Add a word from the dictionary
       </a>
 

@@ -458,6 +458,7 @@ function ReviewCard({
             <section className="card stack stack--tight" aria-label="Memory hook">
               <HookEditor
                 word={word}
+                partsLinked={false}
                 onDraft={(text) => (hookDraft.current = text)}
                 onSaved={(saved) => {
                   hookDraft.current = null;

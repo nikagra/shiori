@@ -7,6 +7,7 @@ import { DictResults, DictSearchBox, SenseList, useDictSearch, useDictStatus } f
 import { WORD_STATES } from '../../shared/wordSearch';
 import { entryCoreMeaning, headPair, posLabel, sensesFor, type DictEntry } from '../../shared/dictionary';
 import { MAX_HOOK } from '../../shared/study';
+import { dictHref, entryHref } from '../nav';
 
 // One list's words: find them, then edit, move, set aside or delete one.
 
@@ -15,8 +16,8 @@ const SHOW_AT_ONCE = 100;
 
 const STATE_LABEL = Object.fromEntries(WORD_STATES.map((s) => [s.state, s.label])) as Record<ListWord['status'], string>;
 
-/** `leeches` opens the list showing only its leeches. */
-export function ListWords({ id, leeches: leechesFirst = false }: { id: number; leeches?: boolean }) {
+/** `leeches` opens the list showing only its leeches; `focus` opens that word (from its dictionary entry). */
+export function ListWords({ id, leeches: leechesFirst = false, focus = null }: { id: number; leeches?: boolean; focus?: number | null }) {
   const [lists, setLists] = useState<ListSummary[] | null>(null);
   const [words, setWords] = useState<ListWord[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -31,6 +32,11 @@ export function ListWords({ id, leeches: leechesFirst = false }: { id: number; l
       ([l, w]) => {
         setLists(l);
         setWords(w);
+        const word = w.find((x) => x.id === focus);
+        if (word) {
+          filter.setText(writtenForm(word));
+          setOpen(word.id);
+        }
       },
       (e: Error) => setError(e.message),
     );
@@ -62,7 +68,7 @@ export function ListWords({ id, leeches: leechesFirst = false }: { id: number; l
       <div className="row row--between">
         <h1>{list.name}</h1>
         {!list.archived && (
-          <a href={`#/add/${id}`} className="button button--small">
+          <a href={dictHref({ list: id })} className="button button--small">
             Add a word
           </a>
         )}
@@ -388,7 +394,7 @@ function DictPanel({
     // A late answer for an entry you've since replaced mustn't show.
     let live = true;
     api.dictEntry(w.dictSeq).then(
-      (e) => live && setEntry(e),
+      (r) => live && setEntry(r.entry),
       (e: Error) => live && setError(e.message),
     );
     return () => {
@@ -413,6 +419,11 @@ function DictPanel({
         {w.dict === 'unchecked' && 'Not looked up in the dictionary yet.'}
       </p>
       {error && <p className="error small">{error}</p>}
+      {entry && (
+        <a href={entryHref(entry.seq)} className="link-button">
+          Open in the dictionary
+        </a>
+      )}
       {entry && (
         <details className="small">
           <summary className="muted">The dictionary’s meanings ({senses.length})</summary>

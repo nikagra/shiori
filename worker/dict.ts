@@ -1,5 +1,19 @@
 import { toHiragana, toKatakana } from 'wanakana';
-import { dictInfo, formsMatch, lookupForm, matchWord, searchRank, searchSteps, type DictEntry, type Match, type WordToMatch } from '../shared/dictionary';
+import {
+  deinflectedForms,
+  dictInfo,
+  formsMatch,
+  inflectionOf,
+  lookupForm,
+  matchWord,
+  searchDeinflections,
+  searchRank,
+  searchSteps,
+  type DictEntry,
+  type Inflection,
+  type Match,
+  type WordToMatch,
+} from '../shared/dictionary';
 import { saveDictInfo, wordsToLookUp } from './db';
 import { partCandidates, partInfo, splitParts, type WordPart } from '../shared/wordParts';
 
@@ -48,20 +62,34 @@ const entriesFor = async (dict: D1Database, match: string, limit: number) => (aw
 /** How many results each search step looks at before ranking. */
 const CANDIDATES = 120;
 
-/** Entries for a search box: kana, romaji, kanji or English. Best first. */
-export async function searchDict(dict: D1Database, query: string, limit = 30): Promise<DictEntry[]> {
-  const seen = new Map<number, { entry: DictEntry; step: number; order: number }>();
+/**
+ * Entries for a search box: kana, romaji, kanji or English, best first. An
+ * inflected form finds its dictionary form too (食べた: 食べる), and
+ * `inflections` says how.
+ */
+export async function searchDict(dict: D1Database, query: string, limit = 30): Promise<{ entries: DictEntry[]; inflections: Inflection[] }> {
+  const seen = new Map<number, { entry: DictEntry; step: number; order: number; inflection?: Inflection }>();
   const steps = searchSteps(query);
   for (const [step, match] of steps.entries()) {
     for (const entry of await entriesFor(dict, match, CANDIDATES)) {
       if (!seen.has(entry.seq)) seen.set(entry.seq, { entry, step, order: seen.size });
     }
   }
-  return [...seen.values()]
-    .map((r) => ({ ...r, rank: searchRank(r.entry, query) }))
+  const found = searchDeinflections(query);
+  if (found) {
+    for (const entry of await entriesFor(dict, formsMatch(deinflectedForms(found.candidates)), CANDIDATES)) {
+      const inflection = inflectionOf(entry, found);
+      if (!inflection) continue;
+      const known = seen.get(entry.seq);
+      if (known) known.inflection = inflection;
+      else seen.set(entry.seq, { entry, step: steps.length, order: seen.size, inflection });
+    }
+  }
+  const best = [...seen.values()]
+    .map((r) => ({ ...r, rank: searchRank(r.entry, query, r.inflection !== undefined) }))
     .sort((a, b) => a.rank - b.rank || a.step - b.step || a.order - b.order)
-    .slice(0, limit)
-    .map((r) => r.entry);
+    .slice(0, limit);
+  return { entries: best.map((r) => r.entry), inflections: best.flatMap((r) => r.inflection ?? []) };
 }
 
 export async function entryBySeq(dict: D1Database, seq: number): Promise<DictEntry | null> {

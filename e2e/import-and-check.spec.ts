@@ -23,7 +23,9 @@ test('import a Renshuu export, then sort words by recalling them', async ({ page
   await page.getByRole('button', { name: /Import renshuu_custom_sample/ }).click();
   await expect(page.getByTestId('import-result')).toContainText('Added 0 words, skipped 48');
 
-  await page.getByRole('link', { name: 'Check', exact: true }).click();
+  // Check is on Home's tile (the Dictionary has its place in the tab bar).
+  await page.getByRole('link', { name: 'Home', exact: true }).click();
+  await page.getByTestId('tile-check').click();
   await expect(page.getByTestId('triage-remaining')).toHaveText('48 left');
   // Meaning stays hidden until you commit.
   await expect(page.getByRole('button', { name: 'I knew it' })).toHaveCount(0);

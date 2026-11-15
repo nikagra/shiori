@@ -200,14 +200,15 @@ app.delete('/lists/:id', async (c) => {
 app.get('/dict/status', async (c) => c.json({ ...(await dictStatus(c.env.DICT)), words: await db.dictCounts(c.env.DB) }));
 
 app.get('/dict/search', async (c) => {
-  const entries = await searchDict(c.env.DICT, c.req.query('q') ?? '');
-  return c.json({ entries, mine: await db.wordsForEntries(c.env.DB, entries.map((e) => e.seq)) });
+  const { entries, inflections } = await searchDict(c.env.DICT, c.req.query('q') ?? '');
+  return c.json({ entries, inflections, mine: await db.wordsForEntries(c.env.DB, entries.map((e) => e.seq)) });
 });
 
 app.get('/dict/entries/:seq', async (c) => {
   const entry = await entryBySeq(c.env.DICT, intParam(c.req.param('seq'), 'seq'));
   if (!entry) throw new db.AppError(404, 'dictionary entry not found');
-  return c.json(entry);
+  // Your words with this entry, so it can say where you have it.
+  return c.json({ entry, mine: await db.wordsForEntries(c.env.DB, [entry.seq]) });
 });
 
 // The dictionary words a long word is made of, e.g. 行方不明 → 行方 + 不明.

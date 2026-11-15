@@ -3,7 +3,7 @@
 Where the project stands and what comes next. Start here when picking the work
 back up. For how the app works, see [DESIGN.md](DESIGN.md).
 
-## Status (2026-11-01)
+## Status (2026-11-15)
 
 - **v0.1 is merged into `main`** (PR #1, squashed as 6dd130e; history on
   `main` was rewritten on 25 Oct so every commit is Mikita's with an emoji
@@ -26,8 +26,8 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   in `.wrangler/state`, separate from the cloud one. An old database holding
   only test data is kept in `.wrangler/state-test-backup-20261025` and can be
   deleted.
-- Tests: 201 unit tests, 86 end-to-end runs (43 tests at iPhone and laptop
-  sizes), and `tsc -b` all pass.
+- Tests: unit tests, end-to-end runs at iPhone and laptop sizes, and
+  `tsc -b` all pass (counts in each PR).
 - **Backup and export** (26 Oct): Settings › Backup downloads all study data as
   one JSON file, a nightly cron saves the same file to the private R2 bucket
   `shiori-backups` (30 days kept), and `npm run backup:sql` turns a file back
@@ -133,6 +133,17 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   dictionary form, 入れず as 入れる, 利かず as 利く). No migration.
   On 3 Nov, "Study the page again" in a drill or practice got the same
   Hide meanings / Hide Japanese view (one shared `StudyPage`).
+- **Dictionary screen, stage 1** (15 Nov; the
+  [dictionary plan](https://claude.ai/artifact/7bHjFmsdtbGZ51pxADrGGv)
+  of 3 Nov): a Dictionary tab (in Check's place; Check stays on Home's
+  tile) to look a word up first and add it second. Results open an entry
+  page (`#/dict/<seq>`) with readings, audio, other spellings, every
+  meaning, a compound's parts as links, and where you have the word or
+  Add to list. Inflected forms find their dictionary form (食べた, 構わない,
+  大きくなかった; `shared/deinflect.ts`, which word parts now share). The
+  query stays in the address, so Back returns to the results. "Add a
+  word" (Home, a list) opens it; old `#/add` links still work. No
+  migration, no new data.
 - First iPhone feedback (25 Oct) is in: "Don't know" on review and drill
   cards, next words hidden in the in-order drill, "Study the page again",
   whole words on the grid, safer iOS speech. Sound on the iPhone still needs
@@ -223,11 +234,18 @@ finish review (27 Oct; try a page with a miss, and check Home for leeches).
      (meanings hidden, tap to flip), practise one or several learned pages
      you pick (nothing saved), and write a memory hook right on the page or
      after a miss, with a compound shown in its parts.~~ Done (1 Nov).
-   - Maybe after these: a Dictionary screen of its own, look up first and
-     add second (Mikita, 28 Oct). One search box for words and kanji like
-     jisho (`#kanji` for the kanji itself), and any word or kanji you tap
-     opens its entry, as in Renshuu (Mikita, 31 Oct). Kanji entries need
-     KANJIDIC2.
+7. **Dictionary screen** (Mikita, 28 and 31 Oct; plan agreed 15 Nov:
+   [dictionary plan](https://claude.ai/artifact/7bHjFmsdtbGZ51pxADrGGv)),
+   in three stages:
+   - ~~Stage 1: a Dictionary screen for words.~~ Done (15 Nov): search,
+     entry page, add from the entry, compounds in parts, inflected forms.
+     Links from the page grid and review cards come next to it.
+   - Stage 2: kanji entries. KANJIDIC2 and KRADFILE in a new `kanji`
+     table (about 13,000 rows, one night), a jisho-like kanji page
+     (`#/dict/kanji/構`), `#kanji` in the one search box, and any kanji
+     you tap opens its page.
+   - Stage 3 (with v0.3 sentences): one JMdict reload for "words
+     containing 構" anywhere, "See also" links and example sentences.
 
 ### v0.3: deeper word knowledge
 

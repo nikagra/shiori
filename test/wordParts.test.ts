@@ -40,25 +40,25 @@ describe('word parts', () => {
 
   it('splits a compound into the longest dictionary words, left to right', () => {
     expect(splitParts('行方不明', known)).toEqual([
-      { text: '行方', reading: 'ゆくえ', gloss: 'whereabouts' },
-      { text: '不明', reading: 'ふめい', gloss: 'unknown' },
+      { text: '行方', reading: 'ゆくえ', gloss: 'whereabouts', seq: 1 },
+      { text: '不明', reading: 'ふめい', gloss: 'unknown', seq: 2 },
     ]);
     expect(splitParts('生き残る', known).map((p) => p.text)).toEqual(['生き', '残る']);
   });
 
   it('keeps the pieces between words as parts with no meaning', () => {
     expect(splitParts('鼾を掻く', known)).toEqual([
-      { text: '鼾', reading: 'いびき', gloss: 'snoring' },
+      { text: '鼾', reading: 'いびき', gloss: 'snoring', seq: 7 },
       { text: 'を', reading: null, gloss: null },
-      { text: '掻く', reading: 'かく', gloss: 'to scratch' },
+      { text: '掻く', reading: 'かく', gloss: 'to scratch', seq: 8 },
     ]);
   });
 
   it('reads a conjugated verb at the end in its dictionary form', () => {
     expect(partCandidates('間髪入れず')).toContain('入れる');
     expect(splitParts('間髪入れず', known)).toEqual([
-      { text: '間髪', reading: 'かんはつ', gloss: "a hair's breadth" },
-      { text: '入れず', base: '入れる', reading: 'いれる', gloss: 'to put in' },
+      { text: '間髪', reading: 'かんはつ', gloss: "a hair's breadth", seq: 6 },
+      { text: '入れず', base: '入れる', reading: 'いれる', gloss: 'to put in', seq: 9 },
     ]);
   });
 
@@ -80,7 +80,7 @@ describe('word parts', () => {
 
   it('the most common entry gives a form its reading and meaning', () => {
     const info = partInfo([entry(1, '本', 'ほん', 'book'), entry(2, '本', 'もと', 'origin')]);
-    expect(info.get('本')).toEqual({ reading: 'ほん', gloss: 'book' });
+    expect(info.get('本')).toEqual({ reading: 'ほん', gloss: 'book', seq: 1 });
   });
 });
 
@@ -89,14 +89,15 @@ describe('word parts from the dictionary database', () => {
     const { createDictDb } = await import('./d1');
     const { wordParts } = await import('../worker/dict');
     const dict = createDictDb();
-    expect(await wordParts(dict, '夜明け')).toEqual([
-      { text: '夜', reading: 'よる', gloss: 'night' },
-      { text: '明け', reading: 'あけ', gloss: 'dawn' },
+    const shown = async (w: string) => (await wordParts(dict, w)).map(({ seq, ...p }) => ({ ...p, linked: seq !== undefined }));
+    expect(await shown('夜明け')).toEqual([
+      { text: '夜', reading: 'よる', gloss: 'night', linked: true },
+      { text: '明け', reading: 'あけ', gloss: 'dawn', linked: true },
     ]);
-    expect(await wordParts(dict, '鼾を掻く')).toEqual([
-      { text: '鼾', reading: 'いびき', gloss: 'snoring' },
-      { text: 'を', reading: null, gloss: null },
-      { text: '掻く', reading: 'かく', gloss: 'to scratch' },
+    expect(await shown('鼾を掻く')).toEqual([
+      { text: '鼾', reading: 'いびき', gloss: 'snoring', linked: true },
+      { text: 'を', reading: null, gloss: null, linked: false },
+      { text: '掻く', reading: 'かく', gloss: 'to scratch', linked: true },
     ]);
     expect(await wordParts(dict, '残酷')).toEqual([]);
     expect(await wordParts(dict, '')).toEqual([]);
