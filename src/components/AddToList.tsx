@@ -9,7 +9,8 @@ import { entryCoreMeaning, headPair, pairs, sensesFor, usuallyKana, type DictEnt
 
 /**
  * The list to add to and the word as you'll learn it. `listId` is the list
- * you came from (a list's "Add a word"); otherwise the last list you added to.
+ * you came from (a list's "Add a word"); otherwise the last list you added a
+ * word to from the dictionary on its own (Settings' `addList`).
  */
 export function AddToList({ entry, listId, onAdded }: { entry: DictEntry; listId: number | null; onAdded: (word: MyEntryWord, message: string) => void }) {
   const [settings, update] = useSettings();
@@ -32,11 +33,7 @@ export function AddToList({ entry, listId, onAdded }: { entry: DictEntry; listId
         <span>To list</span>
         <select
           value={chosen.id}
-          onChange={(e) => {
-            const id = Number(e.target.value);
-            setChosenId(id);
-            update({ addList: id });
-          }}
+          onChange={(e) => setChosenId(Number(e.target.value))}
         >
           {open.map((l) => (
             <option key={l.id} value={l.id}>
@@ -52,6 +49,7 @@ export function AddToList({ entry, listId, onAdded }: { entry: DictEntry; listId
           try {
             const w = await api.addFromDict(chosen.id, word);
             setError(null);
+            if (listId === null) update({ addList: chosen.id });
             onAdded(
               { id: w.id, dictSeq: entry.seq, kana: w.kana, kanji: w.kanji, status: w.status, listId: chosen.id, listName: chosen.name },
               `Added ${w.kanji ?? w.kana} to ${chosen.name}. It waits for a page.`,

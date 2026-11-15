@@ -1,6 +1,7 @@
 // Inflected forms read back to their dictionary form: 食べた is 食べる in the
 // past, 構わない is 構う negative, 大きくなかった is 大きい negative past.
-// It covers what an N5–N4 reader meets. A rule only says what a form could
+// It covers the forms an N5–N4 reader meets most (a rare irregular verb
+// like 問う, 問うた, isn't read back). A rule only says what a form could
 // be; the dictionary decides, since the base must be an entry of the right
 // kind (食べた → 食べる is an ichidan verb, so it fits).
 //
@@ -8,8 +9,8 @@
 // Yomichan: 食べたくなかった → 食べたくない (past) → 食べたい (negative) →
 // 食べる (want to).
 
-/** The kinds of word a rule turns a form into. */
-export type WordKind = 'v1' | 'v5' | 'vs' | 'vk' | 'adj-i';
+/** The kinds of word a rule turns a form into. 'te' is a て form waiting for its verb (食べて from 食べている): never a dictionary word. */
+export type WordKind = 'v1' | 'v5' | 'vs' | 'vk' | 'adj-i' | 'te';
 
 interface Rule {
   /** The ending of the inflected form. */
@@ -54,7 +55,7 @@ function godanRules(): Rule[] {
     out.push(
       rule(`${a}ない`, u, 'v5', 'negative', ['adj-i']),
       rule(`${a}ず`, u, 'v5', 'negative'),
-      rule(te, u, 'v5', 'te-form'),
+      rule(te, u, 'v5', 'te-form', ['te']),
       rule(ta, u, 'v5', 'past'),
       rule(`${ta}ら`, u, 'v5', 'conditional (たら)'),
       rule(`${e}ば`, u, 'v5', 'conditional (ば)'),
@@ -65,8 +66,10 @@ function godanRules(): Rule[] {
       ...AFTER_STEM.map(([end, reason, actsAs]) => rule(`${i}${end}`, u, 'v5', reason, actsAs)),
     );
   }
-  // 行く is the one godan verb with its own て and た: 行って, 行った.
-  for (const go of ['行', 'い']) out.push(rule(`${go}って`, `${go}く`, 'v5', 'te-form'), rule(`${go}った`, `${go}く`, 'v5', 'past'), rule(`${go}ったら`, `${go}く`, 'v5', 'conditional (たら)'));
+  // 行く has its own て and た: 行って, 行った.
+  for (const go of ['行', 'い']) out.push(rule(`${go}って`, `${go}く`, 'v5', 'te-form', ['te']), rule(`${go}った`, `${go}く`, 'v5', 'past'), rule(`${go}ったら`, `${go}く`, 'v5', 'conditional (たら)'));
+  // Polite verbs (下さる, いらっしゃる) take い before ます: くださいます.
+  for (const [end, reason, actsAs] of AFTER_STEM.filter(([end]) => end.startsWith('ま'))) out.push(rule(`い${end}`, 'る', 'v5', reason, actsAs));
   return out;
 }
 
@@ -74,7 +77,7 @@ function godanRules(): Rule[] {
 const ICHIDAN: [ending: string, reason: string, actsAs?: WordKind[]][] = [
   ['ない', 'negative', ['adj-i']],
   ['ず', 'negative'],
-  ['て', 'te-form'],
+  ['て', 'te-form', ['te']],
   ['た', 'past'],
   ['たら', 'conditional (たら)'],
   ['れば', 'conditional (ば)'],
@@ -89,7 +92,7 @@ const ICHIDAN: [ending: string, reason: string, actsAs?: WordKind[]][] = [
 const SURU: [form: string, reason: string, actsAs?: WordKind[]][] = [
   ['しない', 'negative', ['adj-i']],
   ['せず', 'negative'],
-  ['して', 'te-form'],
+  ['して', 'te-form', ['te']],
   ['した', 'past'],
   ['したら', 'conditional (たら)'],
   ['すれば', 'conditional (ば)'],
@@ -104,7 +107,7 @@ const SURU: [form: string, reason: string, actsAs?: WordKind[]][] = [
 const KURU: [stem: 'こ' | 'き' | 'く', ending: string, reason: string, actsAs?: WordKind[]][] = [
   ['こ', 'ない', 'negative', ['adj-i']],
   ['こ', 'ず', 'negative'],
-  ['き', 'て', 'te-form'],
+  ['き', 'て', 'te-form', ['te']],
   ['き', 'た', 'past'],
   ['き', 'たら', 'conditional (たら)'],
   ['く', 'れば', 'conditional (ば)'],
@@ -119,13 +122,13 @@ const KURU: [stem: 'こ' | 'き' | 'く', ending: string, reason: string, actsAs
 const ADJECTIVE: [ending: string, reason: string, actsAs?: WordKind[]][] = [
   ['くない', 'negative', ['adj-i']],
   ['かった', 'past'],
-  ['くて', 'te-form'],
+  ['くて', 'te-form', ['te']],
   ['く', 'adverb (く)'],
   ['ければ', 'conditional (ば)'],
   ['かったら', 'conditional (たら)'],
 ];
 
-export const RULES: readonly Rule[] = [
+const RULES: readonly Rule[] = [
   ...godanRules(),
   ...ICHIDAN.map(([end, reason, actsAs]) => rule(end, 'る', 'v1', reason, actsAs)),
   ...SURU.map(([form, reason, actsAs]) => rule(form, 'する', 'vs', reason, actsAs)),
@@ -133,6 +136,8 @@ export const RULES: readonly Rule[] = [
   ...ADJECTIVE.map(([end, reason, actsAs]) => rule(end, 'い', 'adj-i', reason, actsAs)),
   // 食べないで: the negative's own て form.
   rule('ないで', 'ない', 'adj-i', 'te-form'),
+  // 食べている, 読んでいる (and 食べてる): a て form with いる, itself like an ichidan verb (食べています).
+  ...['て', 'で'].flatMap((te) => [rule(`${te}いる`, te, 'te', 'ongoing (ている)', ['v1']), rule(`${te}る`, te, 'te', 'ongoing (ている)', ['v1'])]),
 ];
 
 export interface Deinflection {
@@ -164,7 +169,8 @@ export function deinflect(word: string): Deinflection[] {
         // After the first step, the form must be one the rule makes: 食べない (like an い-adjective) can be read back further, 食べた can't.
         if (form.kinds && !form.kinds.some((k) => r.actsAs.includes(k))) continue;
         const base = form.text.slice(0, form.text.length - r.from.length) + r.to;
-        if ([...base].length < 2) continue;
+        // A dictionary form read round to itself (捨てる as 捨て + てる) is no inflection.
+        if ([...base].length < 2 || base === word) continue;
         const key = `${base}|${r.kind}`;
         if (seen.has(key)) continue;
         seen.add(key);
@@ -191,6 +197,8 @@ export function posFits(pos: string[], kind: WordKind): boolean {
       return pos.includes('vk');
     case 'adj-i':
       return pos.some((p) => p === 'adj-i' || p === 'adj-ix');
+    case 'te':
+      return false;
   }
 }
 

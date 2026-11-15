@@ -4,8 +4,26 @@ export function navigate(path: string) {
 
 /** The address after "#/": its path parts and its ?query (#/dict?q=食べた). */
 export function readHash(hash = window.location.hash): { parts: string[]; params: URLSearchParams } {
-  const [path, query = ''] = hash.replace(/^#\/?/, '').split('?', 2);
-  return { parts: path.split('/').filter(Boolean).map(decodeURIComponent), params: new URLSearchParams(query) };
+  const raw = hash.replace(/^#\/?/, '');
+  const at = raw.indexOf('?');
+  const [path, query] = at < 0 ? [raw, ''] : [raw.slice(0, at), raw.slice(at + 1)];
+  return { parts: path.split('/').filter(Boolean).map(decode), params: new URLSearchParams(query) };
+}
+
+/** A path part as written, or as it is when it isn't a valid %-escape (a mistyped link shows "not found" instead of breaking the app). */
+function decode(part: string): string {
+  try {
+    return decodeURIComponent(part);
+  } catch {
+    return part;
+  }
+}
+
+/** A positive whole number from the address, or null. */
+export function idParam(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const n = Number(value);
+  return Number.isInteger(n) && n > 0 ? n : null;
 }
 
 /** "#/path?a=1", leaving out empty values. */
@@ -29,10 +47,10 @@ export const dictHref = (ctx: DictContext = {}) => hashFor('dict', { q: ctx.q, l
 export const entryHref = (seq: number, ctx: DictContext = {}) => hashFor(`dict/${seq}`, { q: ctx.q, list: ctx.list });
 
 /** The list number in `?list=`, when it's one. */
-export function listParam(params: URLSearchParams): number | null {
-  const n = Number(params.get('list'));
-  return Number.isInteger(n) && n > 0 ? n : null;
-}
+export const listParam = (params: URLSearchParams) => idParam(params.get('list'));
+
+/** A list with one of its words open (`?word=` is the word's id). */
+export const wordHref = (listId: number, wordId: number) => hashFor(`lists/${listId}`, { word: wordId });
 
 /** Changes the address without a new history step or a hashchange (the search box, as you type). */
 export function replaceHash(hash: string) {

@@ -25,8 +25,10 @@ const KANA = /^[\p{Script=Hiragana}]+$/u;
 /**
  * Dictionary forms a verb ending the word (from `from` on) may stand for:
  * 入れず is 入れる, 利かず is 利く (shared/deinflect.ts reads the endings).
- * A bare kanji plus る is never tried: 目覚まし is not 覚る, and 見ず
- * isn't split off as 見る.
+ * An ichidan verb needs kana before its る, so a bare kanji plus る is never
+ * tried: 目覚まし is not 覚る, and 見ず isn't split off as 見る. Godan forms
+ * keep their own last kana (入らず is 入る). Unlike search, the part of
+ * speech isn't checked here: the split only needs a word that fits.
  */
 function verbForms(chars: string[], from: number): string[] {
   const tail = chars.slice(from).join('');

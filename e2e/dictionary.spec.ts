@@ -59,6 +59,18 @@ test('look a word up first, read its entry, then add it to a list', async ({ pag
   await page.goBack();
   await expect(search).toHaveValue('食べた');
 
+  // The Dictionary tab starts afresh, and Back still finds the new search.
+  await page.getByRole('link', { name: 'Dictionary', exact: true }).click();
+  await expect(search).toHaveValue('');
+  await search.fill('構わない');
+  await expect(rows.first().getByTestId('dict-inflection')).toHaveText('構わない is 構う: negative.');
+  await rows.first().getByRole('link').click();
+  await expect(page.locator('.dict-entry__word')).toHaveAttribute('data-written', '構う');
+  await page.goBack();
+  await expect(search).toHaveValue('構わない');
+  await search.fill('食べた');
+  await expect(rows.first().getByTestId('dict-inflection')).toHaveText('食べた is 食べる: past.');
+
   // From your entry to the word in its list.
   await rows.first().getByRole('link').click();
   await page.getByRole('link', { name: 'Open it in Manga' }).click();
@@ -123,6 +135,10 @@ test('a compound’s parts open their own entries', async ({ page }, testInfo) =
   await expect(page.locator('.dict-entry__word')).toHaveAttribute('data-written', '夜明け');
   await page.getByRole('link', { name: '← Results for “yoake”' }).click();
   await expect(page.getByLabel('Search the dictionary')).toHaveValue('yoake');
+  // A mistyped link says so, rather than leaving a blank page.
+  await page.goto('/#/dict/%E3');
+  await expect(page.getByRole('link', { name: '← Dictionary' })).toBeVisible();
+  await expect(page.locator('.notice')).toBeVisible();
 });
 
 test('imported words are looked up: per-kanji furigana, a flag in the check pass, and picking another entry', async ({ page, request }, testInfo) => {

@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { api, type MyEntryWord } from '../api';
-import { DictResults, DictSearchBox, otherForms, rememberAdded, SenseList, useDictSearch } from '../components/DictSearch';
+import { DictResults, DictSearchBox, otherForms, SenseList, useDictSearch } from '../components/DictSearch';
 import { AddToList } from '../components/AddToList';
 import { WordParts } from '../components/HookEditor';
 import { Notice, SpeakButton, Written } from '../components/ui';
-import { dictHref, entryHref, hashFor, replaceHash, type DictContext } from '../nav';
+import { dictHref, entryHref, hashFor, replaceHash, wordHref, type DictContext } from '../nav';
 import { headPair, rubyFor, usuallyKana, type DictEntry } from '../../shared/dictionary';
-import { WORD_STATES } from '../../shared/wordSearch';
+import { STATE_LABELS } from '../../shared/wordSearch';
 
 // The dictionary on its own: look a word up, read its whole entry, and only
 // then decide whether to add it (Mikita, 28 Oct). Inflected forms find their
@@ -51,8 +51,6 @@ function BackToList({ list }: { list: number }) {
     </a>
   ) : null;
 }
-
-const STATE_LABEL = Object.fromEntries(WORD_STATES.map((s) => [s.state, s.label.toLowerCase()])) as Record<MyEntryWord['status'], string>;
 
 /** One entry, laid out like jisho's word page, with where you have it or a way to add it. */
 export function DictEntryPage({ seq, ctx }: { seq: number; ctx: DictContext }) {
@@ -122,8 +120,8 @@ export function DictEntryPage({ seq, ctx }: { seq: number; ctx: DictContext }) {
           {mine.map((m) => (
             <p key={m.id}>
               You have <span lang="ja">{m.kanji ?? m.kana}</span>
-              {m.listName ? ` in ${m.listName}` : ''}, {STATE_LABEL[m.status]}.{' '}
-              {m.listId !== null && <a href={hashFor(`lists/${m.listId}`, { word: m.id })}>Open it in {m.listName}</a>}
+              {m.listName ? ` in ${m.listName}` : ''}, {STATE_LABELS[m.status].toLowerCase()}.{' '}
+              {m.listId !== null && <a href={wordHref(m.listId, m.id)}>Open it in {m.listName}</a>}
             </p>
           ))}
         </section>
@@ -137,7 +135,6 @@ export function DictEntryPage({ seq, ctx }: { seq: number; ctx: DictContext }) {
               setMine([word]);
               setAdded(message);
               setAdding(false);
-              rememberAdded(word);
             }}
           />
         </section>

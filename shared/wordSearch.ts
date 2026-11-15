@@ -7,7 +7,7 @@ import { normalizeKana } from './kana';
 export type WordState = 'unverified' | 'inbox' | 'on_page' | 'graduated' | 'ignored';
 
 // A Record, so a new state can't be left without a filter.
-const LABELS: Record<WordState, string> = {
+export const STATE_LABELS: Record<WordState, string> = {
   unverified: 'To check',
   inbox: 'Waiting',
   on_page: 'On a page',
@@ -16,7 +16,7 @@ const LABELS: Record<WordState, string> = {
 };
 
 /** The filters, in the order a word moves through them. */
-export const WORD_STATES = (Object.keys(LABELS) as WordState[]).map((state) => ({ state, label: LABELS[state] }));
+export const WORD_STATES = (Object.keys(STATE_LABELS) as WordState[]).map((state) => ({ state, label: STATE_LABELS[state] }));
 
 export interface Searchable {
   kana: string;

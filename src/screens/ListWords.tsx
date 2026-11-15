@@ -4,7 +4,7 @@ import { api, writtenForm, type ListSummary, type ListWord } from '../api';
 import { Notice, plural, shortDate } from '../components/ui';
 import { useWordFilter, WordFilter } from '../components/WordFilter';
 import { DictResults, DictSearchBox, SenseList, useDictSearch, useDictStatus } from '../components/DictSearch';
-import { WORD_STATES } from '../../shared/wordSearch';
+import { STATE_LABELS, WORD_STATES } from '../../shared/wordSearch';
 import { entryCoreMeaning, headPair, posLabel, sensesFor, type DictEntry } from '../../shared/dictionary';
 import { MAX_HOOK } from '../../shared/study';
 import { dictHref, entryHref } from '../nav';
@@ -13,8 +13,6 @@ import { dictHref, entryHref } from '../nav';
 
 /** Long lists show this many at a time, so the phone stays quick. */
 const SHOW_AT_ONCE = 100;
-
-const STATE_LABEL = Object.fromEntries(WORD_STATES.map((s) => [s.state, s.label])) as Record<ListWord['status'], string>;
 
 /** `leeches` opens the list showing only its leeches; `focus` opens that word (from its dictionary entry). */
 export function ListWords({ id, leeches: leechesFirst = false, focus = null }: { id: number; leeches?: boolean; focus?: number | null }) {
@@ -115,7 +113,7 @@ export function ListWords({ id, leeches: leechesFirst = false, focus = null }: {
                   {w.leechAt ? (
                     <span className="badge badge--leech">Leech</span>
                   ) : (
-                    <span className={`badge badge--state-${w.status}`}>{STATE_LABEL[w.status]}</span>
+                    <span className={`badge badge--state-${w.status}`}>{STATE_LABELS[w.status]}</span>
                   )}
                 </button>
                 {open === w.id && (

@@ -10,7 +10,7 @@ import { Lists } from './screens/Lists';
 import { ListWords } from './screens/ListWords';
 import { Settings } from './screens/Settings';
 import { Dictionary, DictEntryPage } from './screens/Dictionary';
-import { listParam, readHash } from './nav';
+import { idParam, listParam, readHash } from './nav';
 import { Practice } from './screens/Practice';
 
 // Hash routes: #/, #/review, #/pages, #/pages/3, #/pages/new (pick the words; #/pages/new/2 from list 2), #/lists, #/lists/2 (its words; #/lists/2/leeches its leeches), #/check, #/settings,
@@ -19,8 +19,10 @@ import { Practice } from './screens/Practice';
 // #/dict?q=食べた&list=2 (the dictionary: what you searched for, the list to add to), #/dict/1358280 (an entry, with the same ?q and ?list),
 // #/lists/2?word=15 (a list with that word open); old #/add and #/add/2 links open the dictionary.
 
+/** The route, and `visit`, which counts address changes: a screen keyed on it starts afresh each time you go to it (the Dictionary tab clears the search). */
+let visits = 0;
 function useHashRoute() {
-  const read = () => readHash();
+  const read = () => ({ ...readHash(), visit: ++visits });
   const [route, setRoute] = useState(read);
   useEffect(() => {
     const onChange = () => {
@@ -43,10 +45,10 @@ const NAV = [
 ];
 
 export function App() {
-  const { parts, params } = useHashRoute();
+  const { parts, params, visit } = useHashRoute();
   // Old #/import links open Settings › Import; old #/add links open the dictionary.
   const [section, id, sub] = parts[0] === 'import' ? ['settings', 'import'] : parts[0] === 'add' ? ['dict'] : parts;
-  const list = parts[0] === 'add' ? (Number(parts[1]) > 0 ? Number(parts[1]) : null) : listParam(params);
+  const list = parts[0] === 'add' ? idParam(parts[1]) : listParam(params);
 
   let screen;
   switch (section) {
@@ -70,14 +72,14 @@ export function App() {
       break;
     case 'lists':
       screen = id ? (
-        <ListWords key={`${id}/${sub ?? ''}/${params.get('word') ?? ''}`} id={Number(id)} leeches={sub === 'leeches'} focus={Number(params.get('word')) || null} />
+        <ListWords key={`${id}/${sub ?? ''}/${params.get('word') ?? ''}`} id={Number(id)} leeches={sub === 'leeches'} focus={idParam(params.get('word'))} />
       ) : (
         <Lists />
       );
       break;
     case 'dict': {
       const q = params.get('q') ?? '';
-      screen = id ? <DictEntryPage key={id} seq={Number(id)} ctx={{ q, list }} /> : <Dictionary key={`${q}/${list ?? ''}`} q={q} list={list} />;
+      screen = id ? <DictEntryPage key={id} seq={Number(id)} ctx={{ q, list }} /> : <Dictionary key={visit} q={q} list={list} />;
       break;
     }
     case 'check':

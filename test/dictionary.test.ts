@@ -10,6 +10,8 @@ import {
   matchWord,
   pairs,
   posLabel,
+  searchDeinflections,
+  searchRank,
   searchSteps,
   senseStrings,
   sensesFor,
@@ -190,6 +192,23 @@ describe('furigana per kanji', () => {
   });
 });
 
+describe('ranking inflected forms', () => {
+  const entry = (seq: number, kanji: string, kana: string, gloss: string, pos: string): DictEntry => ({ seq, common: true, kanji: [{ text: kanji }], kana: [{ text: kana }], senses: [{ pos: [pos], gloss: [gloss] }] });
+  const kite = entry(1, '凧', 'たこ', 'kite', 'n');
+  const kuru = entry(2, '来る', 'くる', 'to come', 'vk');
+  const kiru = entry(3, '着る', 'きる', 'to wear', 'v1');
+
+  it('ranks an English word typed as romaji above its inflection reading ("kite" is not きて, 来る)', () => {
+    expect(searchDeinflections('kite')?.form).toBe('きて');
+    expect(searchRank(kite, 'kite')).toBeLessThan(searchRank(kuru, 'kite', true));
+  });
+
+  it('ranks an inflection typed in Japanese right after exact forms', () => {
+    expect(searchRank(kiru, 'きて', true)).toBeLessThan(searchRank(entry(4, '来手', 'きてくる', 'x', 'n'), 'きて'));
+    expect(searchRank(kiru, 'きる')).toBeLessThan(searchRank(kiru, 'きて', true));
+  });
+});
+
 describe('the dictionary database', () => {
   let dict: D1Database;
   beforeEach(() => {
@@ -226,8 +245,9 @@ describe('the dictionary database', () => {
     expect(await found('決心した')).toEqual({ head: '決心', base: '決心する', reasons: ['past'], first: true });
     // A kind of word the rule doesn't fit isn't offered: 降る is godan, so 降た is nothing.
     expect((await searchDict(dict, '降た')).inflections).toEqual([]);
-    // English has no inflections.
+    // English has no inflections, and romaji is one word.
     expect((await searchDict(dict, 'eat')).inflections).toEqual([]);
+    expect((await searchDict(dict, 'tabe ta')).inflections).toEqual([]);
   });
 
   it('loads a chunk again without doubling it', async () => {

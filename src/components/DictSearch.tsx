@@ -69,7 +69,11 @@ const DEBOUNCE_MS = 250;
 
 type SearchResults = DictSearchResult & { query: string };
 
-/** The last results, so coming Back to a search shows them at once. */
+/**
+ * The last results, so coming Back to a search shows them at once. They are
+ * fetched again all the same (without waiting for typing to stop), since
+ * which words are yours may have changed meanwhile.
+ */
 let lastResults: SearchResults | null = null;
 
 export function useDictSearch(initial = '') {
@@ -82,10 +86,8 @@ export function useDictSearch(initial = '') {
       setResults(null);
       return;
     }
-    if (lastResults?.query === q) {
-      setResults(lastResults);
-      return;
-    }
+    const remembered = lastResults?.query === q;
+    if (remembered) setResults(lastResults);
     let live = true;
     const timer = setTimeout(() => {
       api.dictSearch(q).then(
@@ -97,7 +99,7 @@ export function useDictSearch(initial = '') {
         },
         (e: Error) => live && setError(e.message),
       );
-    }, DEBOUNCE_MS);
+    }, remembered ? 0 : DEBOUNCE_MS);
     return () => {
       live = false;
       clearTimeout(timer);
@@ -105,11 +107,6 @@ export function useDictSearch(initial = '') {
   }, [query]);
   return { query, setQuery, results, error };
 }
-
-/** Marks a word you just added on the remembered results, so Back to them shows it as yours. */
-export const rememberAdded = (word: MyEntryWord) => {
-  if (lastResults) lastResults = { ...lastResults, mine: [...lastResults.mine, word] };
-};
 
 /** The search box, with a note while the dictionary is empty or still loading. */
 export function DictSearchBox({ search, label = 'Search the dictionary', autoFocus = false }: { search: ReturnType<typeof useDictSearch>; label?: string; autoFocus?: boolean }) {

@@ -5,7 +5,8 @@ import { Notice } from './ui';
 import { entryHref } from '../nav';
 
 // A memory hook and the word's parts, where a word is hard: on a page you're
-// about to learn, and after a miss in review. Mikita's words that stick all
+// about to learn, and after a miss in review (the dictionary's entry page
+// shows the parts too). Mikita's words that stick all
 // had a sound-alike story (ほる and a HOLE); the ones that faded had none,
 // or were long compounds not seen as parts (30 Oct).
 
@@ -70,7 +71,7 @@ export function HookEditor({
   onSaved: (word: ListWord) => void;
   /** Each change to the text, saved or not. */
   onDraft?: (text: string) => void;
-  /** Whether the word's parts open their dictionary entries: not in the middle of a review, which a tap would leave. */
+  /** Whether the word's parts open their dictionary entries: not in the middle of a review, which a tap would leave. A hook you haven't saved turns the links off too, so a tap doesn't lose it. */
   partsLinked?: boolean;
 }) {
   const [text, setText] = useState(word.hook ?? '');
@@ -95,7 +96,7 @@ export function HookEditor({
 
   return (
     <div className="stack stack--tight" data-testid="hook-editor">
-      <WordParts word={word} linkTo={partsLinked ? (seq) => entryHref(seq) : undefined} />
+      <WordParts word={word} linkTo={partsLinked && !changed ? (seq) => entryHref(seq) : undefined} />
       <label className="field">
         <span>
           Memory hook for <span lang="ja">{writtenForm(word)}</span>

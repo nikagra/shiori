@@ -9,7 +9,7 @@ export interface Settings {
   pageSize: number;
   /** The list the check pass takes words from; null for all lists. */
   checkList: number | null;
-  /** The list "Add a word" puts words in, when you didn't come from a list. */
+  /** The list the dictionary adds words to when you didn't come from a list: the last one you added to that way. */
   addList: number | null;
 }
 

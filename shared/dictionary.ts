@@ -65,8 +65,11 @@ export const formsMatch = (forms: string[]) => `forms : (${[...new Set(forms)].m
 
 /**
  * Lower is better: an exact written form or reading; then a meaning that is
- * exactly the query, first as the entry's first meaning; then a form that
- * starts with it; then the rest. Common words first within each.
+ * exactly the query, first as the entry's first meaning, or an inflected
+ * form of it typed in Japanese (食べた: 食べる); then a form that starts
+ * with it, or an inflected form typed in romaji; then the rest. Common
+ * words first within each. Romaji inflections rank below English meanings,
+ * since "kite" (きて) is likelier the toy than 来る.
  */
 export function searchRank(e: DictEntry, query: string, inflected = false): number {
   const q = query.normalize('NFKC').trim().toLowerCase();
@@ -79,8 +82,7 @@ export function searchRank(e: DictEntry, query: string, inflected = false): numb
   if (forms.includes(q) || forms.some((f) => normalizeKana(f) === kana && !LATIN.test(kana))) score = 0;
   else if (LATIN.test(q) && e.senses[0] && bare(e.senses[0].gloss[0] ?? '') === word) score = 1;
   else if (LATIN.test(q) && e.senses.slice(0, 2).some((s) => s.gloss.some((g) => bare(g) === word))) score = 2;
-  // An inflected form of it (食べた: 食べる) comes right after exact forms.
-  else if (inflected) score = 1;
+  else if (inflected) score = LATIN.test(q) ? 3 : 1;
   else if (forms.some((f) => f.startsWith(q) || normalizeKana(f).startsWith(kana))) score = 3;
   // JMdict has no frequency ranks, only "common". Among common words, one
   // written with N5/N4 kanji or in hiragana is likelier to be the one a
@@ -96,16 +98,24 @@ export interface Inflection {
   seq: number;
   /** What you typed (as kana, when you typed romaji). */
   form: string;
-  /** The entry's form it comes from. */
+  /** The dictionary form it comes from: one of the entry's forms, or for a noun taking する (決心) that noun with する. */
   base: string;
   /** From the base outward: want to, negative, past. */
   reasons: string[];
 }
 
-/** What a search might be an inflection of (食べた, tabeta: 食べる or たべる in the past). Nothing for English. */
+/**
+ * What a search might be an inflection of (食べた, tabeta: 食べる or たべる in
+ * the past). Romaji counts only as one word that all turns into kana, as in
+ * searchSteps; an English word that does ("kite") is ranked below English
+ * matches (searchRank).
+ */
 export function searchDeinflections(query: string): { form: string; candidates: Deinflection[] } | null {
-  const q = query.normalize('NFKC').trim().toLowerCase().replace(/[\s〜～]/g, '');
-  const form = JAPANESE.test(q) ? q : normalizeKana(q);
+  const q = query.normalize('NFKC').trim().toLowerCase();
+  let form: string;
+  if (JAPANESE.test(q)) form = q.replace(/[\s〜～]/g, '');
+  else if (q.includes(' ')) return null;
+  else form = normalizeKana(q);
   if (!form || LATIN.test(form) || !JAPANESE.test(form)) return null;
   const candidates = deinflect(form);
   return candidates.length ? { form, candidates } : null;

@@ -60,10 +60,25 @@ describe('reading inflected forms back to the dictionary form', () => {
     expect(how('大きくて', '大きい', 'adj-i')).toEqual(['te-form']);
   });
 
+  it('ている, polite ります verbs, and the rarer endings', () => {
+    expect(how('食べている', '食べる', 'v1')).toEqual(['te-form', 'ongoing (ている)']);
+    expect(how('読んでいます', '読む', 'v5')).toEqual(['te-form', 'ongoing (ている)', 'polite']);
+    expect(how('見てる', '見る', 'v1')).toEqual(['te-form', 'ongoing (ている)']);
+    expect(how('くださいます', 'くださる', 'v5')).toEqual(['polite']);
+    expect(how('食べたら', '食べる', 'v1')).toEqual(['conditional (たら)']);
+    expect(how('行きましょう', '行く', 'v5')).toEqual(['let’s']);
+    expect(how('大きければ', '大きい', 'adj-i')).toEqual(['conditional (ば)']);
+    expect(how('来た', '来る', 'vk')).toEqual(['past']);
+    // A て form waiting for its verb is never a dictionary word.
+    expect(posFits(['v1'], 'te')).toBe(false);
+  });
+
   it('never gives a lone kana, and leaves a dictionary form alone', () => {
     expect(deinflect('た')).toEqual([]);
     expect(deinflect('た').map((d) => d.base)).not.toContain('る');
     expect(how('食べる', '食べる', 'v1')).toBeUndefined();
+    // 捨てる isn't 捨て + てる read back to 捨てる.
+    expect(deinflect('捨てる').map((d) => d.base)).not.toContain('捨てる');
   });
 
   it('the past of a form that can go no further is not read further', () => {
