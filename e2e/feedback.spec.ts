@@ -99,6 +99,11 @@ test.describe('drill', () => {
     await page.getByRole('button', { name: 'Study the page again' }).click();
     await expect(page.locator('.page-grid--full')).toBeVisible();
     await expect(page.locator('.page-cell__meaning').first()).toContainText(words[0].coreMeaning);
+    // Studying again can be testing yourself again (Mikita, 3 Nov): the page's own controls.
+    await page.getByRole('button', { name: 'Hide Japanese' }).click();
+    await expect(page.locator('.page-cell').first().locator('.page-cell__word')).toHaveText('?');
+    await page.locator('.page-cell').first().getByRole('button', { name: /turn over/ }).click();
+    await expect(page.locator('.page-cell').first().locator('.page-cell__word')).toHaveText(words[0].kanji ?? words[0].kana);
     await shot(page, testInfo, '42-drill-study-again');
     await page.getByRole('button', { name: 'Back to the drill' }).click();
     // The word that was on screen counts as missed and waits at the end.

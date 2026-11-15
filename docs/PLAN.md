@@ -131,6 +131,8 @@ back up. For how the app works, see [DESIGN.md](DESIGN.md).
   offers "Write a memory hook"; both show a compound in its dictionary
   parts (夜明け: 夜 "night" + 明け "dawn"; a verb at the end in its
   dictionary form, 入れず as 入れる, 利かず as 利く). No migration.
+  On 3 Nov, "Study the page again" in a drill or practice got the same
+  Hide meanings / Hide Japanese view (one shared `StudyPage`).
 - First iPhone feedback (25 Oct) is in: "Don't know" on review and drill
   cards, next words hidden in the in-order drill, "Study the page again",
   whole words on the grid, safer iOS speech. Sound on the iPhone still needs

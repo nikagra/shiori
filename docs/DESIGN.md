@@ -231,7 +231,10 @@ touching misses, grades or the schedule.
 - **Test yourself on a page** (any stage; meant for the first view, before
   step 1): "Hide meanings" or "Hide Japanese" covers that side of every
   card, and tapping a card turns it over (tap again to cover it). Hiding
-  the Japanese hides its sound too. Nothing is sent or kept.
+  the Japanese hides its sound too. Nothing is sent or kept. "Study the
+  page again" in a drill or in practice opens the same view (`StudyPage`,
+  shared with the page; Mikita, 3 Nov), so going back to the page can be
+  testing yourself again rather than reading it.
 - **Practise** (`#/practise`, Pages › Learned › Practise): tick one or more
   learned pages; `#/practise/3,5` drills their words as the shuffled step
   does (both directions, a word's two directions apart, misses typed once
