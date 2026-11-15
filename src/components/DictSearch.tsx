@@ -1,9 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { api, type DictStatus, type MyEntryWord } from '../api';
+import { api, type DictSearchResult, type DictStatus, type MyEntryWord } from '../api';
 import { headPair, miscLabels, posLabel, rubyFor, shownForms, type DictEntry, type DictSense } from '../../shared/dictionary';
+import { inflectionLine } from '../../shared/deinflect';
 import { Notice, Written } from './ui';
 
-// Searching the dictionary: adding a word (AddWord) and picking a word's
+// Searching the dictionary: the Dictionary screen and picking a word's
 // entry (ListWords) share the search box and the results.
 
 let statusLoad: Promise<DictStatus> | null = null;
@@ -66,9 +67,18 @@ export function lookUpInBackground() {
 /** Waits this long after the last key before searching, so typing stays quick. */
 const DEBOUNCE_MS = 250;
 
+type SearchResults = DictSearchResult & { query: string };
+
+/**
+ * The last results, so coming Back to a search shows them at once. They are
+ * fetched again all the same (without waiting for typing to stop), since
+ * which words are yours may have changed meanwhile.
+ */
+let lastResults: SearchResults | null = null;
+
 export function useDictSearch(initial = '') {
   const [query, setQuery] = useState(initial);
-  const [results, setResults] = useState<{ query: string; entries: DictEntry[]; mine: MyEntryWord[] } | null>(null);
+  const [results, setResults] = useState<SearchResults | null>(() => (lastResults && lastResults.query === initial.trim() ? lastResults : null));
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     const q = query.trim();
@@ -76,25 +86,26 @@ export function useDictSearch(initial = '') {
       setResults(null);
       return;
     }
+    const remembered = lastResults?.query === q;
+    if (remembered) setResults(lastResults);
     let live = true;
     const timer = setTimeout(() => {
       api.dictSearch(q).then(
         (r) => {
           if (!live) return;
           setError(null);
-          setResults({ query: q, ...r });
+          lastResults = { query: q, ...r };
+          setResults(lastResults);
         },
         (e: Error) => live && setError(e.message),
       );
-    }, DEBOUNCE_MS);
+    }, remembered ? 0 : DEBOUNCE_MS);
     return () => {
       live = false;
       clearTimeout(timer);
     };
   }, [query]);
-  /** Marks a result as one of your words, after adding it. */
-  const addMine = (word: MyEntryWord) => setResults((r) => r && { ...r, mine: [...r.mine, word] });
-  return { query, setQuery, results, error, addMine };
+  return { query, setQuery, results, error };
 }
 
 /** The search box, with a note while the dictionary is empty or still loading. */
@@ -163,21 +174,25 @@ export function otherForms(entry: DictEntry): string {
     .join('、');
 }
 
+/** How to show one result: as a link to its entry page, or opening in place with `detail` under it. */
+type ResultMode =
+  | { href: (entry: DictEntry) => string }
+  | {
+      open: number | null;
+      onOpen: (seq: number | null) => void;
+      /** What an opened result shows below its head. */
+      detail: (entry: DictEntry) => ReactNode;
+    };
+
 export function DictResults({
   search,
-  open,
-  onOpen,
-  detail,
   mineLabel,
+  ...mode
 }: {
   search: ReturnType<typeof useDictSearch>;
-  open: number | null;
-  onOpen: (seq: number | null) => void;
-  /** What an opened result shows below its head. */
-  detail: (entry: DictEntry) => ReactNode;
   /** The badge on a result you have already. */
   mineLabel: (mine: MyEntryWord) => string;
-}) {
+} & ResultMode) {
   const { results } = search;
   if (!results) return null;
   if (results.entries.length === 0) return <p className="muted">Nothing found for “{results.query}”.</p>;
@@ -186,17 +201,39 @@ export function DictResults({
       {results.entries.map((e) => {
         const [kanji, kana] = headPair(e);
         const mine = results.mine.find((m) => m.dictSeq === e.seq);
-        return (
-          <li key={e.seq} className={`word-row${open === e.seq ? ' word-row--open' : ''}`} data-testid="dict-row">
-            <button type="button" className="word-row__head" aria-expanded={open === e.seq} onClick={() => onOpen(open === e.seq ? null : e.seq)}>
-              <span className="word-row__jp" lang="ja">
-                <EntryHead entry={e} />
-                {kanji && <span className="word-row__kana">{kana}</span>}
-              </span>
+        const inflection = results.inflections.find((i) => i.seq === e.seq);
+        const opened = 'open' in mode && mode.open === e.seq;
+        const head = (
+          <>
+            <span className="word-row__jp" lang="ja">
+              <EntryHead entry={e} />
+              {kanji && <span className="word-row__kana">{kana}</span>}
+            </span>
+            <span className="word-row__text">
+              {inflection && (
+                <span className="word-row__note" data-testid="dict-inflection">
+                  {inflectionLine(inflection.form, inflection.base, inflection.reasons)}
+                </span>
+              )}
               <span className="word-row__meaning">{sensesLine(e.senses)}</span>
-              {mine ? <span className="badge badge--state-graduated">{mineLabel(mine)}</span> : e.common && <span className="badge">common</span>}
-            </button>
-            {open === e.seq && detail(e)}
+            </span>
+            {mine ? <span className="badge badge--state-graduated">{mineLabel(mine)}</span> : e.common && <span className="badge">common</span>}
+          </>
+        );
+        return (
+          <li key={e.seq} className={`word-row${opened ? ' word-row--open' : ''}`} data-testid="dict-row">
+            {'href' in mode ? (
+              <a className="word-row__head" href={mode.href(e)}>
+                {head}
+              </a>
+            ) : (
+              <>
+                <button type="button" className="word-row__head" aria-expanded={opened} onClick={() => mode.onOpen(opened ? null : e.seq)}>
+                  {head}
+                </button>
+                {opened && mode.detail(e)}
+              </>
+            )}
           </li>
         );
       })}

@@ -10,6 +10,8 @@ import {
   matchWord,
   pairs,
   posLabel,
+  searchDeinflections,
+  searchRank,
   searchSteps,
   senseStrings,
   sensesFor,
@@ -190,13 +192,30 @@ describe('furigana per kanji', () => {
   });
 });
 
+describe('ranking inflected forms', () => {
+  const entry = (seq: number, kanji: string, kana: string, gloss: string, pos: string): DictEntry => ({ seq, common: true, kanji: [{ text: kanji }], kana: [{ text: kana }], senses: [{ pos: [pos], gloss: [gloss] }] });
+  const kite = entry(1, '凧', 'たこ', 'kite', 'n');
+  const kuru = entry(2, '来る', 'くる', 'to come', 'vk');
+  const kiru = entry(3, '着る', 'きる', 'to wear', 'v1');
+
+  it('ranks an English word typed as romaji above its inflection reading ("kite" is not きて, 来る)', () => {
+    expect(searchDeinflections('kite')?.form).toBe('きて');
+    expect(searchRank(kite, 'kite')).toBeLessThan(searchRank(kuru, 'kite', true));
+  });
+
+  it('ranks an inflection typed in Japanese right after exact forms', () => {
+    expect(searchRank(kiru, 'きて', true)).toBeLessThan(searchRank(entry(4, '来手', 'きてくる', 'x', 'n'), 'きて'));
+    expect(searchRank(kiru, 'きる')).toBeLessThan(searchRank(kiru, 'きて', true));
+  });
+});
+
 describe('the dictionary database', () => {
   let dict: D1Database;
   beforeEach(() => {
     dict = createDictDb(30);
   });
 
-  const heads = async (q: string) => (await searchDict(dict, q)).map((e) => headPair(e)[0] ?? headPair(e)[1]);
+  const heads = async (q: string) => (await searchDict(dict, q)).entries.map((e) => headPair(e)[0] ?? headPair(e)[1]);
 
   it('says what is loaded', async () => {
     expect(await dictStatus(dict)).toEqual({ version: sample.version, chunks: 3, loaded: 3, complete: true });
@@ -213,10 +232,28 @@ describe('the dictionary database', () => {
     expect(await heads('nothing like it')).toEqual([]);
   });
 
+  it('finds the dictionary form of an inflected word, and says how', async () => {
+    const found = async (q: string) => {
+      const r = await searchDict(dict, q);
+      const i = r.inflections[0];
+      return i && { head: headPair(r.entries.find((e) => e.seq === i.seq)!)[0], base: i.base, reasons: i.reasons, first: r.entries[0].seq === i.seq };
+    };
+    expect(await found('食べた')).toEqual({ head: '食べる', base: '食べる', reasons: ['past'], first: true });
+    expect(await found('tabetakunakatta')).toEqual({ head: '食べる', base: 'たべる', reasons: ['want to', 'negative', 'past'], first: true });
+    expect(await found('構わない')).toEqual({ head: '構う', base: '構う', reasons: ['negative'], first: true });
+    expect(await found('危なかった')).toEqual({ head: '危ない', base: '危ない', reasons: ['past'], first: true });
+    expect(await found('決心した')).toEqual({ head: '決心', base: '決心する', reasons: ['past'], first: true });
+    // A kind of word the rule doesn't fit isn't offered: 降る is godan, so 降た is nothing.
+    expect((await searchDict(dict, '降た')).inflections).toEqual([]);
+    // English has no inflections, and romaji is one word.
+    expect((await searchDict(dict, 'eat')).inflections).toEqual([]);
+    expect((await searchDict(dict, 'tabe ta')).inflections).toEqual([]);
+  });
+
   it('loads a chunk again without doubling it', async () => {
     const chunks = toChunks(sample.entries, 30);
     await dict.exec(chunkSql(chunks[0], sample.version, chunks.length));
-    expect((await searchDict(dict, 'たべる')).filter((e) => e.seq === TABERU)).toHaveLength(1);
+    expect((await searchDict(dict, 'たべる')).entries.filter((e) => e.seq === TABERU)).toHaveLength(1);
     expect(await dictStatus(dict)).toMatchObject({ loaded: 3, complete: true });
   });
 

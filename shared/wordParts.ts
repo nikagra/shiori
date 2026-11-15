@@ -1,4 +1,5 @@
 import type { DictEntry } from './dictEntry';
+import { deinflect } from './deinflect';
 
 // A long word split into the dictionary words it's made of, so a hard
 // compound can be learned as parts: 行方不明 is 行方 "whereabouts" + 不明
@@ -12,33 +13,31 @@ export interface WordPart {
   /** Null for a piece that isn't a dictionary word itself (okurigana, a particle, a conjugated ending). */
   reading: string | null;
   gloss: string | null;
+  /** The part's dictionary entry, for a piece that is a word. */
+  seq?: number;
 }
+
+type KnownPart = { reading: string; gloss: string; seq: number };
 
 const HAN = /\p{Script=Han}/u;
 const KANA = /^[\p{Script=Hiragana}]+$/u;
-/** Endings of a verb's negative or stem form read back to its dictionary form, at most this many kana. */
-const MAX_ENDING = 3;
-const NEGATIVE = ['ず', 'ない', 'なかった'];
-/** Godan negative stems: 書か(ず) is 書く. */
-const A_TO_U: Record<string, string> = { か: 'く', が: 'ぐ', さ: 'す', た: 'つ', な: 'ぬ', ば: 'ぶ', ま: 'む', ら: 'る', わ: 'う' };
 
 /**
- * Dictionary forms a verb ending the word may stand for: an ichidan stem
- * with its okurigana plus る (入れず → 入れる), or a godan negative
- * (利かず → 利く). A bare kanji plus る is never tried: 目覚まし is not 覚る.
+ * Dictionary forms a verb ending the word (from `from` on) may stand for:
+ * 入れず is 入れる, 利かず is 利く (shared/deinflect.ts reads the endings).
+ * An ichidan verb needs kana before its る, so a bare kanji plus る is never
+ * tried: 目覚まし is not 覚る, and 見ず isn't split off as 見る. Godan forms
+ * keep their own last kana (入らず is 入る). Unlike search, the part of
+ * speech isn't checked here: the split only needs a word that fits.
  */
-function verbForms(chars: string[], from: number): { at: number; form: string }[] {
-  const out: { at: number; form: string }[] = [];
-  for (let k = 1; k <= MAX_ENDING && chars.length - k > from + 1; k++) {
-    const ending = chars.slice(chars.length - k).join('');
-    const stem = chars.slice(from, chars.length - k);
-    const last = stem[stem.length - 1];
-    if (!KANA.test(ending) || !HAN.test(stem.join('')) || !KANA.test(last)) continue;
-    out.push({ at: chars.length - k, form: `${stem.join('')}る` });
-    if (NEGATIVE.includes(ending) && A_TO_U[last]) out.push({ at: chars.length - k, form: `${stem.slice(0, -1).join('')}${A_TO_U[last]}` });
-  }
-  return out;
+function verbForms(chars: string[], from: number): string[] {
+  const tail = chars.slice(from).join('');
+  return deinflect(tail)
+    .filter((d) => (d.kind === 'v1' || d.kind === 'v5') && HAN.test(d.base))
+    .filter((d) => d.kind !== 'v1' || KANA.test([...d.base].at(-2) ?? ''))
+    .map((d) => d.base);
 }
+
 /** Longer words aren't split: they'd make the lookup big and they're rare. */
 export const MAX_SPLIT = 12;
 
@@ -53,7 +52,7 @@ export function partCandidates(written: string): string[] {
       const piece = chars.slice(i, j).join('');
       if (HAN.test(piece)) out.add(piece);
     }
-    for (const v of verbForms(chars, i)) if (i > 0) out.add(v.form);
+    if (i > 0) for (const form of verbForms(chars, i)) out.add(form);
   }
   return [...out];
 }
@@ -63,8 +62,8 @@ export function partCandidates(written: string): string[] {
  * common) entry wins. Entries of the word itself are skipped: 夜明 is 夜明け
  * spelled short, not a part of it.
  */
-export function partInfo(entries: DictEntry[], whole = ''): Map<string, { reading: string; gloss: string }> {
-  const out = new Map<string, { reading: string; gloss: string }>();
+export function partInfo(entries: DictEntry[], whole = ''): Map<string, KnownPart> {
+  const out = new Map<string, KnownPart>();
   for (const e of entries) {
     if (e.kanji.some((k) => k.text === whole)) continue;
     const gloss = e.senses[0]?.gloss[0];
@@ -73,7 +72,7 @@ export function partInfo(entries: DictEntry[], whole = ''): Map<string, { readin
       if (out.has(k.text)) continue;
       // The reading that goes with this written form, when the entry says.
       const reading = e.kana.find((r) => !r.kanji || r.kanji.includes(k.text)) ?? e.kana[0];
-      if (reading) out.set(k.text, { reading: reading.text, gloss });
+      if (reading) out.set(k.text, { reading: reading.text, gloss, seq: e.seq });
     }
   }
   return out;
@@ -86,7 +85,7 @@ export function partInfo(entries: DictEntry[], whole = ''): Map<string, { readin
  * [] unless at least two parts are words: otherwise there's nothing to learn
  * from the split.
  */
-export function splitParts(written: string, known: Map<string, { reading: string; gloss: string }>): WordPart[] {
+export function splitParts(written: string, known: Map<string, KnownPart>): WordPart[] {
   const chars = [...written];
   const parts: WordPart[] = [];
   let i = 0;
@@ -100,9 +99,9 @@ export function splitParts(written: string, known: Map<string, { reading: string
       }
     }
     // A conjugated verb that ends the word beats a shorter word inside it.
-    const verb = i > 0 && found < chars.length ? verbForms(chars, i).find((v) => known.has(v.form)) : undefined;
+    const verb = i > 0 && found < chars.length ? verbForms(chars, i).find((form) => known.has(form)) : undefined;
     if (verb) {
-      parts.push({ text: chars.slice(i).join(''), base: verb.form, ...known.get(verb.form)! });
+      parts.push({ text: chars.slice(i).join(''), base: verb, ...known.get(verb)! });
       break;
     }
     if (found) {

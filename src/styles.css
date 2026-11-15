@@ -1022,12 +1022,37 @@ rt {
   font-size: 0.8rem;
 }
 
-.dict-reading {
-  font-size: 1.4rem;
-}
-
 .dict-note {
   font-size: 0.85rem;
+}
+
+/* The Dictionary screen: results open their entry page. */
+a.word-row__head {
+  text-decoration: none;
+}
+
+.word-row__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.word-row__note {
+  font-size: 0.8rem;
+  color: var(--accent);
+}
+
+.dict-entry__word {
+  font-family: var(--font-jp);
+  font-size: 2.2rem;
+  font-weight: 500;
+  line-height: 1.6;
+}
+
+.dict-entry__word rt {
+  font-size: 0.4em;
+  color: var(--ink-soft);
 }
 
 .grading {

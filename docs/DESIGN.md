@@ -122,7 +122,7 @@ Each list opens to its words (`#/lists/<id>`), in the order they came in (a word
   words and its one list. A learned word can move: its learned page stays
   in its old list, as history.
 
-### Dictionary (`shared/dictionary.ts`, `worker/dict.ts`, AddWord, DictSearch)
+### Dictionary (`shared/dictionary.ts`, `shared/deinflect.ts`, `worker/dict.ts`, Dictionary, DictSearch, AddToList)
 
 - **Data.** English JMdict from
   [jmdict-simplified](https://github.com/scriptin/jmdict-simplified) with
@@ -159,12 +159,41 @@ Each list opens to its words (`#/lists/<id>`), in the order they came in (a word
   JMdict has no frequency ranks, so ties go to common words, then words
   written with N5/N4 kanji or in hiragana (食べる before 喫する for "eat",
   家 before ハウス for "house").
-- **Add a word** (`#/add`, Home's button, or "Add a word" on a list:
-  `#/add/<list>`): search, open a result to see every sense, choose the
-  spelling and the meaning to learn (the first sense's first glosses to
-  start with), then add it. It waits for a page, since you looked it up
-  because you didn't know it. A word usually written in kana is added in
-  kana unless you untick that. Results you have already say which list.
+- **Inflected forms** (`shared/deinflect.ts`): a Japanese search (or
+  romaji, one word) is also read back to dictionary forms, Yomichan-style:
+  rules strip one ending at a time (食べたくなかった → 食べたくない, past
+  → 食べたい, negative → 食べる, want to), at most five steps. Covered:
+  ない, ず, た, て, たら, ば, ます and its past and negative, ましょう, たい,
+  よう, potential, passive, causative, ないで, ている / てる, い-adjective
+  く / かった / くない / くて / ければ, for ichidan, godan (by last kana,
+  行く's own 行った, polite くださいます), する (also 勉強した, which JMdict
+  files as 勉強 with `vs`) and 来る. Rare irregulars (問うた) aren't. A
+  candidate counts only when an entry has that form and the right part of
+  speech (`posFits`), so 降た finds nothing. The result says how
+  ("食べた is 食べる: past."). Japanese input ranks them right after exact
+  forms; romaji ranks them after English meanings, since "kite" (きて) is
+  likelier the toy than 来る. Word parts use the same endings for a verb
+  ending a compound (入れず → 入れる), without the part of speech check.
+- **The Dictionary screen** (`#/dict`, a tab; Home's "Add a word from the
+  dictionary"; a list's "Add a word" opens `#/dict?list=<id>`, which is
+  also the list Add to list starts on; otherwise it's the last list you
+  added to from the Dictionary on its own; old `#/add`
+  links still work): look up first, add second (Mikita, 28 Oct). The query
+  stays in the address (`?q=`), so Back from an entry returns to the
+  results. Results open the entry page, `#/dict/<seq>`, laid out like
+  jisho's: the word with readings over every kanji, audio, common badge,
+  other spellings, "usually written in kana", a compound's parts (each a
+  link to its entry), and every meaning. If you have the word, it says
+  where ("You have 食べる in Manga, waiting") and links to it in its list
+  (`#/lists/<id>?word=<word id>` opens it); otherwise **Add to list** shows the
+  list, spelling, kana-only and meaning to learn (the first sense's first
+  glosses to start with). An added word waits for a page, since you looked
+  it up because you didn't know it. A word usually written in kana is added
+  in kana unless you untick that. A word's editor links to its entry, and
+  a memory hook's parts link to theirs (not in Review, which a tap would
+  leave, nor while the hook has unsaved text). The Dictionary tab starts a
+  fresh search; remembered results show at once on Back and are fetched
+  again, so "yours" badges stay right. Check moved off the tab bar for it; it stays on Home's tile.
 - **Matching your words** (`matchWord`): by written form and reading
   (katakana and hiragana alike; a kana-only word in Renshuu's kanji field
   counts as kana-only). When several entries share the spelling (コート:
@@ -531,7 +560,7 @@ again (its deletes come first), or rewind with Time Travel.
 
 | Part | Where | Notes |
 |---|---|---|
-| UI | `src/` (React 19, Vite) | Screens: Home, Triage (Check), Pages, PagePicker, PageView, Lists (with ListWords under it), AddWord, Review, Settings (with Import under it). API calls (`call()` in `src/api.ts`) give up after `REQUEST_TIMEOUT_MS` (15 s; an import gets 2 minutes, the backup download has no limit). Answers show "Saving…" after half a second; if a save is lost on the way the answer stays on screen to send again (`SaveStatus`), while one the server turns down (a 4xx) shows its error as before |
+| UI | `src/` (React 19, Vite) | Screens: Home, Triage (Check), Pages, PagePicker, PageView, Lists (with ListWords under it), Dictionary (search and entry page), Review, Settings (with Import under it). API calls (`call()` in `src/api.ts`) give up after `REQUEST_TIMEOUT_MS` (15 s; an import gets 2 minutes, the backup download has no limit). Answers show "Saving…" after half a second; if a save is lost on the way the answer stays on screen to send again (`SaveStatus`), while one the server turns down (a 4xx) shows its error as before |
 | Shared logic | `shared/` | Pure TypeScript used by both UI and worker; unit tested |
 | API | `worker/index.ts` (Hono on Cloudflare Workers) | Under `/api/*`; the rest is the single-page app. Also the nightly cron (`scheduled`) |
 | Data access | `worker/db.ts` | Multi-row changes run as one D1 batch, so a failed or repeated request can't leave half-done state |

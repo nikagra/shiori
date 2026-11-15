@@ -9,15 +9,20 @@ import { Review } from './screens/Review';
 import { Lists } from './screens/Lists';
 import { ListWords } from './screens/ListWords';
 import { Settings } from './screens/Settings';
-import { AddWord } from './screens/AddWord';
+import { Dictionary, DictEntryPage } from './screens/Dictionary';
+import { idParam, listParam, readHash } from './nav';
 import { Practice } from './screens/Practice';
 
 // Hash routes: #/, #/review, #/pages, #/pages/3, #/pages/new (pick the words; #/pages/new/2 from list 2), #/lists, #/lists/2 (its words; #/lists/2/leeches its leeches), #/check, #/settings,
 // #/practise (pick learned pages to practise; #/practise/3,5 practises those pages),
-// #/settings/backup, #/settings/grading (scrolled to that section), #/settings/import, #/add (a word from the dictionary; #/add/2 into list 2)
+// #/settings/backup, #/settings/grading (scrolled to that section), #/settings/import,
+// #/dict?q=食べた&list=2 (the dictionary: what you searched for, the list to add to), #/dict/1358280 (an entry, with the same ?q and ?list),
+// #/lists/2?word=15 (a list with that word open); old #/add and #/add/2 links open the dictionary.
 
-function useHashRoute(): string[] {
-  const read = () => window.location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
+/** The route, and `visit`, which counts address changes: a screen keyed on it starts afresh each time you go to it (the Dictionary tab clears the search). */
+let visits = 0;
+function useHashRoute() {
+  const read = () => ({ ...readHash(), visit: ++visits });
   const [route, setRoute] = useState(read);
   useEffect(() => {
     const onChange = () => {
@@ -35,14 +40,15 @@ const NAV = [
   { href: '#/review', label: 'Review', match: 'review' },
   { href: '#/pages', label: 'Pages', match: 'pages' },
   { href: '#/lists', label: 'Lists', match: 'lists' },
-  { href: '#/check', label: 'Check', match: 'check' },
+  { href: '#/dict', label: 'Dictionary', match: 'dict' },
   { href: '#/settings', label: 'Settings', match: 'settings' },
 ];
 
 export function App() {
-  const route = useHashRoute();
-  // Old #/import links open Settings › Import.
-  const [section, id, sub] = route[0] === 'import' ? ['settings', 'import'] : route;
+  const { parts, params, visit } = useHashRoute();
+  // Old #/import links open Settings › Import; old #/add links open the dictionary.
+  const [section, id, sub] = parts[0] === 'import' ? ['settings', 'import'] : parts[0] === 'add' ? ['dict'] : parts;
+  const list = parts[0] === 'add' ? idParam(parts[1]) : listParam(params);
 
   let screen;
   switch (section) {
@@ -65,11 +71,17 @@ export function App() {
       );
       break;
     case 'lists':
-      screen = id ? <ListWords key={`${id}/${sub ?? ''}`} id={Number(id)} leeches={sub === 'leeches'} /> : <Lists />;
+      screen = id ? (
+        <ListWords key={`${id}/${sub ?? ''}/${params.get('word') ?? ''}`} id={Number(id)} leeches={sub === 'leeches'} focus={idParam(params.get('word'))} />
+      ) : (
+        <Lists />
+      );
       break;
-    case 'add':
-      screen = <AddWord key={id} listId={id ? Number(id) : null} />;
+    case 'dict': {
+      const q = params.get('q') ?? '';
+      screen = id ? <DictEntryPage key={id} seq={Number(id)} ctx={{ q, list }} /> : <Dictionary key={visit} q={q} list={list} />;
       break;
+    }
     case 'check':
       screen = <Triage />;
       break;

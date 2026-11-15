@@ -612,17 +612,28 @@ export async function addFromDict(db: D1Database, listId: number, entry: DictEnt
   return getListWord(db, row!.id);
 }
 
+/** One of your words linked to a dictionary entry. */
+export interface EntryWord {
+  id: number;
+  dictSeq: number;
+  kana: string;
+  kanji: string | null;
+  status: WordStatus;
+  listId: number | null;
+  listName: string | null;
+}
+
 /** Your words linked to these entries, to show which search results you have already. */
-export async function wordsForEntries(db: D1Database, seqs: number[]): Promise<{ id: number; dictSeq: number; kana: string; kanji: string | null; listId: number | null; listName: string | null }[]> {
+export async function wordsForEntries(db: D1Database, seqs: number[]): Promise<EntryWord[]> {
   if (!seqs.length) return [];
   const rows = await db
     .prepare(
-      `SELECT w.id, w.dict_seq, w.kana, w.kanji, w.list_id, l.name FROM words w LEFT JOIN lists l ON l.id = w.list_id
+      `SELECT w.id, w.dict_seq, w.kana, w.kanji, w.status, w.list_id, l.name FROM words w LEFT JOIN lists l ON l.id = w.list_id
        WHERE w.dict_seq IN (${seqs.map(() => '?').join(', ')})`,
     )
     .bind(...seqs)
-    .all<{ id: number; dict_seq: number; kana: string; kanji: string | null; list_id: number | null; name: string | null }>();
-  return rows.results.map((r) => ({ id: r.id, dictSeq: r.dict_seq, kana: r.kana, kanji: r.kanji, listId: r.list_id, listName: r.name }));
+    .all<{ id: number; dict_seq: number; kana: string; kanji: string | null; status: WordStatus; list_id: number | null; name: string | null }>();
+  return rows.results.map((r) => ({ id: r.id, dictSeq: r.dict_seq, kana: r.kana, kanji: r.kanji, status: r.status, listId: r.list_id, listName: r.name }));
 }
 
 /** Your words by dictionary state, for Settings. */

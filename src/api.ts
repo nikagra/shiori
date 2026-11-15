@@ -2,7 +2,7 @@
 
 import { parseBackup, type Backup, type NightlyStatus } from '../shared/backup';
 import type { FuriganaPrefs, Ruby } from '../shared/furigana';
-import type { DictEntry } from '../shared/dictionary';
+import type { DictEntry, Inflection } from '../shared/dictionary';
 import type { WordPart } from '../shared/wordParts';
 import type { GradeIntervals, StudyPrefs } from '../shared/study';
 
@@ -129,8 +129,16 @@ export interface MyEntryWord {
   dictSeq: number;
   kana: string;
   kanji: string | null;
+  status: WordStatus;
   listId: number | null;
   listName: string | null;
+}
+
+export interface DictSearchResult {
+  entries: DictEntry[];
+  /** Results found as the dictionary form of what you typed (食べた: 食べる). */
+  inflections: Inflection[];
+  mine: MyEntryWord[];
 }
 
 export interface ImportResult {
@@ -209,8 +217,9 @@ export const api = {
   /** Links a word to a dictionary entry, or (null) says none fits. */
   linkEntry: (id: number, dictSeq: number | null) => call<ListWord>('PATCH', `/words/${id}`, { dictSeq }),
   dictStatus: () => call<DictStatus>('GET', '/dict/status'),
-  dictSearch: (q: string) => call<{ entries: DictEntry[]; mine: MyEntryWord[] }>('GET', `/dict/search?q=${encodeURIComponent(q)}`),
-  dictEntry: (seq: number) => call<DictEntry>('GET', `/dict/entries/${seq}`),
+  dictSearch: (q: string) => call<DictSearchResult>('GET', `/dict/search?q=${encodeURIComponent(q)}`),
+  /** An entry, and your words linked to it. */
+  dictEntry: (seq: number) => call<{ entry: DictEntry; mine: MyEntryWord[] }>('GET', `/dict/entries/${seq}`),
   wordParts: (written: string) => call<WordPart[]>('GET', `/dict/parts?w=${encodeURIComponent(written)}`),
   /** Looks up the next batch of your words with no entry yet. */
   dictLookUp: () => call<{ looked: number; matched: number; remaining: number }>('POST', '/dict/look-up'),
